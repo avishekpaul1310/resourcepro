@@ -227,13 +227,9 @@
         <h2 class="chart-title">Resource Utilization</h2>
         <div class="chart-container">
             <canvas id="utilizationChart" 
-                   data-labels='{{ resources|map:"name"|list|safe }}'
-                   data-values='{{ resources|map:"utilization"|list|safe }}'
-                   data-colors='[
-                       {% for resource in resources %}
-                           "{% if resource.utilization > 100 %}#e53e3e{% elif resource.utilization > 85 %}#ed8936{% else %}#48bb78{% endif %}"{% if not forloop.last %},{% endif %}
-                       {% endfor %}
-                   ]'></canvas>
+                   data-labels='{{ resource_names_json|safe }}'
+                   data-values='{{ resource_utilizations_json|safe }}'
+                   data-colors='{{ resource_colors_json|safe }}'></canvas>
         </div>
     </div>
     
@@ -242,8 +238,8 @@
         <h2 class="chart-title">Project Progress</h2>
         <div class="chart-container">
             <canvas id="progressChart" 
-                   data-labels='{{ projects|map:"name"|list|safe }}'
-                   data-values='{{ projects|map:"completion"|list|safe }}'></canvas>
+                   data-labels='{{ project_names_json|safe }}'
+                   data-values='{{ project_completions_json|safe }}'></canvas>
         </div>
     </div>
 </div>
@@ -281,7 +277,7 @@
         {% for resource in overallocated_resources %}
         <div class="resource-overallocated">
             <div class="resource-info">
-                <div class="resource-avatar" style="background-color: '{{ resource.color }}'">
+                <div class="resource-avatar" style="background-color: '{{ resource.color }}';">
                     {{ resource.name|first|upper }}
                 </div>
                 <div class="resource-details">
@@ -302,5 +298,80 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{% static 'js/charts.js' %}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Resource Utilization Chart
+        const utilizationCtx = document.getElementById('utilizationChart');
+        if (utilizationCtx) {
+            const resourceNames = JSON.parse(utilizationCtx.dataset.labels);
+            const utilizationData = JSON.parse(utilizationCtx.dataset.values);
+            const colors = JSON.parse(utilizationCtx.dataset.colors);
+            
+            new Chart(utilizationCtx, {
+                type: 'bar',
+                data: {
+                    labels: resourceNames,
+                    datasets: [{
+                        label: 'Utilization (%)',
+                        data: utilizationData,
+                        backgroundColor: colors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 120,
+                            title: {
+                                display: true,
+                                text: 'Utilization (%)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Project Progress Chart
+        const progressCtx = document.getElementById('progressChart');
+        if (progressCtx) {
+            const projectNames = JSON.parse(progressCtx.dataset.labels);
+            const progressData = JSON.parse(progressCtx.dataset.values);
+            
+            new Chart(progressCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: projectNames,
+                    datasets: [{
+                        data: progressData,
+                        backgroundColor: [
+                            '#4C51BF', // indigo-800
+                            '#667EEA', // indigo-500
+                            '#A3BFFA', // indigo-300
+                            '#EBF4FF', // indigo-100
+                            '#F97316', // orange-500
+                            '#FDBA74', // orange-300
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}

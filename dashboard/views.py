@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from datetime import timedelta
+import json
 from resources.models import Resource
 from projects.models import Project, Task
 from allocation.models import Assignment
@@ -42,6 +43,23 @@ def dashboard(request):
         status__in=['not_started', 'in_progress', 'blocked']
     ).count()
     
+    # Prepare data for charts
+    resource_names = [r.name for r in resources]
+    resource_utilizations = [r.utilization for r in resources]
+    
+    project_names = [p.name for p in projects]
+    project_completions = [p.completion for p in projects]
+    
+    # Create chart colors based on utilization
+    resource_colors = []
+    for r in resources:
+        if r.utilization > 100:
+            resource_colors.append("#e53e3e")
+        elif r.utilization > 85:
+            resource_colors.append("#ed8936")
+        else:
+            resource_colors.append("#48bb78")
+    
     context = {
         'resources': resources,
         'projects': projects,
@@ -50,6 +68,12 @@ def dashboard(request):
         'unassigned_tasks': unassigned_tasks,
         'total_resources': resources.count(),
         'total_projects': projects.count(),
+        # Add these for the charts as JSON strings
+        'resource_names_json': json.dumps(resource_names),
+        'resource_utilizations_json': json.dumps(resource_utilizations),
+        'resource_colors_json': json.dumps(resource_colors),
+        'project_names_json': json.dumps(project_names),
+        'project_completions_json': json.dumps(project_completions),
     }
     
     return render(request, 'dashboard/dashboard.html', context)
