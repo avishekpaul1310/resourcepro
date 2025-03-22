@@ -15,8 +15,7 @@
             <select name="project" onchange="this.form.submit()" class="select">
                 <option value="">All Projects</option>
                 {% for project in projects %}
-                <option value="{{ project.id }}" {% if selected_project==project.id|stringformat:"i" %}selected{% endif
-                    %}>
+                <option value="{{ project.id }}" {% if selected_project_str == project.id|stringformat:"s" %}selected{% endif %}>
                     {{ project.name }}
                 </option>
                 {% endfor %}
@@ -53,7 +52,7 @@
             </div>
         </div>
     </div>
-
+    
     <!-- Resources Panel -->
     <div class="resources-panel">
         <div class="panel-header">
@@ -65,7 +64,7 @@
                 <div class="resource-card">
                     <div class="resource-header">
                         <div class="resource-info">
-                            <div class="resource-avatar" data-color="{{ resource.color }}">
+                            <div class="resource-avatar" style="background-color: '{{ resource.color }}';">
                                 {{ resource.name|first|upper }}
                             </div>
                             <div class="resource-details">
@@ -75,21 +74,22 @@
                         </div>
                         <div class="resource-utilization">
                             <span class="utilization-text 
-                                      {% if resource.utilization > 100 %}utilization-danger
-                                      {% elif resource.utilization > 85 %}utilization-warning
-                                      {% else %}utilization-normal{% endif %}">
+                                  {% if resource.utilization > 100 %}utilization-danger
+                                  {% elif resource.utilization > 85 %}utilization-warning
+                                  {% else %}utilization-normal{% endif %}">
                                 {{ resource.utilization }}% Utilized
                             </span>
                             <div class="progress-bar">
                                 <div class="progress-fill 
                                      {% if resource.utilization > 100 %}progress-danger
                                      {% elif resource.utilization > 85 %}progress-warning
-                                     {% else %}progress-normal{% endif %}" data-utilization="{{ resource.capped_utilization }}">
+                                     {% else %}progress-normal{% endif %}" 
+                                     data-utilization="{{ resource.capped_utilization }}">
                                 </div>
                             </div>
                         </div>
                     </div>
-
+                    
                     <div class="resource-assignments" data-resource-id="{{ resource.id }}">
                         {% if resource.task_assignments %}
                         <div class="assignment-list">
@@ -144,12 +144,12 @@
 {% block extra_js %}
 <script src="{% static 'js/drag-drop.js' %}"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', function() {
         // Apply colors to resource avatars
         document.querySelectorAll('.resource-avatar[data-color]').forEach(avatar => {
-            avatar.style.backgroundColor = '#' + avatar.dataset.color;
+            avatar.style.backgroundColor = avatar.dataset.color;
         });
-
+        
         // Apply utilization percentages to progress bars
         document.querySelectorAll('.progress-fill[data-utilization]').forEach(bar => {
             bar.style.width = bar.dataset.utilization + '%';

@@ -16,6 +16,7 @@ def allocation_board(request):
     # Calculate current utilization for all resources
     for resource in resources:
         resource.utilization = resource.current_utilization()
+        # Add a capped utilization value for the progress bar
         resource.capped_utilization = min(resource.utilization, 100)
     
     # Get unassigned tasks
@@ -32,6 +33,9 @@ def allocation_board(request):
     if project_filter:
         unassigned_tasks = unassigned_tasks.filter(project_id=project_filter)
     
+    # Convert selected_project to string for template comparison
+    selected_project_str = str(project_filter) if project_filter else ''
+    
     # For each resource, get their assignments
     for resource in resources:
         resource.task_assignments = Assignment.objects.filter(
@@ -44,6 +48,7 @@ def allocation_board(request):
         'unassigned_tasks': unassigned_tasks,
         'projects': projects,
         'selected_project': project_filter,
+        'selected_project_str': selected_project_str,  # Added this for string comparison
     }
     
     return render(request, 'allocation/allocation_board.html', context)
