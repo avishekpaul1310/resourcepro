@@ -113,12 +113,22 @@
     document.addEventListener('DOMContentLoaded', function() {
         // When project changes, reload the page with the new project ID to update dependencies
         const projectSelect = document.getElementById('id_project');
-        projectSelect.addEventListener('change', function() {
-            const projectId = this.value;
-            if (projectId) {
-                window.location.href = "{% url 'task_create' %}?project=" + projectId;
-            }
-        });
+        
+        // Set the current project if it's in the URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectParam = urlParams.get('project');
+        if (projectParam && projectSelect) {
+            projectSelect.value = projectParam;
+        }
+        
+        if (projectSelect) {
+            projectSelect.addEventListener('change', function() {
+                const projectId = this.value;
+                if (projectId) {
+                    window.location.href = "{% url 'task_create' %}?project=" + projectId;
+                }
+            });
+        }
     });
 </script>
 {% endblock %}
