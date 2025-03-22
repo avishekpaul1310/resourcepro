@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ resource.name }} - ResourcePro{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1 class="title">Resource Details</h1>
+    <div class="actions">
+        <a href="{% url 'resource_edit' resource.id %}" class="btn btn-secondary">Edit</a>
+        <a href="{% url 'resource_list' %}" class="btn btn-primary">Back to Resources</a>
+    </div>
+</div>
+
+<div class="card resource-details-card">
+    <div class="card-header">
+        <div class="resource-header">
+            <div class="resource-icon" data-color="{{ resource.color }}">
+                {{ resource.name|first|upper }}
+            </div>
+            <div class="resource-info">
+                <h2 class="resource-name">{{ resource.name }}</h2>
+                <div class="resource-role">{{ resource.role }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="resource-grid">
+            <div class="resource-details">
+                <h3 class="resource-section-title">Details</h3>
+                <div class="resource-detail-item">
+                    <div class="resource-detail-label">Capacity</div>
+                    <div class="resource-detail-value">{{ resource.capacity }} hours/week</div>
+                </div>
+                <div class="resource-detail-item">
+                    <div class="resource-detail-label">Cost</div>
+                    <div class="resource-detail-value">${{ resource.cost_per_hour }}/hour</div>
+                </div>
+                <div class="resource-detail-item">
+                    <div class="resource-detail-label">Current Utilization</div>
+                    <div class="resource-utilization">
+                        <div class="resource-utilization-value {% if resource.utilization > 100 %}text-red-600{% elif resource.utilization > 85 %}text-orange-600{% else %}text-green-600{% endif %}">
+                            {{ resource.utilization }}%
+                        </div>
+                        <div class="resource-utilization-bar-container">
+                            <div class="resource-utilization-bar" data-width="{% if resource.utilization > 100 %}100{% else %}{{ resource.utilization }}{% endif %}"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="resource-skills">
+                <h3 class="resource-section-title">Skills</h3>
+                <div class="resource-skills-list">
+                    {% for skill in resource.skills.all %}
+                    <div class="resource-skill-item">
+                        {{ skill.name }}
+                        {% with proficiency=resource.resource_skills.get.proficiency %}
+                        <span class="resource-skill-proficiency">({{ proficiency }}/10)</span>
+                        {% endwith %}
+                    </div>
+                    {% empty %}
+                    <div class="resource-no-skills">No skills added yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        Current Assignments
+    </div>
+    <div class="card-body">
+        <table class="table resource-assignments-table">
+            <thead>
+                <tr class="table-header-row">
+                    <th class="table-header">Task</th>
+                    <th class="table-header">Project</th>
+                    <th class="table-header">Hours</th>
+                    <th class="table-header">Status</th>
+                    <th class="table-header">Dates</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for assignment in resource.assignments.all %}
+                <tr class="table-row">
+                    <td class="table-cell">{{ assignment.task.name }}</td>
+                    <td class="table-cell">{{ assignment.task.project.name }}</td>
+                    <td class="table-cell">{{ assignment.allocated_hours }}</td>
+                    <td class="table-cell">
+                        <span class="status-badge {{ assignment.task.status }}">
+                            {{ assignment.task.get_status_display }}
+                        </span>
+                    </td>
+                    <td class="table-cell">
+                        {{ assignment.task.start_date|date:"M d" }} - {{ assignment.task.end_date|date:"M d" }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="table-empty-message">No assignments yet. Assign tasks from the <a href="{% url 'allocation_board' %}">Allocation Board</a>.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Apply background color to resource icons
+        const resourceIcon = document.querySelector('.resource-icon');
+        if (resourceIcon) {
+            resourceIcon.style.backgroundColor = resourceIcon.dataset.color;
+        }
+        
+        // Apply width to utilization bars
+        const utilizationBar = document.querySelector('.resource-utilization-bar');
+        if (utilizationBar) {
+            utilizationBar.style.width = utilizationBar.dataset.width + '%';
+        }
+    });
+</script>

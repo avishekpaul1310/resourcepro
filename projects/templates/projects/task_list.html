@@ -1,0 +1,79 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Tasks - ResourcePro{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1 class="title">Tasks</h1>
+    <div class="actions">
+        <form method="get" class="filter-form" style="display: inline-block; margin-right: 10px;">
+            <select name="project" onchange="this.form.submit()" class="form-control" style="min-width: 200px;">
+                <option value="">All Projects</option>
+                {% for project in projects %}
+                <option value="{{ project.id }}" {% if selected_project == project.id|stringformat:"i" %}selected{% endif %}>
+                    {{ project.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </form>
+        <a href="{% url 'task_create' %}" class="btn btn-primary">Add Task</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Task</th>
+                    <th>Project</th>
+                    <th>Status</th>
+                    <th>Timeline</th>
+                    <th>Hours</th>
+                    <th>Assigned To</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                <tr>
+                    <td><a href="{% url 'task_detail' task.id %}">{{ task.name }}</a></td>
+                    <td>
+                        <div style="display: flex; align-items: center;">
+                            <div style="width: 8px; height: 8px; border-radius: 50%; background-color: '{{ task.project.color }}'; margin-right: 6px;"></div>
+                            <a href="{% url 'project_detail' task.project.id %}">{{ task.project.name }}</a>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="status-badge status-{{ task.status }}">
+                            {{ task.get_status_display }}
+                        </span>
+                    </td>
+                    <td>{{ task.start_date|date:"M d" }} - {{ task.end_date|date:"M d" }}</td>
+                    <td>{{ task.estimated_hours }}h</td>
+                    <td>
+                        {% for assignment in task.assignments.all %}
+                        <div class="assigned-resource">
+                            <div class="resource-avatar" style="background-color: '{{ assignment.resource.color }}'; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.75rem; margin-right: 6px;">
+                                {{ assignment.resource.name|first|upper }}
+                            </div>
+                            <span>{{ assignment.resource.name }}</span>
+                        </div>
+                        {% empty %}
+                        <span class="unassigned" style="color: #a0aec0;">Unassigned</span>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        <a href="{% url 'task_edit' task.id %}" class="action-link">Edit</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center">No tasks found. <a href="{% url 'task_create' %}">Add your first task</a>.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

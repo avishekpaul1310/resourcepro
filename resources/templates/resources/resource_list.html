@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}Resources - ResourcePro{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1 class="title">Resources</h1>
+    <div class="actions">
+        <a href="{% url 'resource_create' %}" class="btn btn-primary">Add Resource</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <style>
+            .resource-table { width: 100%; border-collapse: collapse; }
+            .table-row { border-bottom: 1px solid #e2e8f0; }
+            .table-cell { padding: 12px 15px; }
+            .th-cell { text-align: left; }
+            .resource-info { display: flex; align-items: center; gap: 10px; }
+            .resource-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+            .skill-tag { display: inline-block; background-color: #ebf4ff; color: #4c51bf; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; margin-right: 5px; }
+        </style>
+        <table class="table resource-table">
+            <thead>
+                <tr class="table-row">
+                    <th class="table-cell th-cell">Name</th>
+                    <th class="table-cell th-cell">Role</th>
+                    <th class="table-cell th-cell">Capacity</th>
+                    <th class="table-cell th-cell">Skills</th>
+                    <th class="table-cell th-cell">Utilization</th>
+                    <th class="table-cell th-cell">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for resource in resources %}
+                <tr class="table-row">
+                    <td class="table-cell">
+                        <div class="resource-info">
+                            <div class="resource-avatar" data-color="{{ resource.color }}">
+                                {{ resource.name|first|upper }}
+                            </div>
+                            <a href="{% url 'resource_detail' resource.id %}">{{ resource.name }}</a>
+                        </div>
+                    </td>
+                    <td class="table-cell">{{ resource.role }}</td>
+                    <td class="table-cell">{{ resource.capacity }} hours/week</td>
+                    <td class="table-cell">
+                        {% for skill in resource.skills.all %}
+                        <span class="skill-tag">
+                            {{ skill.name }}
+                        </span>
+                        {% empty %}
+                        —
+                        {% endfor %}
+                    </td>
+                    <td style="padding: 12px 15px;">
+                        <div style="display: flex; align-items: center;">
+                            <div style="margin-right: 10px; font-weight: 500;" class="{% if resource.utilization > 100 %}text-red-600{% elif resource.utilization > 85 %}text-orange-600{% else %}text-green-600{% endif %}">
+                                {{ resource.utilization }}%
+                            </div>
+                            <div style="width: 100px; height: 8px; background-color: #e2e8f0; border-radius: 4px; overflow: hidden;">
+                                <div class="utilization-bar" 
+                                     data-width="{{ resource.utilization_width }}"
+                                     data-color="{{ resource.utilization_color }}"
+                                     style="height: 100%; border-radius: 4px;"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="padding: 12px 15px;">
+                        <a href="{% url 'resource_edit' resource.id %}" style="color: #4a5568; text-decoration: none; margin-right: 10px;">Edit</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="padding: 20px; text-align: center;">No resources added yet. <a href="{% url 'resource_create' %}">Add your first resource</a>.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.resource-avatar').forEach(function(el) {
+            el.style.backgroundColor = el.getAttribute('data-color');
+        });
+        
+        document.querySelectorAll('.utilization-bar').forEach(function(el) {
+            el.style.width = el.getAttribute('data-width');
+            el.style.backgroundColor = el.getAttribute('data-color');
+        });
+    });
+</script>
+        });
+    });
+</script>
+{% endblock %}

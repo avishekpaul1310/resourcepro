@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block title %}My Profile - ResourcePro{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1 class="title">My Profile</h1>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        User Information
+    </div>
+    <div class="card-body">
+        <div>
+            <strong>Username:</strong> {{ user.username }}
+        </div>
+        <div>
+            <strong>Name:</strong> {{ user.get_full_name|default:"Not provided" }}
+        </div>
+        <div>
+            <strong>Email:</strong> {{ user.email|default:"Not provided" }}
+        </div>
+        
+        {% if user.profile %}
+        <div>
+            <strong>Role:</strong> {{ user.profile.role|default:"Not specified" }}
+        </div>
+        <div>
+            <strong>Department:</strong> {{ user.profile.department|default:"Not specified" }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Projects - ResourcePro{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1 class="title">Projects</h1>
+    <div class="actions">
+        <a href="{% url 'project_create' %}" class="btn btn-primary">Add Project</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Timeline</th>
+                    <th>Progress</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in projects %}
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center;">
+                            <div style="width: 12px; height: 12px; border-radius: 50%; background-color: '{{ project.color }}'; margin-right: 8px;"></div>
+                            <a href="{% url 'project_detail' project.id %}">{{ project.name }}</a>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="status-badge status-{{ project.status }}">
+                            {{ project.get_status_display }}
+                        </span>
+                    </td>
+                    <td>{{ project.start_date|date:"M d, Y" }} - {{ project.end_date|date:"M d, Y" }}</td>
+                    <td>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" style="width: '{{ project.completion }}%';"></div>
+                            <span class="progress-text">{{ project.completion }}%</span>
+                        </div>
+                    </td>
+                    <td>
+                        <a href="{% url 'project_edit' project.id %}" class="action-link">Edit</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center">No projects added yet. <a href="{% url 'project_create' %}">Add your first project</a>.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

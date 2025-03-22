@@ -1,0 +1,306 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - ResourcePro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-metrics {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .metric-card {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+    }
+    
+    .metric-title {
+        color: #718096;
+        font-size: 0.875rem;
+        margin-bottom: 5px;
+    }
+    
+    .metric-value {
+        font-size: 1.875rem;
+        font-weight: 600;
+        color: #2d3748;
+    }
+    
+    .metric-status {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin-top: 5px;
+        font-size: 0.875rem;
+    }
+    
+    .status-up {
+        color: #48bb78;
+    }
+    
+    .status-down {
+        color: #e53e3e;
+    }
+    
+    .dashboard-charts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .chart-card {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+    }
+    
+    .chart-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 15px;
+    }
+    
+    .chart-container {
+        height: 300px;
+    }
+    
+    .dashboard-section {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 30px;
+    }
+    
+    .section-header {
+        padding: 15px 20px;
+        border-bottom: 1px solid #e2e8f0;
+        font-weight: 600;
+        color: #2d3748;
+    }
+    
+    .section-content {
+        padding: 20px;
+    }
+    
+    .deadline-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .deadline-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .deadline-item:last-child {
+        border-bottom: none;
+    }
+    
+    .deadline-details {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .deadline-task {
+        font-weight: 500;
+    }
+    
+    .deadline-project {
+        font-size: 0.875rem;
+        color: #718096;
+    }
+    
+    .deadline-date {
+        padding: 4px 8px;
+        background-color: #ebf4ff;
+        color: #4c51bf;
+        border-radius: 4px;
+        font-size: 0.875rem;
+    }
+    
+    .deadline-overdue {
+        background-color: #fee2e2;
+        color: #e53e3e;
+    }
+    
+    .resource-overallocated {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .resource-overallocated:last-child {
+        border-bottom: none;
+    }
+    
+    .resource-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .resource-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background-color: #4c51bf;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+    
+    .resource-details {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .resource-name {
+        font-weight: 500;
+    }
+    
+    .resource-role {
+        font-size: 0.875rem;
+        color: #718096;
+    }
+    
+    .utilization-label {
+        padding: 4px 8px;
+        background-color: #fee2e2;
+        color: #e53e3e;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1 class="title">Dashboard</h1>
+    <div class="actions">
+        <button class="btn btn-secondary" onclick="window.location.reload()">Refresh</button>
+    </div>
+</div>
+
+<!-- Dashboard Metrics -->
+<div class="dashboard-metrics">
+    <div class="metric-card">
+        <div class="metric-title">Total Resources</div>
+        <div class="metric-value">{{ total_resources }}</div>
+    </div>
+    
+    <div class="metric-card">
+        <div class="metric-title">Active Projects</div>
+        <div class="metric-value">{{ projects|length }}</div>
+    </div>
+    
+    <div class="metric-card">
+        <div class="metric-title">Overallocated Resources</div>
+        <div class="metric-value">{{ overallocated_resources|length }}</div>
+    </div>
+    
+    <div class="metric-card">
+        <div class="metric-title">Unassigned Tasks</div>
+        <div class="metric-value">{{ unassigned_tasks }}</div>
+    </div>
+</div>
+
+<!-- Dashboard Charts -->
+<div class="dashboard-charts">
+    <!-- Resource Utilization Chart -->
+    <div class="chart-card">
+        <h2 class="chart-title">Resource Utilization</h2>
+        <div class="chart-container">
+            <canvas id="utilizationChart" 
+                   data-labels='{{ resources|map:"name"|list|safe }}'
+                   data-values='{{ resources|map:"utilization"|list|safe }}'
+                   data-colors='[
+                       {% for resource in resources %}
+                           "{% if resource.utilization > 100 %}#e53e3e{% elif resource.utilization > 85 %}#ed8936{% else %}#48bb78{% endif %}"{% if not forloop.last %},{% endif %}
+                       {% endfor %}
+                   ]'></canvas>
+        </div>
+    </div>
+    
+    <!-- Project Progress Chart -->
+    <div class="chart-card">
+        <h2 class="chart-title">Project Progress</h2>
+        <div class="chart-container">
+            <canvas id="progressChart" 
+                   data-labels='{{ projects|map:"name"|list|safe }}'
+                   data-values='{{ projects|map:"completion"|list|safe }}'></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Upcoming Deadlines Section -->
+<div class="dashboard-section">
+    <div class="section-header">
+        Upcoming Deadlines
+    </div>
+    <div class="section-content">
+        <div class="deadline-list">
+            {% for task in upcoming_deadlines %}
+            <div class="deadline-item">
+                <div class="deadline-details">
+                    <span class="deadline-task">{{ task.name }}</span>
+                    <span class="deadline-project">{{ task.project.name }}</span>
+                </div>
+                <span class="deadline-date {% if task.is_overdue %}deadline-overdue{% endif %}">
+                    Due: {{ task.end_date|date:"M d" }}
+                </span>
+            </div>
+            {% empty %}
+            <div class="empty-message">No upcoming deadlines!</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Overallocated Resources Section -->
+<div class="dashboard-section">
+    <div class="section-header">
+        Overallocated Resources
+    </div>
+    <div class="section-content">
+        {% for resource in overallocated_resources %}
+        <div class="resource-overallocated">
+            <div class="resource-info">
+                <div class="resource-avatar" style="background-color: '{{ resource.color }}'">
+                    {{ resource.name|first|upper }}
+                </div>
+                <div class="resource-details">
+                    <span class="resource-name">{{ resource.name }}</span>
+                    <span class="resource-role">{{ resource.role }}</span>
+                </div>
+            </div>
+            <span class="utilization-label">
+                {{ resource.utilization }}% Utilized
+            </span>
+        </div>
+        {% empty %}
+        <div class="empty-message">No overallocated resources!</div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/charts.js' %}"></script>
+{% endblock %}

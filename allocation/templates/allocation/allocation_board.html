@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Resource Allocation - ResourcePro{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/allocation.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1 class="title">Resource Allocation</h1>
+    <div class="actions">
+        <form method="get" class="filter-form">
+            <select name="project" onchange="this.form.submit()" class="select">
+                <option value="">All Projects</option>
+                {% for project in projects %}
+                <option value="{{ project.id }}" {% if selected_project == project.id|stringformat:"i" %}selected{% endif %}>
+                    {{ project.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </form>
+        <button class="btn btn-primary" id="save-assignments">Save Changes</button>
+    </div>
+</div>
+
+<!-- Allocation Board -->
+<div class="allocation-board">
+    <!-- Tasks Panel -->
+    <div class="tasks-panel">
+        <div class="panel-header">
+            <span>Unassigned Tasks</span>
+        </div>
+        <div class="panel-content">
+            <div class="task-list">
+                {% for task in unassigned_tasks %}
+                <div class="task-card" draggable="true" data-task-id="{{ task.id }}">
+                    <div class="task-header">
+                        <span class="task-title">{{ task.name }}</span>
+                        <span class="task-hours">{{ task.estimated_hours }}h</span>
+                    </div>
+                    <div class="task-project">{{ task.project.name }}</div>
+                    <div class="task-dates">
+                        <span>Start: {{ task.start_date|date:"M d" }}</span>
+                        <span>Due: {{ task.end_date|date:"M d" }}</span>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="empty-tasks">All tasks have been assigned!</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Resources Panel -->
+    <div class="resources-panel">
+        <div class="panel-header">
+            <span>Resource Assignments</span>
+        </div>
+        <div class="panel-content">
+            <div class="resource-list">
+                {% for resource in resources %}
+                <div class="resource-card">
+                    <div class="resource-header">
+                        <div class="resource-info">
+                            <div class="resource-avatar" data-color="{{ resource.color }}">
+                                {{ resource.name|first|upper }}
+                            </div>
+                            <div class="resource-details">
+                                <span class="resource-name">{{ resource.name }}</span>
+                                <span class="resource-role">{{ resource.role }}</span>
+                            </div>
+                        </div>
+                        <div class="resource-utilization">
+                            <span class="utilization-text 
+                                  {% if resource.utilization > 100 %}utilization-danger
+                                  {% elif resource.utilization > 85 %}utilization-warning
+                                  {% else %}utilization-normal{% endif %}">
+                                {{ resource.utilization }}% Utilized
+                            </span>
+                            <div class="progress-bar">
+                                <div class="progress-fill 
+                                     {% if resource.utilization > 100 %}progress-danger
+                                     {% elif resource.utilization > 85 %}progress-warning
+                                     {% else %}progress-normal{% endif %}" 
+                                     data-utilization="{{ resource.utilization|min:100 }}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="resource-assignments" data-resource-id="{{ resource.id }}">
+                        {% if resource.task_assignments %}
+                        <div class="assignment-list">
+                            {% for assignment in resource.task_assignments %}
+                            <div class="assignment-card" data-assignment-id="{{ assignment.id }}">
+                                <div class="assignment-info">
+                                    <span class="assignment-title">{{ assignment.task.name }}</span>
+                                    <span class="assignment-project">{{ assignment.task.project.name }}</span>
+                                </div>
+                                <div class="assignment-hours">{{ assignment.allocated_hours }}h</div>
+                                <div class="assignment-remove">×</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="empty-assignments">Drop tasks here to assign</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Conflict Modal (Hidden by default) -->
+<div class="modal-overlay" style="display: none;">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">Resource Conflict Detected</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="conflict-warning">
+                <h4 class="conflict-title">Warning: Resource Overallocation</h4>
+                <p class="conflict-details">
+                    Conflict details will appear here.
+                </p>
+            </div>
+            <p>Would you like to assign this task anyway or choose another resource?</p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary">Cancel</button>
+                <button class="btn btn-primary">Assign Anyway</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% csrf_token %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/drag-drop.js' %}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Apply colors to resource avatars
+        document.querySelectorAll('.resource-avatar[data-color]').forEach(avatar => {
+            avatar.style.backgroundColor = '#' + avatar.dataset.color;
+        });
+        
+        // Apply utilization percentages to progress bars
+        document.querySelectorAll('.progress-fill[data-utilization]').forEach(bar => {
+            bar.style.width = bar.dataset.utilization + '%';
+        });
+    });
+</script>
+{% endblock %}

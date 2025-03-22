@@ -1,0 +1,124 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{{ title }} - ResourcePro{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1 class="title">{{ title }}</h1>
+    <div class="actions">
+        <a href="{% if request.GET.project %}{% url 'project_detail' request.GET.project %}{% else %}{% url 'task_list' %}{% endif %}" class="btn btn-secondary">Cancel</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label for="id_project" class="form-label">Project</label>
+                {{ form.project }}
+                {% if form.project.errors %}
+                <div class="error">{{ form.project.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="id_name" class="form-label">Task Name</label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                <div class="error">{{ form.name.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="id_description" class="form-label">Description</label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                <div class="error">{{ form.description.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                <div class="form-group">
+                    <label for="id_start_date" class="form-label">Start Date</label>
+                    {{ form.start_date }}
+                    {% if form.start_date.errors %}
+                    <div class="error">{{ form.start_date.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_end_date" class="form-label">End Date</label>
+                    {{ form.end_date }}
+                    {% if form.end_date.errors %}
+                    <div class="error">{{ form.end_date.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_estimated_hours" class="form-label">Estimated Hours</label>
+                    {{ form.estimated_hours }}
+                    {% if form.estimated_hours.errors %}
+                    <div class="error">{{ form.estimated_hours.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_status" class="form-label">Status</label>
+                    {{ form.status }}
+                    {% if form.status.errors %}
+                    <div class="error">{{ form.status.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_priority" class="form-label">Priority (1-5)</label>
+                    {{ form.priority }}
+                    {% if form.priority.errors %}
+                    <div class="error">{{ form.priority.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="id_skills_required" class="form-label">Required Skills</label>
+                {{ form.skills_required }}
+                {% if form.skills_required.errors %}
+                <div class="error">{{ form.skills_required.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="id_dependencies" class="form-label">Dependencies</label>
+                {{ form.dependencies }}
+                {% if form.dependencies.errors %}
+                <div class="error">{{ form.dependencies.errors }}</div>
+                {% endif %}
+                <div class="help-text" style="font-size: 0.875rem; color: #718096; margin-top: 4px;">
+                    Tasks that must be completed before this task can be started.
+                </div>
+            </div>
+            
+            <div class="form-actions" style="margin-top: 20px;">
+                <button type="submit" class="btn btn-primary">Save Task</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // When project changes, reload the page with the new project ID to update dependencies
+        const projectSelect = document.getElementById('id_project');
+        projectSelect.addEventListener('change', function() {
+            const projectId = this.value;
+            if (projectId) {
+                window.location.href = "{% url 'task_create' %}?project=" + projectId;
+            }
+        });
+    });
+</script>
+{% endblock %}

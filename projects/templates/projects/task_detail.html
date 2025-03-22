@@ -1,0 +1,121 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{{ task.name }} - ResourcePro{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1 class="title">Task: {{ task.name }}</h1>
+    <div class="actions">
+        <a href="{% url 'task_edit' task.id %}" class="btn btn-secondary">Edit Task</a>
+        <a href="{% url 'project_detail' task.project.id %}" class="btn btn-primary">Back to Project</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="width: 12px; height: 12px; border-radius: 50%; background-color: '{{ task.project.color }}';"></div>
+            <div>Task Details</div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <div>
+                <div style="color: #718096; font-size: 0.875rem;">Project</div>
+                <div style="font-weight: 500;"><a href="{% url 'project_detail' task.project.id %}">{{ task.project.name }}</a></div>
+            </div>
+            <div>
+                <div style="color: #718096; font-size: 0.875rem;">Status</div>
+                <div style="font-weight: 500;">{{ task.get_status_display }}</div>
+            </div>
+            <div>
+                <div style="color: #718096; font-size: 0.875rem;">Timeline</div>
+                <div style="font-weight: 500;">{{ task.start_date|date:"M d, Y" }} - {{ task.end_date|date:"M d, Y" }}</div>
+            </div>
+            <div>
+                <div style="color: #718096; font-size: 0.875rem;">Hours</div>
+                <div style="font-weight: 500;">{{ task.estimated_hours }} hours estimated</div>
+            </div>
+            <div>
+                <div style="color: #718096; font-size: 0.875rem;">Priority</div>
+                <div style="font-weight: 500;">{{ task.priority }} / 5</div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <div style="color: #718096; font-size: 0.875rem;">Description</div>
+            <div style="margin-top: 5px;">{{ task.description|linebreaks|default:"No description provided." }}</div>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <div style="color: #718096; font-size: 0.875rem;">Required Skills</div>
+            <div style="margin-top: 5px; display: flex; flex-wrap: wrap; gap: 8px;">
+                {% for skill in task.skills_required.all %}
+                <div style="background-color: #ebf4ff; color: #4c51bf; padding: 4px 12px; border-radius: 16px; font-size: 0.875rem;">
+                    {{ skill.name }}
+                </div>
+                {% empty %}
+                <div style="color: #718096;">No specific skills required.</div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <div style="color: #718096; font-size: 0.875rem;">Dependencies</div>
+            <div style="margin-top: 5px;">
+                {% if task.dependencies.all %}
+                <ul style="list-style-type: disc; padding-left: 20px;">
+                    {% for dependency in task.dependencies.all %}
+                    <li><a href="{% url 'task_detail' dependency.id %}">{{ dependency.name }}</a> ({{ dependency.get_status_display }})</li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div style="color: #718096;">No dependencies.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div>Resource Assignments</div>
+    </div>
+    <div class="card-body">
+        {% if task.assignments.all %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Resource</th>
+                    <th>Role</th>
+                    <th>Allocated Hours</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for assignment in task.assignments.all %}
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 32px; height: 32px; border-radius: 50%; background-color: '{{ assignment.resource.color }}'; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                                                            {{ assignment.resource.name|first|upper }}
+                                                        </div>
+                            <a href="{% url 'resource_detail' assignment.resource.id %}">{{ assignment.resource.name }}</a>
+                        </div>
+                    </td>
+                    <td>{{ assignment.resource.role }}</td>
+                    <td>{{ assignment.allocated_hours }}h</td>
+                    <td>{{ assignment.notes|default:"-" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align: center; padding: 20px;">
+            <p>No resources assigned to this task yet.</p>
+            <a href="{% url 'allocation_board' %}" class="btn btn-secondary">Go to Allocation Board</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

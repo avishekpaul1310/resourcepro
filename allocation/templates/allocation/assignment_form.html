@@ -1,0 +1,56 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{% if form.instance.pk %}Edit{% else %}Create{% endif %} Assignment - ResourcePro{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1 class="title">{% if form.instance.pk %}Edit{% else %}Create{% endif %} Assignment</h1>
+    <div class="actions">
+        <a href="{% url 'allocation_board' %}" class="btn btn-secondary">Back to Allocation Board</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label for="id_resource" class="form-label">Resource</label>
+                {{ form.resource }}
+                {% if form.resource.errors %}
+                <div class="error">{{ form.resource.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="id_task" class="form-label">Task</label>
+                {{ form.task }}
+                {% if form.task.errors %}
+                <div class="error">{{ form.task.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="id_allocated_hours" class="form-label">Allocated Hours</label>
+                {{ form.allocated_hours }}
+                {% if form.allocated_hours.errors %}
+                <div class="error">{{ form.allocated_hours.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="id_notes" class="form-label">Notes</label>
+                {{ form.notes }}
+                {% if form.notes.errors %}
+                <div class="error">{{ form.notes.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-actions" style="margin-top: 20px;">
+                <button type="submit" class="btn btn-primary">Save Assignment</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

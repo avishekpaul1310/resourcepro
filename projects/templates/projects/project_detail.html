@@ -1,0 +1,115 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{{ project.name }} - ResourcePro{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1 class="title">Project: {{ project.name }}</h1>
+    <div class="actions">
+        <a href="{% url 'task_create' %}?project={{ project.id }}" class="btn btn-secondary">Add Task</a>
+        <a href="{% url 'project_edit' project.id %}" class="btn btn-secondary">Edit Project</a>
+        <a href="{% url 'project_list' %}" class="btn btn-primary">Back to Projects</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="width: 16px; height: 16px; border-radius: 50%; background-color: '{{ project.color }}';"></div>
+            <div>Project Details</div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <div>
+                <div style="color: #718096; font-size: 0.875rem;">Status</div>
+                <div style="font-weight: 500;">{{ project.get_status_display }}</div>
+            </div>
+            <div>
+                <div style="color: #718096; font-size: 0.875rem;">Timeline</div>
+                <div style="font-weight: 500;">{{ project.start_date|date:"M d, Y" }} - {{ project.end_date|date:"M d, Y" }}</div>
+            </div>
+            <div>
+                <div style="color: #718096; font-size: 0.875rem;">Priority</div>
+                <div style="font-weight: 500;">{{ project.priority }} / 5</div>
+            </div>
+            <div>
+                <div style="color: #718096; font-size: 0.875rem;">Manager</div>
+                <div style="font-weight: 500;">{{ project.manager.get_full_name|default:project.manager.username|default:"Not assigned" }}</div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <div style="color: #718096; font-size: 0.875rem;">Description</div>
+            <div style="margin-top: 5px;">{{ project.description|linebreaks|default:"No description provided." }}</div>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <div style="color: #718096; font-size: 0.875rem;">Progress</div>
+            <div style="margin-top: 10px; background-color: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden;">
+                <div style="background-color: #5a67d8; height: 100%; width: '{{ project.completion }}%';"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.875rem;">
+                <div>{{ project.completion }}% complete</div>
+                <div>{{ project.tasks.count }} tasks total</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>Tasks</div>
+            <a href="{% url 'task_create' %}?project={{ project.id }}" class="btn btn-sm btn-secondary">Add Task</a>
+        </div>
+    </div>
+    <div class="card-body">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Timeline</th>
+                    <th>Hours</th>
+                    <th>Assigned To</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                <tr>
+                    <td><a href="{% url 'task_detail' task.id %}">{{ task.name }}</a></td>
+                    <td>
+                        <span class="status-badge status-{{ task.status }}">
+                            {{ task.get_status_display }}
+                        </span>
+                    </td>
+                    <td>{{ task.start_date|date:"M d" }} - {{ task.end_date|date:"M d" }}</td>
+                    <td>{{ task.estimated_hours }}h</td>
+                    <td>
+                        {% for assignment in task.assignments.all %}
+                        <div class="assigned-resource">
+                            <div class="resource-avatar" style="background-color: '{{ assignment.resource.color }}'">
+                                {{ assignment.resource.name|first|upper }}
+                            </div>
+                            <span>{{ assignment.resource.name }}</span>
+                        </div>
+                        {% empty %}
+                        <span class="unassigned">Unassigned</span>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        <a href="{% url 'task_edit' task.id %}" class="action-link">Edit</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center">No tasks added to this project yet. <a href="{% url 'task_create' %}?project={{ project.id }}">Add your first task</a>.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
