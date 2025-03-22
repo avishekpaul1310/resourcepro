@@ -1,0 +1,94 @@
+/* Responsive styles for ResourcePro */
+
+/* Small devices (phones, 640px and down) */
+@media (max-width: 640px) {
+    .container {
+        padding: 0 10px;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .nav {
+        overflow-x: auto;
+        width: 100%;
+        padding-bottom: 5px;
+    }
+    
+    .nav-item {
+        white-space: nowrap;
+    }
+    
+    .page-title {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .actions {
+        width: 100%;
+    }
+    
+    .dashboard-metrics,
+    .dashboard-charts {
+        grid-template-columns: 1fr;
+    }
+    
+    .allocation-board {
+        flex-direction: column;
+    }
+    
+    .btn {
+        padding: 6px 12px;
+    }
+}
+
+/* Medium devices (tablets, 768px and down) */
+@media (max-width: 768px) {
+    .dashboard-charts {
+        grid-template-columns: 1fr;
+    }
+    
+    .allocation-board {
+        flex-direction: column;
+    }
+    
+    .tasks-panel,
+    .resources-panel {
+        flex: 1;
+    }
+}
+
+/* Large devices (desktops, 1024px and down) */
+@media (max-width: 1024px) {
+    .dashboard-metrics {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* When screen is very small, simplify the UI even more */
+@media (max-width: 480px) {
+    .nav {
+        justify-content: center;
+    }
+    
+    .user-menu {
+        justify-content: center;
+        width: 100%;
+    }
+    
+    .table {
+        display: block;
+        overflow-x: auto;
+    }
+    
+    .dashboard-metrics {
+        grid-template-columns: 1fr;
+    }
+    
+    .card-body {
+        padding: 15px 10px;
+    }
+}
