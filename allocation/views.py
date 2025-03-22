@@ -16,6 +16,7 @@ def allocation_board(request):
     # Calculate current utilization for all resources
     for resource in resources:
         resource.utilization = resource.current_utilization()
+        resource.capped_utilization = min(resource.utilization, 100)
     
     # Get unassigned tasks
     unassigned_tasks = Task.objects.filter(
