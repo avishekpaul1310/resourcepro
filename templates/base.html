@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ResourcePro{% endblock %}</title>
+    
+    {% load static %}
+    <!-- Base CSS -->
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/responsive.css' %}">
+    
+    <!-- Additional CSS -->
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% include 'includes/header.html' %}
+    
+    <main class="main-content">
+        <div class="container">
+            {% include 'includes/messages.html' %}
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+    
+    {% include 'includes/footer.html' %}
+    
+    <!-- Base JavaScript -->
+    <script src="{% static 'js/main.js' %}"></script>
+    
+    <!-- Additional JavaScript -->
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
