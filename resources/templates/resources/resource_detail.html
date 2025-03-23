@@ -51,12 +51,10 @@
             <div class="resource-skills">
                 <h3 class="resource-section-title">Skills</h3>
                 <div class="resource-skills-list">
-                    {% for skill in resource.skills.all %}
+                    {% for resource_skill in resource.resource_skills.all %}
                     <div class="resource-skill-item">
-                        {{ skill.name }}
-                        {% with proficiency=resource.resource_skills.get.proficiency %}
-                        <span class="resource-skill-proficiency">({{ proficiency }}/10)</span>
-                        {% endwith %}
+                        {{ resource_skill.skill.name }}
+                        <span class="resource-skill-proficiency">({{ resource_skill.proficiency }}/10)</span>
                     </div>
                     {% empty %}
                     <div class="resource-no-skills">No skills added yet.</div>
@@ -108,6 +106,7 @@
 </div>
 {% endblock %}
 
+{% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Apply background color to resource icons
@@ -115,11 +114,10 @@
         if (resourceIcon) {
             resourceIcon.style.backgroundColor = resourceIcon.dataset.color;
         }
-        
-        // Apply width to utilization bars
-        const utilizationBar = document.querySelector('.resource-utilization-bar');
-        if (utilizationBar) {
-            utilizationBar.style.width = utilizationBar.dataset.width + '%';
-        }
+        // Set width of resource utilization bars using the data-width attribute
+        document.querySelectorAll('.resource-utilization-bar').forEach(function(bar) {
+            bar.style.width = bar.getAttribute('data-width') + '%';
+        });
     });
 </script>
+{% endblock %}
