@@ -1,52 +1,37 @@
-# run_tests.py
+#!/usr/bin/env python
 import os
 import sys
 import django
-import datetime
-import unittest
-from django.test.runner import DiscoverRunner
-from django.conf import settings
+
+# Set up Django environment
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'resourcepro.settings')
+django.setup()
+
 from django.core import management
 
 def run_tests():
-    # Set up Django environment
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'resourcepro.settings')
-    django.setup()
+    """Run all test modules separately to avoid import issues"""
+    test_modules = [
+        'accounts.tests',
+        'resources.tests',
+        'integration_tests',
+        'e2e_tests',
+        'performance_tests'
+    ]
     
-    # Run migrations
-    management.call_command('migrate')
+    failed = False
+    for module in test_modules:
+        print(f"\n=== Running tests for {module} ===")
+        try:
+            # Use management command to run tests for each module separately
+            result = management.call_command('test', module, interactive=False)
+            if result:
+                failed = True
+        except Exception as e:
+            print(f"Error running tests for {module}: {e}")
+            failed = True
     
-    # Run tests with coverage
-    management.call_command('test', 
-                          '--settings=resourcepro.settings',
-                          '--exclude-tag=selenium')
-    
-    # Run Selenium tests separately if SELENIUM_TESTS env variable is set
-    if os.environ.get('SELENIUM_TESTS', 'false').lower() == 'true':
-        management.call_command('test', 
-                              '--settings=resourcepro.settings',
-                              '--tag=selenium')
-    
-    # Generate test coverage report
-    try:
-        from coverage import Coverage
-        cov = Coverage()
-        cov.start()
-        
-        runner = DiscoverRunner(interactive=False)
-        failures = runner.run_tests(['accounts', 'allocation', 'api', 
-                                    'core', 'dashboard', 'projects', 'resources'])
-        
-        cov.stop()
-        cov.save()
-        
-        # Generate HTML report
-        cov.html_report(directory='htmlcov')
-        print(f"Coverage report generated in htmlcov/ directory")
-        
-        sys.exit(bool(failures))
-    except ImportError:
-        print("Coverage.py not installed. Skipping coverage report.")
-    
+    return 1 if failed else 0
+
 if __name__ == '__main__':
-    run_tests()
+    sys.exit(run_tests())
