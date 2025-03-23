@@ -1,7 +1,9 @@
 from django.test import TestCase
 from django.utils import timezone
 from datetime import timedelta
-from resources.models import Resource, Project, Task, Assignment
+from resources.models import Resource
+from projects.models import Project, Task
+from allocation.models import Assignment
 
 class EdgeCaseTests(TestCase):
     def test_utilization_weekend_only_task(self):
