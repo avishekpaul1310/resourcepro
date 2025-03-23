@@ -30,7 +30,7 @@ class Resource(models.Model):
     def current_utilization(self, start_date=None, end_date=None):
         """
         Calculate the resource utilization percentage based on assignments.
-        
+    
         Returns a percentage value (0-100+).
         """
         from allocation.models import Assignment  # Import here to avoid circular import
@@ -48,21 +48,44 @@ class Resource(models.Model):
         # Calculate work days in the period
         total_days = (end_date - start_date).days + 1
         work_days = sum(1 for i in range(total_days) 
-                       if (start_date + timedelta(days=i)).weekday() < 5)
+                        if (start_date + timedelta(days=i)).weekday() < 5)
         
         # Calculate hours available in the period
         available_hours = (self.capacity / 5) * work_days  # Assuming 5-day work week
         
-        # Get assigned hours for the period
-        assigned_hours = Assignment.objects.filter(
+        # Get assignments for the period
+        assignments = Assignment.objects.filter(
             resource=self,
             task__start_date__lte=end_date,
             task__end_date__gte=start_date
-        ).aggregate(total=models.Sum('allocated_hours'))['total'] or 0
+        )
+        
+        # Calculate total hours, prorating for tasks that extend beyond the date range
+        total_hours = 0
+        for assignment in assignments:
+            task = assignment.task
+            
+            # Calculate total work days in the entire task duration
+            task_start = max(task.start_date, start_date)
+            task_end = min(task.end_date, end_date)
+            
+            task_days = (task_end - task_start).days + 1
+            task_work_days = sum(1 for i in range(task_days)
+                                 if (task_start + timedelta(days=i)).weekday() < 5)
+            
+            # Calculate total work days in the entire task
+            full_task_days = (task.end_date - task.start_date).days + 1
+            full_task_work_days = sum(1 for i in range(full_task_days)
+                                      if (task.start_date + timedelta(days=i)).weekday() < 5)
+            
+            # Prorate the hours based on the proportion of work days in the period
+            if full_task_work_days > 0:
+                period_hours = (assignment.allocated_hours * task_work_days) / full_task_work_days
+                total_hours += period_hours
         
         # Calculate utilization
         if available_hours > 0:
-            utilization = (assigned_hours / available_hours) * 100
+            utilization = (total_hours / available_hours) * 100
         else:
             utilization = 0
             
