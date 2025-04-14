@@ -25,13 +25,22 @@ class Project(models.Model):
         return self.name
     
     def get_completion_percentage(self):
-        """Calculate the project completion percentage based on tasks."""
+        """Calculate the project completion percentage based on weighted tasks and partial completion."""
         tasks = self.tasks.all()
         if not tasks:
             return 0
         
-        completed_tasks = self.tasks.filter(status='completed').count()
-        return int((completed_tasks / tasks.count()) * 100)
+        total_estimated_hours = sum(task.estimated_hours for task in tasks)
+        if total_estimated_hours == 0:
+            return 0
+            
+        # Calculate completed hours based on task completion percentages
+        completed_hours = sum(
+            task.estimated_hours * (task.completion_percentage / 100) 
+            for task in tasks
+        )
+        
+        return int((completed_hours / total_estimated_hours) * 100)
     
     class Meta:
         ordering = ['-start_date']
@@ -51,6 +60,7 @@ class Task(models.Model):
         ('completed', 'Completed'),
         ('blocked', 'Blocked')
     ], default='not_started')
+    completion_percentage = models.IntegerField(default=0, help_text="Percentage of task completed (0-100)")
     priority = models.IntegerField(choices=[(i, i) for i in range(1, 6)], default=3)  # 1-5 scale
     dependencies = models.ManyToManyField('self', symmetrical=False, blank=True, related_name='dependents')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -58,6 +68,15 @@ class Task(models.Model):
     
     def __str__(self):
         return f"{self.name} ({self.project.name})"
+    
+    def save(self, *args, **kwargs):
+        # Automatically set completion to 100% when status is completed
+        if self.status == 'completed' and self.completion_percentage != 100:
+            self.completion_percentage = 100
+        # Reset completion to 0% when task is marked as not started
+        elif self.status == 'not_started' and self.completion_percentage != 0:
+            self.completion_percentage = 0
+        super().save(*args, **kwargs)
     
     @property
     def is_assigned(self):

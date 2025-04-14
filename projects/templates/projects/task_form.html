@@ -82,6 +82,19 @@
             </div>
             
             <div class="form-group">
+                <label for="id_completion_percentage" class="form-label">Completion Percentage</label>
+                <div class="slider-container" style="display: flex; align-items: center; gap: 15px;">
+                    {{ form.completion_percentage }}
+                    <input type="range" id="completion_slider" min="0" max="100" value="{{ form.completion_percentage.value|default:0 }}" 
+                           style="flex-grow: 1;">
+                    <span id="completion_display">{{ form.completion_percentage.value|default:0 }}%</span>
+                </div>
+                {% if form.completion_percentage.errors %}
+                <div class="error">{{ form.completion_percentage.errors }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
                 <label for="id_skills_required" class="form-label">Required Skills</label>
                 {{ form.skills_required }}
                 {% if form.skills_required.errors %}
@@ -128,6 +141,52 @@
                     window.location.href = "{% url 'task_create' %}?project=" + projectId;
                 }
             });
+        }
+        
+        // Completion percentage slider functionality
+        const slider = document.getElementById('completion_slider');
+        const display = document.getElementById('completion_display');
+        const inputField = document.getElementById('id_completion_percentage');
+        
+        if (slider && display && inputField) {
+            // Hide the original input field
+            inputField.type = 'hidden';
+            
+            // Update display and input when slider changes
+            slider.addEventListener('input', function() {
+                const value = this.value;
+                display.textContent = `${value}%`;
+                inputField.value = value;
+            });
+            
+            // Status field sync with completion percentage
+            const statusField = document.getElementById('id_status');
+            if (statusField) {
+                // When status changes, update completion percentage accordingly
+                statusField.addEventListener('change', function() {
+                    if (this.value === 'completed') {
+                        slider.value = 100;
+                        display.textContent = '100%';
+                        inputField.value = 100;
+                    } else if (this.value === 'not_started' && slider.value == 0) {
+                        slider.value = 0;
+                        display.textContent = '0%';
+                        inputField.value = 0;
+                    }
+                });
+                
+                // When completion changes, update status if appropriate
+                slider.addEventListener('change', function() {
+                    const value = parseInt(this.value);
+                    if (value === 100 && statusField.value !== 'completed') {
+                        statusField.value = 'completed';
+                    } else if (value === 0 && statusField.value === 'not_started') {
+                        // Do nothing - already correct
+                    } else if (value > 0 && value < 100 && statusField.value === 'not_started') {
+                        statusField.value = 'in_progress';
+                    }
+                });
+            }
         }
     });
 </script>

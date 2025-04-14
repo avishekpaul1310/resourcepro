@@ -19,6 +19,16 @@
         </div>
     </div>
     <div class="card-body">
+        <div style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="color: #718096; font-size: 0.875rem;">Task Progress</div>
+                <div style="font-weight: 500;">{{ task.completion_percentage }}% Complete</div>
+            </div>
+            <div style="margin-top: 8px; background-color: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden;">
+                <div style="background-color: #5a67d8; height: 100%;" {% if task.completion_percentage %}style="width: {{ task.completion_percentage }}%"{% endif %}></div>
+            </div>
+        </div>
+
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
             <div>
                 <div style="color: #718096; font-size: 0.875rem;">Project</div>

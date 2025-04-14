@@ -18,13 +18,15 @@ class TaskForm(forms.ModelForm):
             'project', 'name', 'description', 
             'start_date', 'end_date', 
             'estimated_hours', 'skills_required',
-            'status', 'priority', 'dependencies'
+            'status', 'priority', 'dependencies',
+            'completion_percentage'
         ]
         widgets = {
             'start_date': forms.DateInput(attrs={'type': 'date'}),
             'end_date': forms.DateInput(attrs={'type': 'date'}),
             'skills_required': forms.SelectMultiple(attrs={'class': 'select2'}),
             'dependencies': forms.SelectMultiple(attrs={'class': 'select2'}),
+            'completion_percentage': forms.NumberInput(attrs={'min': 0, 'max': 100}),
         }
     
     def __init__(self, *args, **kwargs):

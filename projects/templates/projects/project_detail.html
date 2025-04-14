@@ -70,6 +70,7 @@
             <thead>
                 <tr>
                     <th>Name</th>
+                    <th>Progress</th>
                     <th>Status</th>
                     <th>Timeline</th>
                     <th>Hours</th>
@@ -81,6 +82,14 @@
                 {% for task in tasks %}
                 <tr>
                     <td><a href="{% url 'task_detail' task.id %}">{{ task.name }}</a></td>
+                    <td style="width: 150px;">
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <div style="background-color: #e2e8f0; height: 6px; border-radius: 3px; overflow: hidden;">
+                                <div style="background-color: #5a67d8; height: 100%; width: '{{ task.completion_percentage }}%';"></div>
+                            </div>
+                            <span style="font-size: 0.75rem; color: #4a5568;">{{ task.completion_percentage }}%</span>
+                        </div>
+                    </td>
                     <td>
                         <span class="status-badge status-{{ task.status }}">
                             {{ task.get_status_display }}
@@ -106,7 +115,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="text-center">No tasks added to this project yet. <a href="{% url 'task_create' %}?project={{ project.id }}">Add your first task</a>.</td>
+                    <td colspan="7" class="text-center">No tasks added to this project yet. <a href="{% url 'task_create' %}?project={{ project.id }}">Add your first task</a>.</td>
                 </tr>
                 {% endfor %}
             </tbody>
