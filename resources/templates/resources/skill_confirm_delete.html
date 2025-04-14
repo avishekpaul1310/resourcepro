@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete Skill - ResourcePro{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1 class="title">Delete Skill</h1>
+    <div class="actions">
+        <a href="{% url 'skill_list' %}" class="btn btn-secondary">Cancel</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if usage_count > 0 %}
+        <div class="alert alert-warning">
+            <h4>Warning!</h4>
+            <p>This skill is currently used by {{ usage_count }} resource(s). Deleting it will remove the skill from those resources.</p>
+        </div>
+        {% else %}
+        <div class="alert alert-danger">
+            <h4>Confirm Deletion</h4>
+            <p>You are about to delete the skill "{{ skill.name }}". This action cannot be undone.</p>
+        </div>
+        {% endif %}
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-actions">
+                <a href="{% url 'skill_list' %}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-danger">Delete Skill</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

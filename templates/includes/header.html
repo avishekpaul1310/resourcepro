@@ -4,7 +4,16 @@
         <nav class="nav">
             <a href="{% url 'dashboard' %}" class="nav-item {% if request.path == '/dashboard/' %}active{% endif %}">Dashboard</a>
             <a href="{% url 'project_list' %}" class="nav-item {% if '/projects/' in request.path %}active{% endif %}">Projects</a>
-            <a href="{% url 'resource_list' %}" class="nav-item {% if '/resources/' in request.path %}active{% endif %}">Resources</a>
+            
+            <div class="dropdown">
+                <a href="{% url 'resource_list' %}" class="nav-item {% if '/resources/' in request.path %}active{% endif %}">Resources</a>
+                <div class="dropdown-content">
+                    <a href="{% url 'resource_list' %}">View Resources</a>
+                    <a href="{% url 'resource_create' %}">Create Resource</a>
+                    <a href="{% url 'skill_list' %}">Manage Skills</a>
+                </div>
+            </div>
+            
             <a href="{% url 'allocation_board' %}" class="nav-item {% if '/allocation/' in request.path %}active{% endif %}">Allocation</a>
         </nav>
         <div class="user-menu">
@@ -21,3 +30,37 @@
         </div>
     </div>
 </header>
+
+<style>
+    /* Dropdown menu styles */
+    .dropdown {
+        position: relative;
+        display: inline-block;
+    }
+    
+    .dropdown-content {
+        display: none;
+        position: absolute;
+        background-color: #fff;
+        min-width: 160px;
+        box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+        z-index: 1;
+        border-radius: 4px;
+    }
+    
+    .dropdown-content a {
+        color: #333;
+        padding: 12px 16px;
+        text-decoration: none;
+        display: block;
+        transition: background-color 0.2s;
+    }
+    
+    .dropdown-content a:hover {
+        background-color: #f5f5f5;
+    }
+    
+    .dropdown:hover .dropdown-content {
+        display: block;
+    }
+</style>

@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+
+{% block title %}Skills - ResourcePro{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1 class="title">Skills Management</h1>
+    <div class="actions">
+        <button id="add-new-skill" class="btn btn-primary">Add New Skill</button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        All Skills
+    </div>
+    <div class="card-body">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Skill Name</th>
+                    <th>Description</th>
+                    <th>In Use By</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for skill in skills %}
+                <tr>
+                    <td>{{ skill.name }}</td>
+                    <td>{{ skill.description|default:"-" }}</td>
+                    <td>{{ skill.usage_count }} resource(s)</td>
+                    <td>
+                        <a href="{% url 'skill_delete' skill.id %}" class="btn btn-sm btn-danger">Delete</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center">No skills defined yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- New Skill Modal -->
+<div id="new-skill-modal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
+    <div class="modal-content" style="background-color: white; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 40%; border-radius: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+        <span class="modal-close" style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+        <h2 style="margin-top: 0;">Add New Skill</h2>
+        
+        <div class="modal-form-group" style="margin-bottom: 15px;">
+            <label for="new-skill-name" style="display: block; margin-bottom: 5px;">Skill Name</label>
+            <input type="text" id="new-skill-name" class="form-control" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+        
+        <div class="modal-form-group" style="margin-bottom: 15px;">
+            <label for="new-skill-description" style="display: block; margin-bottom: 5px;">Description (Optional)</label>
+            <textarea id="new-skill-description" class="form-control" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></textarea>
+        </div>
+        
+        <div id="skill-error-message" style="color: #d9534f; margin-bottom: 10px; display: none;"></div>
+        
+        <div style="text-align: right;">
+            <button type="button" id="save-skill-btn" class="btn btn-primary">Save Skill</button>
+            <button type="button" id="cancel-skill-btn" class="btn btn-secondary">Cancel</button>
+        </div>
+    </div>
+</div>
+
+{% csrf_token %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Modal functionality
+        const modal = document.getElementById("new-skill-modal");
+        const openModalBtn = document.getElementById("add-new-skill");
+        const closeModalBtn = document.querySelector(".modal-close");
+        const cancelBtn = document.getElementById("cancel-skill-btn");
+        const saveSkillBtn = document.getElementById("save-skill-btn");
+        const skillNameInput = document.getElementById("new-skill-name");
+        const skillDescriptionInput = document.getElementById("new-skill-description");
+        const errorMessage = document.getElementById("skill-error-message");
+
+        // Open modal
+        openModalBtn.addEventListener("click", function() {
+            modal.style.display = "block";
+            skillNameInput.value = "";
+            skillDescriptionInput.value = "";
+            errorMessage.style.display = "none";
+        });
+
+        // Close modal functions
+        function closeModal() {
+            modal.style.display = "none";
+        }
+
+        closeModalBtn.addEventListener("click", closeModal);
+        cancelBtn.addEventListener("click", closeModal);
+
+        // When clicking outside the modal, close it
+        window.addEventListener("click", function(event) {
+            if (event.target === modal) {
+                closeModal();
+            }
+        });
+
+        // Save new skill via AJAX
+        saveSkillBtn.addEventListener("click", function() {
+            const skillName = skillNameInput.value.trim();
+            const description = skillDescriptionInput.value.trim();
+            
+            if (!skillName) {
+                errorMessage.textContent = "Skill name is required";
+                errorMessage.style.display = "block";
+                return;
+            }
+            
+            // Show loading state
+            saveSkillBtn.textContent = "Saving...";
+            saveSkillBtn.disabled = true;
+            
+            // Create form data
+            const formData = new FormData();
+            formData.append("skill_name", skillName);
+            formData.append("description", description);
+            
+            // Get CSRF token
+            const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+            
+            // Send AJAX request
+            fetch('{% url "create_skill" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Reload the page to show the new skill
+                    location.reload();
+                } else {
+                    // Show error
+                    errorMessage.textContent = data.error || "An error occurred";
+                    errorMessage.style.display = "block";
+                }
+            })
+            .catch(error => {
+                errorMessage.textContent = "An error occurred while saving the skill";
+                errorMessage.style.display = "block";
+                console.error("Error:", error);
+            })
+            .finally(() => {
+                // Reset button state
+                saveSkillBtn.textContent = "Save Skill";
+                saveSkillBtn.disabled = false;
+            });
+        });
+    });
+</script>
+{% endblock %}

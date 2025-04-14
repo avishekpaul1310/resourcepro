@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
-from .models import Resource, Skill
+from .models import Resource, Skill, ResourceSkill
 from .forms import ResourceForm, ResourceSkillFormSet
 
 @login_required
@@ -97,3 +97,33 @@ def create_skill(request):
         })
     
     return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
+
+@login_required
+def skill_list(request):
+    """List all skills with option to delete them"""
+    skills = Skill.objects.all()
+    
+    # Count resources using each skill for reference
+    for skill in skills:
+        skill.usage_count = ResourceSkill.objects.filter(skill=skill).count()
+    
+    return render(request, 'resources/skill_list.html', {'skills': skills})
+
+@login_required
+def skill_delete(request, pk):
+    """Delete a skill"""
+    skill = get_object_or_404(Skill, pk=pk)
+    
+    # Check if any resources are using this skill
+    usage_count = ResourceSkill.objects.filter(skill=skill).count()
+    
+    if request.method == 'POST':
+        skill_name = skill.name
+        skill.delete()
+        messages.success(request, f'Skill "{skill_name}" deleted successfully.')
+        return redirect('skill_list')
+    
+    return render(request, 'resources/skill_confirm_delete.html', {
+        'skill': skill,
+        'usage_count': usage_count
+    })

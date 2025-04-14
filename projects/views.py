@@ -62,6 +62,21 @@ def project_edit(request, pk):
     })
 
 @login_required
+def project_delete(request, pk):
+    """Delete a project"""
+    project = get_object_or_404(Project, pk=pk)
+    
+    if request.method == 'POST':
+        project_name = project.name
+        project.delete()
+        messages.success(request, f'Project "{project_name}" deleted successfully.')
+        return redirect('project_list')
+    
+    return render(request, 'projects/project_confirm_delete.html', {
+        'project': project
+    })
+
+@login_required
 def task_list(request):
     """List all tasks"""
     tasks = Task.objects.all()

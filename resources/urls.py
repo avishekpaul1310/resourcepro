@@ -7,4 +7,6 @@ urlpatterns = [
     path('create/', views.resource_create, name='resource_create'),
     path('<int:pk>/edit/', views.resource_edit, name='resource_edit'),
     path('skills/create/', views.create_skill, name='create_skill'),
+    path('skills/', views.skill_list, name='skill_list'),
+    path('skills/<int:pk>/delete/', views.skill_delete, name='skill_delete'),
 ]

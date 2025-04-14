@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete Project - ResourcePro{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1 class="title">Delete Project</h1>
+    <div class="actions">
+        <a href="{% url 'project_detail' project.id %}" class="btn btn-secondary">Cancel</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h4>Warning!</h4>
+            <p>You are about to delete project "{{ project.name }}". This action cannot be undone.</p>
+            <p>Deleting this project will also remove all associated tasks and assignments.</p>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-actions">
+                <a href="{% url 'project_detail' project.id %}" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-danger">Delete Project</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
