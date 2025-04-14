@@ -76,6 +76,13 @@ class Task(models.Model):
         # Reset completion to 0% when task is marked as not started
         elif self.status == 'not_started' and self.completion_percentage != 0:
             self.completion_percentage = 0
+        # Set a default of 50% when status changes to in_progress and completion is still 0%
+        elif self.status == 'in_progress' and self.completion_percentage == 0:
+            self.completion_percentage = 50
+        # If blocked, keep the current percentage but ensure it's not 100%
+        elif self.status == 'blocked' and self.completion_percentage == 100:
+            self.completion_percentage = 90
+            
         super().save(*args, **kwargs)
     
     @property

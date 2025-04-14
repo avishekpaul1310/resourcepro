@@ -15,43 +15,43 @@
 
 <div class="card">
     <div class="card-header">
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <div style="width: 16px; height: 16px; border-radius: 50%; background-color: '{{ project.color }}';"></div>
+        <div class="header-with-icon">
+            <div class="color-dot" id="project-color-dot"></div>
             <div>Project Details</div>
         </div>
     </div>
     <div class="card-body">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+        <div class="project-info-grid">
             <div>
-                <div style="color: #718096; font-size: 0.875rem;">Status</div>
-                <div style="font-weight: 500;">{{ project.get_status_display }}</div>
+                <div class="info-label">Status</div>
+                <div class="info-value">{{ project.get_status_display }}</div>
             </div>
             <div>
-                <div style="color: #718096; font-size: 0.875rem;">Timeline</div>
-                <div style="font-weight: 500;">{{ project.start_date|date:"M d, Y" }} - {{ project.end_date|date:"M d, Y" }}</div>
+                <div class="info-label">Timeline</div>
+                <div class="info-value">{{ project.start_date|date:"M d, Y" }} - {{ project.end_date|date:"M d, Y" }}</div>
             </div>
             <div>
-                <div style="color: #718096; font-size: 0.875rem;">Priority</div>
-                <div style="font-weight: 500;">{{ project.priority }} / 5</div>
+                <div class="info-label">Priority</div>
+                <div class="info-value">{{ project.priority }} / 5</div>
             </div>
             <div>
-                <div style="color: #718096; font-size: 0.875rem;">Manager</div>
-                <div style="font-weight: 500;">{{ project.manager.get_full_name|default:project.manager.username|default:"Not assigned" }}</div>
+                <div class="info-label">Manager</div>
+                <div class="info-value">{{ project.manager.get_full_name|default:project.manager.username|default:"Not assigned" }}</div>
             </div>
         </div>
         
-        <div style="margin-top: 20px;">
-            <div style="color: #718096; font-size: 0.875rem;">Description</div>
-            <div style="margin-top: 5px;">{{ project.description|linebreaks|default:"No description provided." }}</div>
+        <div class="description-section">
+            <div class="info-label">Description</div>
+            <div class="description-content">{{ project.description|linebreaks|default:"No description provided." }}</div>
         </div>
         
-        <div style="margin-top: 20px;">
-            <div style="color: #718096; font-size: 0.875rem;">Progress</div>
-            <div style="margin-top: 10px; background-color: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden;">
-                <div style="background-color: #5a67d8; height: 100%; width: '{{ project.completion }}%';"></div>
+        <div class="progress-section">
+            <div class="info-label">Progress</div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="project-progress-bar"></div>
             </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.875rem;">
-                <div>{{ project.completion }}% complete</div>
+            <div class="progress-stats">
+                <div id="completion-text">{{ project.completion|default:0 }}% complete</div>
                 <div>{{ project.tasks.count }} tasks total</div>
             </div>
         </div>
@@ -60,7 +60,7 @@
 
 <div class="card">
     <div class="card-header">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="header-with-actions">
             <div>Tasks</div>
             <a href="{% url 'task_create' %}?project={{ project.id }}" class="btn btn-sm btn-secondary">Add Task</a>
         </div>
@@ -82,12 +82,12 @@
                 {% for task in tasks %}
                 <tr>
                     <td><a href="{% url 'task_detail' task.id %}">{{ task.name }}</a></td>
-                    <td style="width: 150px;">
-                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                            <div style="background-color: #e2e8f0; height: 6px; border-radius: 3px; overflow: hidden;">
-                                <div style="background-color: #5a67d8; height: 100%; width: '{{ task.completion_percentage }}%';"></div>
+                    <td class="progress-cell">
+                        <div class="task-progress-container">
+                            <div class="task-progress-bar-container">
+                                <div class="task-progress-bar" data-progress="{{ task.completion_percentage|default:0 }}"></div>
                             </div>
-                            <span style="font-size: 0.75rem; color: #4a5568;">{{ task.completion_percentage }}%</span>
+                            <span class="task-progress-text">{{ task.completion_percentage|default:0 }}%</span>
                         </div>
                     </td>
                     <td>
@@ -100,7 +100,7 @@
                     <td>
                         {% for assignment in task.assignments.all %}
                         <div class="assigned-resource">
-                            <div class="resource-avatar" style="background-color: '{{ assignment.resource.color }}'">
+                            <div class="resource-avatar" data-color="{{ assignment.resource.color }}">
                                 {{ assignment.resource.name|first|upper }}
                             </div>
                             <span>{{ assignment.resource.name }}</span>
@@ -122,4 +122,147 @@
         </table>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .header-with-icon {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .header-with-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .color-dot {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+    }
+    
+    .project-info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+    }
+    
+    .info-label {
+        color: #718096;
+        font-size: 0.875rem;
+    }
+    
+    .info-value {
+        font-weight: 500;
+    }
+    
+    .description-section {
+        margin-top: 20px;
+    }
+    
+    .description-content {
+        margin-top: 5px;
+    }
+    
+    .progress-section {
+        margin-top: 20px;
+    }
+    
+    .progress-bar-container {
+        margin-top: 10px;
+        background-color: #e2e8f0;
+        height: 8px;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    
+    .progress-bar {
+        background-color: #5a67d8;
+        height: 100%;
+    }
+    
+    .progress-stats {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 5px;
+        font-size: 0.875rem;
+    }
+    
+    .progress-cell {
+        width: 150px;
+    }
+    
+    .task-progress-container {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .task-progress-bar-container {
+        background-color: #e2e8f0;
+        height: 6px;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    
+    .task-progress-bar {
+        background-color: #5a67d8;
+        height: 100%;
+    }
+    
+    .task-progress-text {
+        font-size: 0.75rem;
+        color: #4a5568;
+    }
+    
+    .resource-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+    }
+    
+    .assigned-resource {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set project color
+        const projectColorDot = document.getElementById('project-color-dot');
+        if (projectColorDot) {
+            projectColorDot.style.backgroundColor = "{{ project.color }}";
+        }
+        
+        // Set project progress bar width
+        const projectProgressBar = document.getElementById('project-progress-bar');
+        if (projectProgressBar) {
+            projectProgressBar.style.width = "{{ project.completion|default:0 }}%";
+        }
+        
+        // Set task progress bar widths
+        document.querySelectorAll('.task-progress-bar').forEach(function(bar) {
+            const progress = bar.getAttribute('data-progress');
+            bar.style.width = progress + '%';
+        });
+        
+        // Set resource avatar colors
+        document.querySelectorAll('.resource-avatar').forEach(function(avatar) {
+            const color = avatar.getAttribute('data-color');
+            avatar.style.backgroundColor = color;
+        });
+    });
+</script>
 {% endblock %}
