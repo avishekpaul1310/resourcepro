@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.http import JsonResponse
 from .models import Resource, Skill
 from .forms import ResourceForm, ResourceSkillFormSet
 
@@ -67,3 +68,32 @@ def resource_edit(request, pk):
         'formset': formset,
         'title': 'Edit Resource'
     })
+
+@login_required
+def create_skill(request):
+    """Create a new skill via AJAX"""
+    if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        skill_name = request.POST.get('skill_name')
+        description = request.POST.get('description', '')
+        
+        if not skill_name:
+            return JsonResponse({'success': False, 'error': 'Skill name is required'}, status=400)
+            
+        # Check if skill with this name already exists
+        if Skill.objects.filter(name=skill_name).exists():
+            return JsonResponse({'success': False, 'error': 'Skill with this name already exists'}, status=400)
+            
+        # Create new skill
+        skill = Skill.objects.create(name=skill_name, description=description)
+        
+        # Return success with skill data
+        return JsonResponse({
+            'success': True,
+            'skill': {
+                'id': skill.id,
+                'name': skill.name,
+                'description': skill.description
+            }
+        })
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
