@@ -6,4 +6,5 @@ urlpatterns = [
     path('<int:pk>/', views.resource_detail, name='resource_detail'),
     path('create/', views.resource_create, name='resource_create'),
     path('<int:pk>/edit/', views.resource_edit, name='resource_edit'),
+    path('skills/create/', views.create_skill, name='create_skill'),
 ]
