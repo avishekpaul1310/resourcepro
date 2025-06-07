@@ -139,9 +139,8 @@
 <div class="page-title">
     <h1 class="title">Analytics Dashboard</h1>
     <div class="actions">
-        <div class="export-buttons">
-            <a href="{% url 'analytics:export_utilization_report' %}?format=pdf" class="btn btn-primary">Export PDF</a>
-            <a href="{% url 'analytics:export_utilization_report' %}?format=excel" class="btn btn-success">Export Excel</a>
+        <div class="export-buttons">            <a href="{% url 'analytics:export_report' 'utilization' %}?format=pdf" class="btn btn-primary">Export PDF</a>
+            <a href="{% url 'analytics:export_report' 'utilization' %}?format=excel" class="btn btn-success">Export Excel</a>
         </div>
     </div>
 </div>
@@ -222,7 +221,7 @@
                 <span style="font-weight: 500;">{{ skill.skill_name }}</span>
                 <span>{{ skill.demand_score|floatformat:1 }}</span>
             </div>            <div class="skill-bar">
-                <div class="skill-fill" style="width: {{ skill.demand_score|floatformat:0 }}%;"></div>
+                <div class="skill-fill" style="width: {{ skill.demand_score|floatformat:0 }}%"></div>
             </div>
         </div>
         {% endfor %}
@@ -251,7 +250,7 @@
                     <td>{{ util.utilization_rate|floatformat:1 }}%</td>
                     <td>
                         <div class="skill-bar">
-                            <div class="skill-fill" style="width: {{ util.utilization_rate|floatformat:0 }}%"></div>
+                            <div class="skill-fill" style="width: '{{ util.utilization_rate|floatformat:0 }}%'"></div>
                         </div>
                     </td>
                     <td>

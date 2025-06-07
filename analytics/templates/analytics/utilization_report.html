@@ -410,10 +410,10 @@
 <!-- Export Section -->
 <div class="export-section">
     <h3 style="margin-bottom: 15px;">Export Options</h3>
-    <div class="export-buttons">
-        <a href="{% url 'analytics:export_utilization_report' %}?format=pdf&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&department={{ department }}&role={{ selected_role }}" 
+    <div class="export-buttons">        <a href="{% url 'analytics:export_report' 'utilization' %}?format=pdf&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&department={{ department }}&role={{ selected_role }}" 
            class="btn btn-primary">Export as PDF</a>
-        <a href="{% url 'analytics:export_utilization_report' %}?format=excel&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&department={{ department }}&role={{ selected_role }}" 
+        <a href="{% url 'analytics:export_report' 'utilization' %}?format=excel&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&department={{ department }}&role={{ selected_role }}" 
+                   <a href="{% url 'analytics:export_report' 'utilization' %}?format=excel&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&department={{ department }}&role={{ selected_role }}" 
            class="btn btn-success">Export as Excel</a>
     </div>
     <p style="margin-top: 10px; color: #718096; font-size: 0.9rem;">

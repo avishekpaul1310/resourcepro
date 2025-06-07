@@ -26,16 +26,21 @@ def analytics_dashboard(request):
     # Get utilization trends
     utilization_service = UtilizationTrackingService()
     utilization_trends = utilization_service.get_utilization_trends(days=30)
-    
-    # Get cost tracking data
+      # Get cost tracking data
     cost_service = CostTrackingService()
     cost_report = cost_service.get_cost_variance_report()
+    
+    # Calculate summary metrics
+    total_resources = Resource.objects.count()
+    total_projects = Project.objects.count()
     
     context = {
         'recent_forecasts': recent_forecasts,
         'skill_analyses': skill_analyses,
         'utilization_trends': utilization_trends,
         'cost_report': cost_report[:10],  # Top 10 projects
+        'total_resources': total_resources,
+        'total_projects': total_projects,
     }
     
     return render(request, 'analytics/dashboard.html', context)
@@ -67,7 +72,10 @@ def generate_forecast(request):
                 'message': 'Insufficient historical data for forecasting'
             })
     
-    return JsonResponse({'error': 'POST method required'})
+    # GET request - display the forecasting page
+    recent_forecasts = ResourceDemandForecast.objects.order_by('-forecast_date')[:10]
+    context = {'recent_forecasts': recent_forecasts}
+    return render(request, 'analytics/forecasting.html', context)
 
 @login_required
 def analyze_skills(request):
@@ -90,7 +98,10 @@ def analyze_skills(request):
             ]
         })
     
-    return JsonResponse({'error': 'POST method required'})
+    # GET request - display the skill analysis page
+    recent_analyses = SkillDemandAnalysis.objects.order_by('-analysis_date')[:20]
+    context = {'skill_analyses': recent_analyses}
+    return render(request, 'analytics/skill_analysis.html', context)
 
 @login_required
 def utilization_report(request):

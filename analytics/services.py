@@ -116,16 +116,18 @@ class PredictiveAnalyticsService:
                 skills_required=skill,
                 created_at__gte=timezone.now() - timedelta(days=90)
             ).count()
-            
             predicted_future_demand = int(historical_tasks * 0.3)  # 30% growth assumption
             
-            analysis = SkillDemandAnalysis.objects.create(
+            # Store analysis result
+            analysis, created = SkillDemandAnalysis.objects.get_or_create(
                 skill_name=skill.name,
                 analysis_date=timezone.now().date(),
-                current_demand=current_demand,
-                available_resources=available_resources,
-                demand_score=min(99.99, demand_score),  # Cap at 99.99 for database
-                predicted_future_demand=predicted_future_demand
+                defaults={
+                    'current_demand': current_demand,
+                    'available_resources': available_resources,
+                    'demand_score': min(99.99, demand_score),  # Cap at 99.99 for database
+                    'predicted_future_demand': predicted_future_demand
+                }
             )
             
             analyses.append(analysis)

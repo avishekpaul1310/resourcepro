@@ -382,3 +382,91 @@ class ReportExportService:
         response['Content-Disposition'] = f'attachment; filename="forecast_report_{timezone.now().strftime("%Y%m%d")}.xlsx"'
         
         return response
+    
+    def export_utilization_report_pdf(self, resource_id):
+        """Export utilization report for a specific resource as PDF"""
+        resource = Resource.objects.get(id=resource_id)
+        
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        story = []
+        
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            spaceAfter=20,
+            alignment=1
+        )
+        
+        # Title
+        title = Paragraph(f"Utilization Report - {resource.name}", title_style)
+        story.append(title)
+        story.append(Spacer(1, 20))
+        
+        # Resource info
+        info_data = [
+            ['Resource Name:', resource.name],
+            ['Role:', resource.role],
+            ['Department:', resource.department],
+            ['Capacity:', f"{resource.capacity} hours/week"],
+            ['Current Utilization:', f"{resource.current_utilization():.1f}%"]
+        ]
+        
+        info_table = Table(info_data, colWidths=[2*inch, 3*inch])
+        info_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.lightgrey),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        
+        story.append(info_table)
+        
+        # Build PDF
+        doc.build(story)
+        buffer.seek(0)
+        
+        # Save to file
+        filename = f"reports/utilization_{resource.name.replace(' ', '_')}.pdf"
+        import os
+        os.makedirs('reports', exist_ok=True)
+        
+        with open(filename, 'wb') as f:
+            f.write(buffer.getvalue())
+        
+        return filename
+    
+    def export_utilization_report_excel(self, resource_id):
+        """Export utilization report for a specific resource as Excel"""
+        resource = Resource.objects.get(id=resource_id)
+        
+        # Create DataFrame with resource data
+        data = {
+            'Resource Name': [resource.name],
+            'Role': [resource.role],
+            'Department': [resource.department],
+            'Capacity (hours/week)': [resource.capacity],
+            'Current Utilization (%)': [resource.current_utilization()]
+        }
+        
+        df = pd.DataFrame(data)
+        
+        # Save to file
+        filename = f"reports/utilization_{resource.name.replace(' ', '_')}.xlsx"
+        import os
+        os.makedirs('reports', exist_ok=True)
+        
+        df.to_excel(filename, index=False)
+        return filename
+    
+    def export_cost_report_pdf(self):
+        """Export cost report as PDF"""
+        return self.export_cost_pdf()
+    
+    def export_cost_report_excel(self):
+        """Export cost report as Excel"""
+        return self.export_cost_excel()

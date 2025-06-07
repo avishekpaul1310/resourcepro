@@ -17,6 +17,7 @@ class Resource(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=100)
     role = models.CharField(max_length=100)
+    department = models.CharField(max_length=100, default='General')
     skills = models.ManyToManyField(Skill, through='ResourceSkill')
     capacity = models.IntegerField(default=40)  # Hours per week
     cost_per_hour = models.DecimalField(max_digits=10, decimal_places=2, default=0)
