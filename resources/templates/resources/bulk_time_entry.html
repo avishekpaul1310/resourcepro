@@ -1,0 +1,549 @@
+{% extends 'base.html' %}
+
+{% block title %}Bulk Time Entry - ResourcePro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .bulk-entry-container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .form-title {
+        font-size: 1.25rem;
+        font-weight: bold;
+        color: #2d3748;
+        margin-bottom: 15px;
+        border-bottom: 2px solid #4c51bf;
+        padding-bottom: 8px;
+    }
+    
+    .common-fields {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+        padding: 15px;
+        background-color: #f7fafc;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .form-group label {
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #4a5568;
+        font-size: 0.9rem;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 8px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        transition: border-color 0.2s;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #4c51bf;
+        box-shadow: 0 0 0 3px rgba(76, 81, 191, 0.1);
+    }
+    
+    .entries-table {
+        margin-bottom: 20px;
+    }
+    
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .table th,
+    .table td {
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .table th {
+        background-color: #f7fafc;
+        font-weight: 600;
+        color: #4a5568;
+        font-size: 0.9rem;
+    }
+    
+    .table input[type="date"],
+    .table input[type="time"],
+    .table input[type="number"],
+    .table input[type="text"],
+    .table select,
+    .table textarea {
+        width: 100%;
+        padding: 4px 8px;
+        border: 1px solid #e2e8f0;
+        border-radius: 3px;
+        font-size: 0.85rem;
+    }
+    
+    .table textarea {
+        min-height: 60px;
+        resize: vertical;
+    }
+    
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 500;
+        text-decoration: none;
+        display: inline-block;
+        transition: all 0.2s;
+        text-align: center;
+    }
+    
+    .btn-primary {
+        background-color: #4c51bf;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: #434190;
+    }
+    
+    .btn-secondary {
+        background-color: #718096;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #4a5568;
+    }
+    
+    .btn-success {
+        background-color: #38a169;
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background-color: #2f855a;
+    }
+    
+    .btn-danger {
+        background-color: #e53e3e;
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background-color: #c53030;
+    }
+    
+    .btn-sm {
+        padding: 4px 8px;
+        font-size: 0.8rem;
+    }
+    
+    .actions-bar {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #f7fafc;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 15px;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #e2e8f0;
+    }
+    
+    .validation-errors {
+        background-color: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+        padding: 10px 15px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+    }
+    
+    .success-message {
+        background-color: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        color: #166534;
+        padding: 10px 15px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+    }
+    
+    .row-number {
+        background-color: #f7fafc;
+        color: #4a5568;
+        font-weight: 500;
+        text-align: center;
+        width: 40px;
+    }
+    
+    .calculated-hours {
+        background-color: #edf2f7;
+        color: #4a5568;
+        font-weight: 500;
+        text-align: center;
+    }
+    
+    .copy-down-btn {
+        background: none;
+        border: 1px solid #e2e8f0;
+        padding: 2px 6px;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 0.7rem;
+        color: #4a5568;
+    }
+    
+    .copy-down-btn:hover {
+        background-color: #f7fafc;
+    }
+    
+    .entry-row.error {
+        background-color: #fef2f2;
+    }
+    
+    .entry-row.error input,
+    .entry-row.error select,
+    .entry-row.error textarea {
+        border-color: #f87171;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1 class="title">Bulk Time Entry</h1>
+    <div class="actions">
+        <a href="{% url 'resources:time_tracking' %}" class="btn btn-secondary">Single Entry</a>
+        <a href="{% url 'resources:time_entries' %}" class="btn btn-secondary">View Entries</a>
+    </div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+    <div class="{% if message.tags == 'error' %}validation-errors{% else %}success-message{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+{% endif %}
+
+<div class="bulk-entry-container">
+    <h3 class="form-title">Bulk Time Entry</h3>
+    
+    <form method="post" id="bulk-entry-form">
+        {% csrf_token %}
+        
+        <!-- Common Fields -->
+        <div class="common-fields">
+            <div class="form-group">
+                <label for="common_date">Common Date</label>
+                <input type="date" id="common_date" value="{{ today|date:'Y-m-d' }}">
+                <button type="button" class="copy-down-btn" onclick="copyDownField('date')">Copy Down</button>
+            </div>
+            
+            <div class="form-group">
+                <label for="common_project">Common Project</label>
+                <select id="common_project">
+                    <option value="">Select Project</option>
+                    {% for project in projects %}
+                    <option value="{{ project.id }}">{{ project.name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="button" class="copy-down-btn" onclick="copyDownField('project')">Copy Down</button>
+            </div>
+            
+            <div class="form-group">
+                <label for="common_resource">Common Resource</label>
+                <select id="common_resource">
+                    <option value="">Select Resource</option>
+                    {% for resource in resources %}
+                    <option value="{{ resource.id }}">{{ resource.name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="button" class="copy-down-btn" onclick="copyDownField('resource')">Copy Down</button>
+            </div>
+            
+            <div class="form-group">
+                <label for="common_billable">Common Billable Status</label>
+                <select id="common_billable">
+                    <option value="">Select Status</option>
+                    <option value="true">Billable</option>
+                    <option value="false">Non-billable</option>
+                </select>
+                <button type="button" class="copy-down-btn" onclick="copyDownField('billable')">Copy Down</button>
+            </div>
+        </div>
+        
+        <!-- Actions Bar -->
+        <div class="actions-bar">
+            <button type="button" class="btn btn-success btn-sm" onclick="addRow()">Add Row</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="addMultipleRows()">Add 5 Rows</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="clearAll()">Clear All</button>
+            <span style="margin-left: auto; color: #718096; font-size: 0.9rem;">
+                Total Rows: <span id="row-count">5</span>
+            </span>
+        </div>
+        
+        <!-- Entries Table -->
+        <div class="entries-table">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;">#</th>
+                        <th style="width: 120px;">Date</th>
+                        <th style="width: 200px;">Project</th>
+                        <th style="width: 150px;">Resource</th>
+                        <th style="width: 80px;">Start Time</th>
+                        <th style="width: 80px;">End Time</th>
+                        <th style="width: 80px;">Hours</th>
+                        <th style="width: 100px;">Billable</th>
+                        <th>Description</th>
+                        <th style="width: 60px;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="entries-tbody">
+                    <!-- Dynamic rows will be added here -->
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Form Actions -->
+        <div class="form-actions">
+            <div>
+                <span style="color: #718096; font-size: 0.9rem;">
+                    Total Hours: <strong id="total-hours">0.0</strong>
+                </span>
+            </div>
+            <div>
+                <button type="button" class="btn btn-secondary" onclick="validateEntries()">Validate</button>
+                <button type="submit" class="btn btn-primary">Save All Entries</button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let rowCounter = 0;
+
+// Initialize with 5 empty rows
+document.addEventListener('DOMContentLoaded', function() {
+    for (let i = 0; i < 5; i++) {
+        addRow();
+    }
+});
+
+function addRow() {
+    rowCounter++;
+    const tbody = document.getElementById('entries-tbody');
+    const row = document.createElement('tr');
+    row.className = 'entry-row';
+    row.id = `row-${rowCounter}`;
+    
+    row.innerHTML = `
+        <td class="row-number">${rowCounter}</td>
+        <td>
+            <input type="date" name="entries[${rowCounter}][date]" class="entry-date" onchange="calculateHours(${rowCounter})">
+        </td>
+        <td>
+            <select name="entries[${rowCounter}][project]" class="entry-project" required>
+                <option value="">Select Project</option>
+                {% for project in projects %}
+                <option value="{{ project.id }}">{{ project.name }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td>
+            <select name="entries[${rowCounter}][resource]" class="entry-resource" required>
+                <option value="">Select Resource</option>
+                {% for resource in resources %}
+                <option value="{{ resource.id }}">{{ resource.name }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td>
+            <input type="time" name="entries[${rowCounter}][start_time]" class="entry-start-time" onchange="calculateHours(${rowCounter})">
+        </td>
+        <td>
+            <input type="time" name="entries[${rowCounter}][end_time]" class="entry-end-time" onchange="calculateHours(${rowCounter})">
+        </td>
+        <td>
+            <input type="number" name="entries[${rowCounter}][hours]" class="entry-hours" step="0.25" min="0" max="24" onchange="updateTotalHours()">
+        </td>
+        <td>
+            <select name="entries[${rowCounter}][is_billable]" class="entry-billable">
+                <option value="true">Billable</option>
+                <option value="false">Non-billable</option>
+            </select>
+        </td>
+        <td>
+            <textarea name="entries[${rowCounter}][description]" class="entry-description" placeholder="Description..."></textarea>
+        </td>
+        <td>
+            <button type="button" class="btn btn-danger btn-sm" onclick="removeRow(${rowCounter})">×</button>
+        </td>
+    `;
+    
+    tbody.appendChild(row);
+    updateRowCount();
+}
+
+function addMultipleRows() {
+    for (let i = 0; i < 5; i++) {
+        addRow();
+    }
+}
+
+function removeRow(rowId) {
+    const row = document.getElementById(`row-${rowId}`);
+    if (row) {
+        row.remove();
+        updateRowCount();
+        updateTotalHours();
+    }
+}
+
+function clearAll() {
+    if (confirm('Are you sure you want to clear all entries?')) {
+        document.getElementById('entries-tbody').innerHTML = '';
+        rowCounter = 0;
+        updateRowCount();
+        updateTotalHours();
+    }
+}
+
+function updateRowCount() {
+    const count = document.querySelectorAll('.entry-row').length;
+    document.getElementById('row-count').textContent = count;
+}
+
+function copyDownField(fieldType) {
+    const commonValue = document.getElementById(`common_${fieldType}`).value;
+    if (!commonValue) {
+        alert('Please select a value in the common field first');
+        return;
+    }
+    
+    const fields = document.querySelectorAll(`.entry-${fieldType}`);
+    fields.forEach(field => {
+        field.value = commonValue;
+    });
+}
+
+function calculateHours(rowId) {
+    const startTime = document.querySelector(`input[name="entries[${rowId}][start_time]"]`).value;
+    const endTime = document.querySelector(`input[name="entries[${rowId}][end_time]"]`).value;
+    const hoursInput = document.querySelector(`input[name="entries[${rowId}][hours]"]`);
+    
+    if (startTime && endTime) {
+        const start = new Date(`2000-01-01 ${startTime}`);
+        const end = new Date(`2000-01-01 ${endTime}`);
+        
+        if (end > start) {
+            const diffMs = end - start;
+            const diffHours = diffMs / (1000 * 60 * 60);
+            hoursInput.value = diffHours.toFixed(2);
+            updateTotalHours();
+        }
+    }
+}
+
+function updateTotalHours() {
+    const hoursInputs = document.querySelectorAll('.entry-hours');
+    let total = 0;
+    
+    hoursInputs.forEach(input => {
+        const value = parseFloat(input.value) || 0;
+        total += value;
+    });
+    
+    document.getElementById('total-hours').textContent = total.toFixed(1);
+}
+
+function validateEntries() {
+    const rows = document.querySelectorAll('.entry-row');
+    let hasErrors = false;
+    
+    rows.forEach(row => {
+        row.classList.remove('error');
+        
+        const project = row.querySelector('.entry-project').value;
+        const resource = row.querySelector('.entry-resource').value;
+        const date = row.querySelector('.entry-date').value;
+        const hours = row.querySelector('.entry-hours').value;
+        
+        // Check if row has any data
+        const hasData = project || resource || date || hours;
+        
+        if (hasData) {
+            // If row has data, validate required fields
+            if (!project || !resource || !date || !hours) {
+                row.classList.add('error');
+                hasErrors = true;
+            }
+            
+            // Validate hours
+            const hoursValue = parseFloat(hours);
+            if (isNaN(hoursValue) || hoursValue <= 0 || hoursValue > 24) {
+                row.classList.add('error');
+                hasErrors = true;
+            }
+        }
+    });
+    
+    if (hasErrors) {
+        alert('Please fix the highlighted errors before submitting');
+    } else {
+        alert('All entries are valid!');
+    }
+    
+    return !hasErrors;
+}
+
+// Form submission validation
+document.getElementById('bulk-entry-form').addEventListener('submit', function(e) {
+    if (!validateEntries()) {
+        e.preventDefault();
+    }
+});
+
+// Auto-update total hours when any hours field changes
+document.addEventListener('input', function(e) {
+    if (e.target.classList.contains('entry-hours')) {
+        updateTotalHours();
+    }
+});
+</script>
+{% endblock %}

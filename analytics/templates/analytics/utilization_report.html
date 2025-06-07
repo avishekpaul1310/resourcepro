@@ -1,0 +1,423 @@
+{% extends 'base.html' %}
+
+{% block title %}Utilization Report - ResourcePro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-controls {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .controls-row {
+        display: flex;
+        gap: 15px;
+        align-items: end;
+        flex-wrap: wrap;
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        min-width: 120px;
+    }
+    
+    .form-group label {
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #4a5568;
+        font-size: 0.9rem;
+    }
+    
+    .form-group input,
+    .form-group select {
+        padding: 6px 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+    
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        text-decoration: none;
+        display: inline-block;
+        transition: background-color 0.2s;
+    }
+    
+    .btn-primary {
+        background-color: #4c51bf;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: #434190;
+    }
+    
+    .btn-success {
+        background-color: #38a169;
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background-color: #2f855a;
+    }
+    
+    .report-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .summary-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        text-align: center;
+        border-left: 4px solid #4c51bf;
+    }
+    
+    .summary-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #2d3748;
+        margin-bottom: 5px;
+    }
+    
+    .summary-label {
+        color: #718096;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .summary-change {
+        font-size: 0.8rem;
+        margin-top: 5px;
+    }
+    
+    .summary-change.positive { color: #38a169; }
+    .summary-change.negative { color: #e53e3e; }
+    
+    .utilization-table {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .table-header {
+        background-color: #f7fafc;
+        padding: 15px 20px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .table-title {
+        font-size: 1.25rem;
+        font-weight: bold;
+        color: #2d3748;
+        margin: 0;
+    }
+    
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .table th,
+    .table td {
+        padding: 12px 20px;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .table th {
+        background-color: #f7fafc;
+        font-weight: 600;
+        color: #4a5568;
+        font-size: 0.9rem;
+    }
+    
+    .table tr:hover {
+        background-color: #f7fafc;
+    }
+    
+    .utilization-bar {
+        height: 20px;
+        background-color: #edf2f7;
+        border-radius: 10px;
+        overflow: hidden;
+        position: relative;
+        min-width: 100px;
+    }
+    
+    .utilization-fill {
+        height: 100%;
+        border-radius: 10px;
+        transition: width 0.3s ease;
+    }
+    
+    .utilization-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: #2d3748;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    .status-overutilized {
+        background-color: #fed7d7;
+        color: #c53030;
+    }
+    
+    .status-high {
+        background-color: #fef5e7;
+        color: #d69e2e;
+    }
+    
+    .status-normal {
+        background-color: #c6f6d5;
+        color: #2f855a;
+    }
+    
+    .status-low {
+        background-color: #e2e8f0;
+        color: #4a5568;
+    }
+    
+    .export-section {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-top: 20px;
+    }
+    
+    .export-buttons {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .resource-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 0.9rem;
+        margin-right: 10px;
+    }
+    
+    .resource-info {
+        display: flex;
+        align-items: center;
+    }
+    
+    .resource-details {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .resource-name {
+        font-weight: 500;
+        color: #2d3748;
+    }
+    
+    .resource-role {
+        font-size: 0.8rem;
+        color: #718096;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1 class="title">Utilization Report</h1>
+    <div class="actions">
+        <a href="{% url 'analytics:dashboard' %}" class="btn btn-primary">Back to Dashboard</a>
+    </div>
+</div>
+
+<!-- Report Controls -->
+<div class="report-controls">
+    <form method="get" class="controls-row">
+        <div class="form-group">
+            <label for="start_date">Start Date</label>
+            <input type="date" name="start_date" id="start_date" value="{{ start_date|date:'Y-m-d' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="end_date">End Date</label>
+            <input type="date" name="end_date" id="end_date" value="{{ end_date|date:'Y-m-d' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="department">Department</label>
+            <select name="department" id="department">
+                <option value="">All Departments</option>
+                {% for dept in departments %}
+                <option value="{{ dept }}" {% if department == dept %}selected{% endif %}>{{ dept }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="role">Role</label>
+            <select name="role" id="role">
+                <option value="">All Roles</option>
+                {% for role in roles %}
+                <option value="{{ role }}" {% if selected_role == role %}selected{% endif %}>{{ role }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>&nbsp;</label>
+            <button type="submit" class="btn btn-primary">Generate Report</button>
+        </div>
+    </form>
+</div>
+
+<!-- Report Summary -->
+<div class="report-summary">
+    <div class="summary-card">
+        <div class="summary-value">{{ total_resources }}</div>
+        <div class="summary-label">Total Resources</div>
+    </div>
+    
+    <div class="summary-card">
+        <div class="summary-value">{{ avg_utilization|floatformat:1 }}%</div>
+        <div class="summary-label">Average Utilization</div>
+        {% if utilization_trend %}
+        <div class="summary-change {% if utilization_trend > 0 %}positive{% else %}negative{% endif %}">
+            {% if utilization_trend > 0 %}↑{% else %}↓{% endif %} {{ utilization_trend|floatformat:1 }}%
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="summary-card">
+        <div class="summary-value">{{ total_hours|floatformat:0 }}</div>
+        <div class="summary-label">Total Hours</div>
+    </div>
+    
+    <div class="summary-card">
+        <div class="summary-value">{{ billable_hours|floatformat:0 }}</div>
+        <div class="summary-label">Billable Hours</div>
+        <div class="summary-change positive">{{ billable_percentage|floatformat:1 }}% billable</div>
+    </div>
+    
+    <div class="summary-card">
+        <div class="summary-value">{{ overutilized_count }}</div>
+        <div class="summary-label">Overutilized</div>
+    </div>
+    
+    <div class="summary-card">
+        <div class="summary-value">{{ underutilized_count }}</div>
+        <div class="summary-label">Underutilized</div>
+    </div>
+</div>
+
+<!-- Detailed Utilization Table -->
+<div class="utilization-table">
+    <div class="table-header">
+        <h3 class="table-title">Resource Utilization Details</h3>
+    </div>
+    
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Resource</th>
+                <th>Department</th>
+                <th>Capacity (hrs/week)</th>
+                <th>Actual Hours</th>
+                <th>Utilization</th>
+                <th>Billable Hours</th>
+                <th>Status</th>
+                <th>Projects</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for resource_data in utilization_data %}
+            <tr>
+                <td>
+                    <div class="resource-info">
+                        <div class="resource-avatar" style="background-color: {{ resource_data.resource.avatar_color|default:""#4c51bf"" }}">
+                            {{ resource_data.resource.name.0|upper }}
+                        </div>
+                        <div class="resource-details">
+                            <div class="resource-name">{{ resource_data.resource.name }}</div>
+                            <div class="resource-role">{{ resource_data.resource.role }}</div>
+                        </div>
+                    </div>
+                </td>
+                <td>{{ resource_data.resource.department|default:'-' }}</td>
+                <td>{{ resource_data.resource.capacity_hours_per_week }}</td>
+                <td>{{ resource_data.actual_hours|floatformat:1 }}</td>
+                <td>
+                    <div class="utilization-bar">
+                        <div class="utilization-fill" 
+                             style="width: {% if resource_data.utilization_rate > 100 %}100%{% else %}{{ resource_data.utilization_rate|floatformat:0 }}%{% endif %};
+                                    background-color: {% if resource_data.utilization_rate > 90 %}#e53e3e{% elif resource_data.utilization_rate > 75 %}#d69e2e{% elif resource_data.utilization_rate > 50 %}#38a169{% else %}#718096{% endif %};"></div>
+                        <div class="utilization-text">{{ resource_data.utilization_rate|floatformat:1 }}%</div>
+                    </div>
+                </td>
+                <td>{{ resource_data.billable_hours|floatformat:1 }}</td>
+                <td>
+                    {% if resource_data.utilization_rate > 90 %}
+                        <span class="status-badge status-overutilized">Overutilized</span>
+                    {% elif resource_data.utilization_rate > 75 %}
+                        <span class="status-badge status-high">High</span>
+                    {% elif resource_data.utilization_rate > 50 %}
+                        <span class="status-badge status-normal">Normal</span>
+                    {% else %}
+                        <span class="status-badge status-low">Low</span>
+                    {% endif %}
+                </td>
+                <td>{{ resource_data.active_projects }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 40px; color: #718096;">
+                    No utilization data available for the selected period.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Export Section -->
+<div class="export-section">
+    <h3 style="margin-bottom: 15px;">Export Options</h3>
+    <div class="export-buttons">
+        <a href="{% url 'analytics:export_utilization_report' %}?format=pdf&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&department={{ department }}&role={{ selected_role }}" 
+           class="btn btn-primary">Export as PDF</a>
+        <a href="{% url 'analytics:export_utilization_report' %}?format=excel&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&department={{ department }}&role={{ selected_role }}" 
+           class="btn btn-success">Export as Excel</a>
+    </div>
+    <p style="margin-top: 10px; color: #718096; font-size: 0.9rem;">
+        Export includes detailed utilization data, time entries, and summary statistics for the selected period.
+    </p>
+</div>
+{% endblock %}

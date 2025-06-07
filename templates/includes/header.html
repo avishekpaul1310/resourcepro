@@ -1,20 +1,30 @@
 <header class="header">
     <div class="container header-content">
-        <div class="logo">Resource<span>Pro</span></div>
-        <nav class="nav">
+        <div class="logo">Resource<span>Pro</span></div>        <nav class="nav">
             <a href="{% url 'dashboard' %}" class="nav-item {% if request.path == '/dashboard/' %}active{% endif %}">Dashboard</a>
             <a href="{% url 'project_list' %}" class="nav-item {% if '/projects/' in request.path %}active{% endif %}">Projects</a>
-            
-            <div class="dropdown nav-item-container">
-                <a href="{% url 'resource_list' %}" class="nav-item {% if '/resources/' in request.path %}active{% endif %}">Resources</a>
+              <div class="dropdown nav-item-container">
+                <a href="{% url 'resources:resource_list' %}" class="nav-item {% if '/resources/' in request.path %}active{% endif %}">Resources</a>
                 <div class="dropdown-content">
-                    <a href="{% url 'resource_list' %}">View Resources</a>
-                    <a href="{% url 'resource_create' %}">Create Resource</a>
-                    <a href="{% url 'skill_list' %}">Manage Skills</a>
+                    <a href="{% url 'resources:resource_list' %}">View Resources</a>
+                    <a href="{% url 'resources:resource_create' %}">Create Resource</a>
+                    <a href="{% url 'resources:skill_list' %}">Manage Skills</a>
+                    <a href="{% url 'resources:time_entry_list' %}">Time Tracking</a>
+                    <a href="{% url 'resources:availability_calendar' %}">Availability Calendar</a>
                 </div>
             </div>
             
             <a href="{% url 'allocation_board' %}" class="nav-item {% if '/allocation/' in request.path %}active{% endif %}">Allocation</a>
+              <div class="dropdown nav-item-container">
+                <a href="{% url 'analytics:analytics_dashboard' %}" class="nav-item {% if '/analytics/' in request.path %}active{% endif %}">Analytics</a>
+                <div class="dropdown-content">
+                    <a href="{% url 'analytics:analytics_dashboard' %}">Dashboard</a>
+                    <a href="{% url 'analytics:generate_forecast' %}">Demand Forecasting</a>
+                    <a href="{% url 'analytics:analyze_skills' %}">Skill Analysis</a>
+                    <a href="{% url 'analytics:utilization_report' %}">Utilization Report</a>
+                    <a href="{% url 'analytics:cost_tracking_report' %}">Cost Report</a>
+                </div>
+            </div>
         </nav>
         <div class="user-menu">
             {% if user.is_authenticated %}

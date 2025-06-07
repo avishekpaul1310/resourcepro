@@ -1,0 +1,384 @@
+{% extends 'base.html' %}
+
+{% block title %}Skill Demand Analysis - ResourcePro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .analysis-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    @media (max-width: 768px) {
+        .analysis-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .analysis-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .card-title {
+        font-size: 1.25rem;
+        font-weight: bold;
+        margin-bottom: 15px;
+        color: #2d3748;
+        border-bottom: 2px solid #4c51bf;
+        padding-bottom: 8px;
+    }
+    
+    .skill-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .skill-item:last-child {
+        border-bottom: none;
+    }
+    
+    .skill-info {
+        flex: 1;
+    }
+    
+    .skill-name {
+        font-weight: 500;
+        color: #2d3748;
+        margin-bottom: 3px;
+    }
+    
+    .skill-details {
+        font-size: 0.85rem;
+        color: #718096;
+    }
+    
+    .skill-metric {
+        text-align: right;
+        min-width: 80px;
+    }
+    
+    .metric-value {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #4c51bf;
+    }
+    
+    .metric-label {
+        font-size: 0.75rem;
+        color: #718096;
+        text-transform: uppercase;
+    }
+    
+    .demand-bar {
+        height: 8px;
+        background-color: #edf2f7;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 8px 0;
+    }
+    
+    .demand-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #4c51bf, #667eea);
+        transition: width 0.3s ease;
+    }
+    
+    .trend-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    .trend-up {
+        color: #38a169;
+    }
+    
+    .trend-down {
+        color: #e53e3e;
+    }
+    
+    .trend-stable {
+        color: #718096;
+    }
+    
+    .filters {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .filter-row {
+        display: flex;
+        gap: 15px;
+        align-items: end;
+        flex-wrap: wrap;
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        min-width: 120px;
+    }
+    
+    .form-group label {
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #4a5568;
+        font-size: 0.9rem;
+    }
+    
+    .form-group select {
+        padding: 6px 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+    
+    .btn {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        text-decoration: none;
+        display: inline-block;
+        transition: background-color 0.2s;
+    }
+    
+    .btn-primary {
+        background-color: #4c51bf;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: #434190;
+    }
+    
+    .summary-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        font-size: 0.85rem;
+        opacity: 0.9;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1 class="title">Skill Demand Analysis</h1>
+    <div class="actions">
+        <a href="{% url 'analytics:dashboard' %}" class="btn btn-primary">Back to Dashboard</a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filters">
+    <form method="get" class="filter-row">
+        <div class="form-group">
+            <label for="time_period">Time Period</label>
+            <select name="time_period" id="time_period">
+                <option value="30" {% if time_period == '30' %}selected{% endif %}>Last 30 Days</option>
+                <option value="60" {% if time_period == '60' %}selected{% endif %}>Last 60 Days</option>
+                <option value="90" {% if time_period == '90' %}selected{% endif %}>Last 90 Days</option>
+                <option value="180" {% if time_period == '180' %}selected{% endif %}>Last 6 Months</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="sort_by">Sort By</label>
+            <select name="sort_by" id="sort_by">
+                <option value="demand" {% if sort_by == 'demand' %}selected{% endif %}>Demand Score</option>
+                <option value="projects" {% if sort_by == 'projects' %}selected{% endif %}>Project Count</option>
+                <option value="resources" {% if sort_by == 'resources' %}selected{% endif %}>Resource Count</option>
+                <option value="trend" {% if sort_by == 'trend' %}selected{% endif %}>Trend</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>&nbsp;</label>
+            <button type="submit" class="btn btn-primary">Apply Filters</button>
+        </div>
+    </form>
+</div>
+
+<!-- Summary Statistics -->
+<div class="summary-stats">
+    <div class="stat-card">
+        <div class="stat-value">{{ total_skills }}</div>
+        <div class="stat-label">Total Skills</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ high_demand_skills }}</div>
+        <div class="stat-label">High Demand Skills</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ avg_demand_score|floatformat:1 }}</div>
+        <div class="stat-label">Avg Demand Score</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ skills_trending_up }}</div>
+        <div class="stat-label">Trending Up</div>
+    </div>
+</div>
+
+<!-- Analysis Results -->
+<div class="analysis-grid">
+    <!-- High Demand Skills -->
+    <div class="analysis-card">
+        <h3 class="card-title">Most In-Demand Skills</h3>
+        {% if skill_demand %}
+            {% for skill in skill_demand %}
+            <div class="skill-item">
+                <div class="skill-info">
+                    <div class="skill-name">{{ skill.skill_name }}</div>
+                    <div class="skill-details">
+                        {{ skill.active_projects }} active projects • {{ skill.resource_count }} resources
+                    </div>
+                    <div class="demand-bar">
+                        <div class="demand-fill" style="width: {{ skill.demand_score|floatformat:0 }}%"></div>
+                    </div>
+                </div>
+                <div class="skill-metric">
+                    <div class="metric-value">{{ skill.demand_score|floatformat:1 }}</div>
+                    <div class="metric-label">Score</div>
+                    {% if skill.trend > 0 %}
+                        <div class="trend-indicator trend-up">↗ {{ skill.trend|floatformat:1 }}%</div>
+                    {% elif skill.trend < 0 %}
+                        <div class="trend-indicator trend-down">↘ {{ skill.trend|floatformat:1 }}%</div>
+                    {% else %}
+                        <div class="trend-indicator trend-stable">→ Stable</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>No skill demand data available for the selected period.</p>
+        {% endif %}
+    </div>
+    
+    <!-- Skill Gap Analysis -->
+    <div class="analysis-card">
+        <h3 class="card-title">Skill Gap Analysis</h3>
+        {% if skill_gaps %}
+            {% for gap in skill_gaps %}
+            <div class="skill-item">
+                <div class="skill-info">
+                    <div class="skill-name">{{ gap.skill_name }}</div>
+                    <div class="skill-details">
+                        Demand: {{ gap.demand }} • Available: {{ gap.available }} • Gap: {{ gap.gap }}
+                    </div>
+                    <div class="demand-bar">
+                        <div class="demand-fill" style="width: {{ gap.gap_percentage|floatformat:0 }}%; background-color: #e53e3e;"></div>
+                    </div>
+                </div>
+                <div class="skill-metric">
+                    <div class="metric-value" style="color: #e53e3e;">{{ gap.gap }}</div>
+                    <div class="metric-label">Gap</div>
+                    {% if gap.priority == 'high' %}
+                        <div class="trend-indicator" style="color: #e53e3e;">High Priority</div>
+                    {% elif gap.priority == 'medium' %}
+                        <div class="trend-indicator" style="color: #d69e2e;">Medium Priority</div>
+                    {% else %}
+                        <div class="trend-indicator" style="color: #38a169;">Low Priority</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>No significant skill gaps identified.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Trending Skills -->
+<div class="analysis-card" style="margin-bottom: 20px;">
+    <h3 class="card-title">Trending Skills</h3>
+    <div class="analysis-grid" style="margin-bottom: 0;">
+        <div>
+            <h4 style="color: #38a169; margin-bottom: 10px;">📈 Trending Up</h4>
+            {% if trending_up %}
+                {% for skill in trending_up %}
+                <div class="skill-item">
+                    <div class="skill-info">
+                        <div class="skill-name">{{ skill.skill_name }}</div>
+                        <div class="skill-details">{{ skill.change|floatformat:1 }}% increase</div>
+                    </div>
+                    <div class="trend-indicator trend-up">+{{ skill.change|floatformat:1 }}%</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p style="color: #718096; font-style: italic;">No skills trending up currently.</p>
+            {% endif %}
+        </div>
+        
+        <div>
+            <h4 style="color: #e53e3e; margin-bottom: 10px;">📉 Trending Down</h4>
+            {% if trending_down %}
+                {% for skill in trending_down %}
+                <div class="skill-item">
+                    <div class="skill-info">
+                        <div class="skill-name">{{ skill.skill_name }}</div>
+                        <div class="skill-details">{{ skill.change|floatformat:1 }}% decrease</div>
+                    </div>
+                    <div class="trend-indicator trend-down">{{ skill.change|floatformat:1 }}%</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p style="color: #718096; font-style: italic;">No skills trending down currently.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Recommendations -->
+<div class="analysis-card">
+    <h3 class="card-title">Recommendations</h3>
+    <div style="line-height: 1.6;">
+        {% if recommendations %}
+            <ul style="padding-left: 20px;">
+                {% for rec in recommendations %}
+                <li style="margin-bottom: 8px;">{{ rec }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <ul style="padding-left: 20px;">
+                <li>Consider hiring for skills with high demand scores (>80)</li>
+                <li>Provide training for skills showing upward trends</li>
+                <li>Review resource allocation for skills with significant gaps</li>
+                <li>Monitor skills trending down for potential reallocation</li>
+            </ul>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

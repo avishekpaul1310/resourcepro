@@ -18,6 +18,7 @@ class Project(models.Model):
     ], default='planning')
     priority = models.IntegerField(choices=[(i, i) for i in range(1, 6)], default=3)  # 1-5 scale
     color = models.CharField(max_length=7, default="#4F46E5")  # For UI display
+    budget = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -30,20 +31,51 @@ class Project(models.Model):
         if not tasks:
             return 0
         
-        total_estimated_hours = sum(task.estimated_hours for task in tasks)
+        total_weighted_completion = 0
+        total_estimated_hours = 0
+        
+        for task in tasks:
+            estimated_hours = task.estimated_hours or 0
+            completion = task.completion_percentage or 0
+            
+            total_weighted_completion += (estimated_hours * completion)
+            total_estimated_hours += estimated_hours
+        
         if total_estimated_hours == 0:
             return 0
-            
-        # Calculate completed hours based on task completion percentages
-        completed_hours = sum(
-            task.estimated_hours * (task.completion_percentage / 100) 
-            for task in tasks
-        )
         
-        return int((completed_hours / total_estimated_hours) * 100)
+        return round((total_weighted_completion / total_estimated_hours), 1)
+    
+    def get_estimated_cost(self):
+        """Calculate estimated cost based on allocated resources"""
+        total_cost = 0
+        for assignment in self.get_all_assignments():
+            if assignment.resource.cost_per_hour:
+                total_cost += assignment.allocated_hours * assignment.resource.cost_per_hour
+        return total_cost
+    
+    def get_actual_cost(self):
+        """Calculate actual cost based on time entries"""
+        total_cost = 0
+        for task in self.tasks.all():
+            for time_entry in task.time_entries.all():
+                if time_entry.resource.cost_per_hour:
+                    total_cost += time_entry.hours * time_entry.resource.cost_per_hour
+        return total_cost
+    
+    def get_all_assignments(self):
+        """Get all assignments for this project"""
+        from allocation.models import Assignment
+        return Assignment.objects.filter(task__project=self)
+    
+    def get_budget_variance(self):
+        """Calculate budget variance (positive = under budget, negative = over budget)"""
+        if not self.budget:
+            return None
+        return self.budget - self.get_actual_cost()
     
     class Meta:
-        ordering = ['-start_date']
+        ordering = ['-created_at']
 
 class Task(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='tasks')
@@ -67,23 +99,25 @@ class Task(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     def __str__(self):
-        return f"{self.name} ({self.project.name})"
+        return f"{self.project.name} - {self.name}"
     
-    def save(self, *args, **kwargs):
-        # Automatically set completion to 100% when status is completed
-        if self.status == 'completed' and self.completion_percentage != 100:
-            self.completion_percentage = 100
-        # Reset completion to 0% when task is marked as not started
-        elif self.status == 'not_started' and self.completion_percentage != 0:
-            self.completion_percentage = 0
-        # Set a default of 50% when status changes to in_progress and completion is still 0%
-        elif self.status == 'in_progress' and self.completion_percentage == 0:
-            self.completion_percentage = 50
-        # If blocked, keep the current percentage but ensure it's not 100%
-        elif self.status == 'blocked' and self.completion_percentage == 100:
-            self.completion_percentage = 90
-            
-        super().save(*args, **kwargs)
+    def get_actual_hours(self):
+        """Calculate actual hours from time entries"""
+        return sum(entry.hours for entry in self.time_entries.all())
+    
+    def get_estimated_vs_actual_variance(self):
+        """Calculate variance between estimated and actual hours"""
+        actual = self.get_actual_hours()
+        if actual == 0:
+            return None
+        return self.estimated_hours - actual
+    
+    def get_time_tracking_efficiency(self):
+        """Calculate efficiency percentage (estimated/actual * 100)"""
+        actual = self.get_actual_hours()
+        if actual == 0:
+            return None
+        return round((self.estimated_hours / actual) * 100, 1)
     
     @property
     def is_assigned(self):

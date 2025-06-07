@@ -91,6 +91,18 @@ class Resource(models.Model):
             
         return round(utilization, 1)
     
+    def get_total_cost(self, start_date=None, end_date=None):
+        """Calculate total cost for resource assignments in a given period"""
+        assignments = self.assignments.all()
+        if start_date:
+            assignments = assignments.filter(task__start_date__gte=start_date)
+        if end_date:
+            assignments = assignments.filter(task__end_date__lte=end_date)
+        
+        total_cost = sum(assignment.allocated_hours * self.cost_per_hour 
+                        for assignment in assignments)
+        return total_cost
+    
     class Meta:
         ordering = ['name']
 
@@ -104,3 +116,47 @@ class ResourceSkill(models.Model):
     
     class Meta:
         unique_together = ['resource', 'skill']
+
+class ResourceAvailability(models.Model):
+    """Track resource availability, vacations, and time off"""
+    AVAILABILITY_TYPES = [
+        ('available', 'Available'),
+        ('vacation', 'Vacation'),
+        ('sick_leave', 'Sick Leave'),
+        ('personal_leave', 'Personal Leave'),
+        ('training', 'Training'),
+        ('meeting', 'Meeting'),
+        ('unavailable', 'Unavailable'),
+    ]
+    
+    resource = models.ForeignKey(Resource, on_delete=models.CASCADE, related_name='availability')
+    start_date = models.DateField()
+    end_date = models.DateField()
+    availability_type = models.CharField(max_length=20, choices=AVAILABILITY_TYPES, default='available')
+    notes = models.TextField(blank=True, null=True)
+    hours_per_day = models.DecimalField(max_digits=4, decimal_places=2, default=8.0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"{self.resource.name} - {self.get_availability_type_display()} ({self.start_date} to {self.end_date})"
+    
+    class Meta:
+        ordering = ['start_date']
+
+class TimeEntry(models.Model):
+    """Track actual time spent on tasks"""
+    resource = models.ForeignKey(Resource, on_delete=models.CASCADE, related_name='time_entries')
+    task = models.ForeignKey('projects.Task', on_delete=models.CASCADE, related_name='time_entries')
+    date = models.DateField()
+    hours = models.DecimalField(max_digits=4, decimal_places=2)
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"{self.resource.name} - {self.task.name} ({self.hours}h on {self.date})"
+    
+    class Meta:
+        ordering = ['-date']
+        unique_together = ['resource', 'task', 'date']

@@ -1,0 +1,364 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Availability Calendar - ResourcePro{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
+<style>
+    .calendar-container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .legend {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 3px;
+    }
+    
+    .vacation { background-color: #ff6b6b; }
+    .sick-leave { background-color: #feca57; }
+    .holiday { background-color: #48dbfb; }
+    .available { background-color: #1dd1a1; }
+    .partially-available { background-color: #ffeaa7; }
+    
+    .resource-filter {
+        margin-bottom: 20px;
+    }
+    
+    .resource-filter select {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    .availability-form {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 20px;
+    }
+    
+    .form-row {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+    }
+    
+    .form-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #333;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    .btn-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+    }
+    
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+    }
+    
+    .btn-success {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .alert {
+        padding: 12px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+    
+    .alert-success {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+    
+    .alert-error {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+    
+    .upcoming-events {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 20px;
+        margin-top: 20px;
+    }
+    
+    .event-list {
+        list-style: none;
+        padding: 0;
+    }
+    
+    .event-item {
+        padding: 10px;
+        border-left: 4px solid #007bff;
+        margin-bottom: 10px;
+        background: #f8f9fa;
+        border-radius: 0 4px 4px 0;
+    }
+    
+    .event-date {
+        font-weight: bold;
+        color: #007bff;
+    }
+    
+    .event-resource {
+        color: #666;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Availability Calendar</h1>
+        <div>
+            <a href="{% url 'resources:time_tracking' %}" class="btn btn-secondary">
+                <i class="fas fa-clock"></i> Time Tracking
+            </a>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#availabilityModal">
+                <i class="fas fa-plus"></i> Add Availability Entry
+            </button>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Resource Filter -->
+    <div class="resource-filter">
+        <select id="resourceFilter" onchange="filterByResource()">
+            <option value="">All Resources</option>
+            {% for resource in resources %}
+                <option value="{{ resource.id }}" {% if selected_resource == resource.id %}selected{% endif %}>
+                    {{ resource.user.first_name }} {{ resource.user.last_name }} - {{ resource.role }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-color vacation"></div>
+            <span>Vacation</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color sick-leave"></div>
+            <span>Sick Leave</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color holiday"></div>
+            <span>Holiday</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color available"></div>
+            <span>Available</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color partially-available"></div>
+            <span>Partially Available</span>
+        </div>
+    </div>
+
+    <!-- Calendar -->
+    <div class="calendar-container">
+        <div id="calendar"></div>
+    </div>
+
+    <!-- Upcoming Events -->
+    <div class="upcoming-events">
+        <h3>Upcoming Availability Events</h3>
+        <ul class="event-list">
+            {% for event in upcoming_events %}
+                <li class="event-item">
+                    <div class="event-date">{{ event.start_date|date:"M d, Y" }} - {{ event.end_date|date:"M d, Y" }}</div>
+                    <div>{{ event.resource.user.first_name }} {{ event.resource.user.last_name }} - {{ event.get_availability_type_display }}</div>
+                    {% if event.notes %}
+                        <div class="event-resource">{{ event.notes }}</div>
+                    {% endif %}
+                </li>
+            {% empty %}
+                <li class="event-item">No upcoming availability events</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<!-- Availability Modal -->
+<div class="modal fade" id="availabilityModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Availability Entry</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post" action="{% url 'resources:availability_calendar' %}">
+                    {% csrf_token %}
+                    <div class="form-row">
+                        <div class="form-group">
+                            {{ availability_form.resource.label_tag }}
+                            {{ availability_form.resource }}
+                        </div>
+                        <div class="form-group">
+                            {{ availability_form.availability_type.label_tag }}
+                            {{ availability_form.availability_type }}
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            {{ availability_form.start_date.label_tag }}
+                            {{ availability_form.start_date }}
+                        </div>
+                        <div class="form-group">
+                            {{ availability_form.end_date.label_tag }}
+                            {{ availability_form.end_date }}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        {{ availability_form.notes.label_tag }}
+                        {{ availability_form.notes }}
+                    </div>
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save"></i> Save Entry
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var calendarEl = document.getElementById('calendar');
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,listWeek'
+        },        events: [
+            {% for event in calendar_events %}
+            {
+                title: '{{ event.resource.user.first_name|escapejs }} {{ event.resource.user.last_name|escapejs }} - {{ event.get_availability_type_display|escapejs }}',
+                start: '{{ event.start_date|date:"Y-m-d" }}',
+                end: '{{ event.end_date|date:"Y-m-d" }}',
+                backgroundColor: getEventColor('{{ event.availability_type|escapejs }}'),
+                borderColor: getEventColor('{{ event.availability_type|escapejs }}'),
+                extendedProps: {
+                    resourceId: {{ event.resource.id }},
+                    type: '{{ event.availability_type|escapejs }}',
+                    notes: '{{ event.notes|default:""|escapejs }}'
+                }
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ],
+        eventClick: function(info) {
+            alert('Event: ' + info.event.title + '\nNotes: ' + info.event.extendedProps.notes);
+        }
+    });
+    
+    calendar.render();
+    
+    // Store calendar reference globally
+    window.resourceCalendar = calendar;
+});
+
+function getEventColor(type) {
+    const colors = {
+        'vacation': '#ff6b6b',
+        'sick_leave': '#feca57',
+        'holiday': '#48dbfb',
+        'available': '#1dd1a1',
+        'partially_available': '#ffeaa7'
+    };
+    return colors[type] || '#007bff';
+}
+
+function filterByResource() {
+    const select = document.getElementById('resourceFilter');
+    const resourceId = select.value;
+    
+    if (resourceId) {
+        window.location.href = '{% url "resources:availability_calendar" %}?resource=' + resourceId;
+    } else {
+        window.location.href = '{% url "resources:availability_calendar" %}';
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,293 @@
+{% extends 'base.html' %}
+
+{% block title %}Resource Demand Forecasting - ResourcePro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .forecast-controls {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .controls-row {
+        display: flex;
+        gap: 20px;
+        align-items: end;
+        flex-wrap: wrap;
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        min-width: 150px;
+    }
+    
+    .form-group label {
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #4a5568;
+    }
+    
+    .form-group input,
+    .form-group select {
+        padding: 8px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+    
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        text-decoration: none;
+        display: inline-block;
+        transition: background-color 0.2s;
+    }
+    
+    .btn-primary {
+        background-color: #4c51bf;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: #434190;
+    }
+    
+    .forecast-results {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .forecast-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+    
+    .forecast-table th,
+    .forecast-table td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .forecast-table th {
+        background-color: #f7fafc;
+        font-weight: 600;
+        color: #4a5568;
+    }
+    
+    .confidence-bar {
+        height: 15px;
+        background-color: #edf2f7;
+        border-radius: 7px;
+        overflow: hidden;
+    }
+    
+    .confidence-fill {
+        height: 100%;
+        background-color: #4c51bf;
+        transition: width 0.3s ease;
+    }
+    
+    .demand-indicator {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    .demand-high {
+        background-color: #fed7d7;
+        color: #c53030;
+    }
+    
+    .demand-medium {
+        background-color: #fef5e7;
+        color: #d69e2e;
+    }
+    
+    .demand-low {
+        background-color: #c6f6d5;
+        color: #2f855a;
+    }
+    
+    .forecast-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .summary-card {
+        padding: 15px;
+        background-color: #f7fafc;
+        border-radius: 6px;
+        text-align: center;
+    }
+    
+    .summary-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #2d3748;
+    }
+    
+    .summary-label {
+        color: #718096;
+        font-size: 0.85rem;
+        margin-top: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1 class="title">Resource Demand Forecasting</h1>
+    <div class="actions">
+        <a href="{% url 'analytics:dashboard' %}" class="btn btn-primary">Back to Dashboard</a>
+    </div>
+</div>
+
+<!-- Forecast Controls -->
+<div class="forecast-controls">
+    <h3 style="margin-bottom: 15px;">Generate Forecast</h3>
+    <form method="get" class="controls-row">
+        <div class="form-group">
+            <label for="forecast_days">Forecast Period (Days)</label>
+            <select name="forecast_days" id="forecast_days">
+                <option value="7" {% if forecast_days == 7 %}selected{% endif %}>7 Days</option>
+                <option value="14" {% if forecast_days == 14 %}selected{% endif %}>14 Days</option>
+                <option value="30" {% if forecast_days == 30 %}selected{% endif %}>30 Days</option>
+                <option value="60" {% if forecast_days == 60 %}selected{% endif %}>60 Days</option>
+                <option value="90" {% if forecast_days == 90 %}selected{% endif %}>90 Days</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="skill_filter">Filter by Skill</label>
+            <select name="skill_filter" id="skill_filter">
+                <option value="">All Skills</option>
+                {% for skill in available_skills %}
+                <option value="{{ skill.id }}" {% if skill_filter == skill.id|stringformat:'s' %}selected{% endif %}>
+                    {{ skill.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>&nbsp;</label>
+            <button type="submit" class="btn btn-primary">Generate Forecast</button>
+        </div>
+    </form>
+</div>
+
+{% if forecasts %}
+<!-- Forecast Summary -->
+<div class="forecast-results">
+    <h3>Forecast Summary</h3>
+    <div class="forecast-summary">
+        <div class="summary-card">
+            <div class="summary-value">{{ avg_demand|floatformat:1 }}</div>
+            <div class="summary-label">Average Demand</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-value">{{ peak_demand|floatformat:1 }}</div>
+            <div class="summary-label">Peak Demand</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-value">{{ avg_confidence|floatformat:2 }}</div>
+            <div class="summary-label">Avg Confidence</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-value">{{ high_demand_days }}</div>
+            <div class="summary-label">High Demand Days</div>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Forecast -->
+<div class="forecast-results">
+    <h3>Detailed Forecast</h3>
+    <table class="forecast-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Predicted Demand</th>
+                <th>Confidence Score</th>
+                <th>Demand Level</th>
+                <th>Recommended Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for forecast in forecasts %}
+            <tr>
+                <td>{{ forecast.forecast_date|date:"M d, Y" }}</td>
+                <td>{{ forecast.predicted_demand|floatformat:2 }}</td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div class="confidence-bar" style="width: 80px;">
+                            <div class="confidence-fill" style="width: {{ forecast.confidence_score|floatformat:0 }}%"></div>
+                        </div>
+                        <span>{{ forecast.confidence_score|floatformat:2 }}</span>
+                    </div>
+                </td>
+                <td>
+                    {% if forecast.predicted_demand > 0.8 %}
+                        <span class="demand-indicator demand-high">High</span>
+                    {% elif forecast.predicted_demand > 0.5 %}
+                        <span class="demand-indicator demand-medium">Medium</span>
+                    {% else %}
+                        <span class="demand-indicator demand-low">Low</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if forecast.predicted_demand > 0.8 %}
+                        Consider additional hiring or contractor engagement
+                    {% elif forecast.predicted_demand > 0.6 %}
+                        Monitor resource allocation closely
+                    {% elif forecast.predicted_demand < 0.3 %}
+                        Review project timelines and resource assignments
+                    {% else %}
+                        Current resource level appropriate
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Export Options -->
+<div class="forecast-results">
+    <h3>Export Options</h3>
+    <div style="display: flex; gap: 10px;">
+        <a href="{% url 'analytics:export_forecast_report' %}?format=pdf&forecast_days={{ forecast_days }}&skill_filter={{ skill_filter }}" 
+           class="btn btn-primary">Export as PDF</a>
+        <a href="{% url 'analytics:export_forecast_report' %}?format=excel&forecast_days={{ forecast_days }}&skill_filter={{ skill_filter }}" 
+           class="btn btn-primary" style="background-color: #38a169;">Export as Excel</a>
+    </div>
+</div>
+
+{% else %}
+<div class="forecast-results">
+    <p>No forecast data available. Please ensure you have historical utilization data and try generating a forecast.</p>
+    <p>To improve forecast accuracy, make sure to:</p>
+    <ul>
+        <li>Record time entries regularly</li>
+        <li>Update resource allocations</li>
+        <li>Maintain project timelines</li>
+    </ul>
+</div>
+{% endif %}
+{% endblock %}

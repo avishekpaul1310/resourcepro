@@ -1,0 +1,542 @@
+{% extends 'base.html' %}
+
+{% block title %}Cost Report - ResourcePro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .cost-dashboard {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .cost-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .cost-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, #4c51bf, #667eea);
+    }
+    
+    .cost-value {
+        font-size: 2.2rem;
+        font-weight: bold;
+        color: #2d3748;
+        margin-bottom: 8px;
+    }
+    
+    .cost-label {
+        color: #718096;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 10px;
+    }
+    
+    .cost-trend {
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .trend-positive { color: #38a169; }
+    .trend-negative { color: #e53e3e; }
+    .trend-neutral { color: #718096; }
+    
+    .variance-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    .variance-over {
+        background-color: #fed7d7;
+        color: #c53030;
+    }
+    
+    .variance-under {
+        background-color: #c6f6d5;
+        color: #2f855a;
+    }
+    
+    .variance-ontrack {
+        background-color: #bee3f8;
+        color: #2b6cb0;
+    }
+    
+    .report-controls {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .controls-row {
+        display: flex;
+        gap: 15px;
+        align-items: end;
+        flex-wrap: wrap;
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        min-width: 120px;
+    }
+    
+    .form-group label {
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #4a5568;
+        font-size: 0.9rem;
+    }
+    
+    .form-group input,
+    .form-group select {
+        padding: 6px 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+    
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        text-decoration: none;
+        display: inline-block;
+        transition: background-color 0.2s;
+    }
+    
+    .btn-primary {
+        background-color: #4c51bf;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: #434190;
+    }
+    
+    .btn-success {
+        background-color: #38a169;
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background-color: #2f855a;
+    }
+    
+    .cost-breakdown {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .section-header {
+        background-color: #f7fafc;
+        padding: 15px 20px;
+        border-bottom: 1px solid #e2e8f0;
+        border-radius: 8px 8px 0 0;
+    }
+    
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: bold;
+        color: #2d3748;
+        margin: 0;
+    }
+    
+    .cost-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .cost-table th,
+    .cost-table td {
+        padding: 12px 20px;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .cost-table th {
+        background-color: #f7fafc;
+        font-weight: 600;
+        color: #4a5568;
+        font-size: 0.9rem;
+    }
+    
+    .cost-table tr:hover {
+        background-color: #f7fafc;
+    }
+    
+    .cost-table .numeric {
+        text-align: right;
+        font-weight: 500;
+    }
+    
+    .progress-bar {
+        height: 16px;
+        background-color: #edf2f7;
+        border-radius: 8px;
+        overflow: hidden;
+        position: relative;
+        min-width: 120px;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        border-radius: 8px;
+        transition: width 0.3s ease;
+    }
+    
+    .progress-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: white;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+    
+    .project-status {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 10px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    .status-active {
+        background-color: #c6f6d5;
+        color: #2f855a;
+    }
+    
+    .status-completed {
+        background-color: #bee3f8;
+        color: #2b6cb0;
+    }
+    
+    .status-on-hold {
+        background-color: #fef5e7;
+        color: #d69e2e;
+    }
+    
+    .cost-chart {
+        padding: 20px;
+        text-align: center;
+        color: #718096;
+    }
+    
+    .alert {
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        border-left: 4px solid;
+    }
+    
+    .alert-warning {
+        background-color: #fffbeb;
+        border-color: #f59e0b;
+        color: #92400e;
+    }
+    
+    .alert-danger {
+        background-color: #fef2f2;
+        border-color: #ef4444;
+        color: #991b1b;
+    }
+    
+    .alert-success {
+        background-color: #f0fdf4;
+        border-color: #22c55e;
+        color: #166534;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1 class="title">Cost Tracking Report</h1>
+    <div class="actions">
+        <a href="{% url 'analytics:dashboard' %}" class="btn btn-primary">Back to Dashboard</a>
+    </div>
+</div>
+
+<!-- Report Controls -->
+<div class="report-controls">
+    <form method="get" class="controls-row">
+        <div class="form-group">
+            <label for="start_date">Start Date</label>
+            <input type="date" name="start_date" id="start_date" value="{{ start_date|date:'Y-m-d' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="end_date">End Date</label>
+            <input type="date" name="end_date" id="end_date" value="{{ end_date|date:'Y-m-d' }}">
+        </div>
+        
+        <div class="form-group">
+            <label for="project_status">Project Status</label>
+            <select name="project_status" id="project_status">
+                <option value="">All Projects</option>
+                <option value="active" {% if project_status == 'active' %}selected{% endif %}>Active</option>
+                <option value="completed" {% if project_status == 'completed' %}selected{% endif %}>Completed</option>
+                <option value="on_hold" {% if project_status == 'on_hold' %}selected{% endif %}>On Hold</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="client">Client</label>
+            <select name="client" id="client">
+                <option value="">All Clients</option>
+                {% for client in clients %}
+                <option value="{{ client }}" {% if selected_client == client %}selected{% endif %}>{{ client }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>&nbsp;</label>
+            <button type="submit" class="btn btn-primary">Generate Report</button>
+        </div>
+    </form>
+</div>
+
+<!-- Cost Overview -->
+<div class="cost-dashboard">
+    <div class="cost-card">
+        <div class="cost-value">${{ total_budget|floatformat:0 }}</div>
+        <div class="cost-label">Total Budget</div>
+        <div class="cost-trend trend-neutral">Across {{ total_projects }} projects</div>
+    </div>
+    
+    <div class="cost-card">
+        <div class="cost-value">${{ actual_costs|floatformat:0 }}</div>
+        <div class="cost-label">Actual Costs</div>
+        <div class="cost-trend {% if cost_trend > 0 %}trend-negative{% else %}trend-positive{% endif %}">
+            {% if cost_trend > 0 %}↑{% else %}↓{% endif %} {{ cost_trend|floatformat:1 }}% from last period
+        </div>
+    </div>
+    
+    <div class="cost-card">
+        <div class="cost-value">${{ budget_variance|floatformat:0 }}</div>
+        <div class="cost-label">Budget Variance</div>
+        <div class="variance-indicator {% if budget_variance > 0 %}variance-under{% elif budget_variance < -1000 %}variance-over{% else %}variance-ontrack{% endif %}">
+            {% if budget_variance > 0 %}
+                Under Budget
+            {% elif budget_variance < -1000 %}
+                Over Budget
+            {% else %}
+                On Track
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="cost-card">
+        <div class="cost-value">{{ budget_utilization|floatformat:1 }}%</div>
+        <div class="cost-label">Budget Utilization</div>
+        <div class="cost-trend {% if budget_utilization > 90 %}trend-negative{% elif budget_utilization > 70 %}trend-neutral{% else %}trend-positive{% endif %}">
+            {{ remaining_budget|floatformat:0 }} remaining
+        </div>
+    </div>
+    
+    <div class="cost-card">
+        <div class="cost-value">${{ avg_hourly_rate|floatformat:0 }}</div>
+        <div class="cost-label">Avg Hourly Rate</div>
+        <div class="cost-trend trend-neutral">Across all resources</div>
+    </div>
+    
+    <div class="cost-card">
+        <div class="cost-value">{{ overbudget_projects }}</div>
+        <div class="cost-label">Over Budget Projects</div>
+        <div class="cost-trend {% if overbudget_projects > 0 %}trend-negative{% else %}trend-positive{% endif %}">
+            {{ overbudget_projects|floatformat:0 }}% of active projects
+        </div>
+    </div>
+</div>
+
+<!-- Budget Alerts -->
+{% if budget_alerts %}
+<div class="alert alert-warning">
+    <strong>Budget Alerts:</strong>
+    <ul style="margin: 10px 0 0 20px;">
+        {% for alert in budget_alerts %}
+        <li>{{ alert }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<!-- Project Cost Breakdown -->
+<div class="cost-breakdown">
+    <div class="section-header">
+        <h3 class="section-title">Project Cost Breakdown</h3>
+    </div>
+    
+    <table class="cost-table">
+        <thead>
+            <tr>
+                <th>Project</th>
+                <th>Client</th>
+                <th>Status</th>
+                <th class="numeric">Budget</th>
+                <th class="numeric">Actual Cost</th>
+                <th class="numeric">Variance</th>
+                <th>Budget Progress</th>
+                <th class="numeric">Hours Logged</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for project in project_costs %}
+            <tr>
+                <td>
+                    <strong>{{ project.name }}</strong>
+                    <br><small style="color: #718096;">{{ project.description|truncatechars:50 }}</small>
+                </td>
+                <td>{{ project.client|default:'-' }}</td>
+                <td>
+                    <span class="project-status status-{{ project.status }}">
+                        {{ project.get_status_display }}
+                    </span>
+                </td>
+                <td class="numeric">${{ project.budget|floatformat:0 }}</td>
+                <td class="numeric">${{ project.actual_cost|floatformat:0 }}</td>
+                <td class="numeric">
+                    <span class="{% if project.variance < 0 %}trend-negative{% else %}trend-positive{% endif %}">
+                        ${{ project.variance|floatformat:0 }}
+                    </span>
+                </td>
+                <td>
+                    <div class="progress-bar">
+                        {% with width=project.budget_percentage|floatformat:0 %}
+                        {% with bg_color=project.budget_percentage > 100|yesno:'#e53e3e,#d69e2e' %}
+                        {% with final_width=project.budget_percentage > 100|yesno:'100,'|add:width %}
+                        {% with final_color=project.budget_percentage > 80|yesno:bg_color,'#38a169' %}
+                        <div class="progress-fill" style="width: {{ final_width }}%; background-color: {{ final_color }};"></div>
+                        {% endwith %}
+                        {% endwith %}
+                        {% endwith %}
+                        {% endwith %}
+                        <div class="progress-text">{{ project.budget_percentage|floatformat:1 }}%</div>
+                    </div>
+                </td>
+                <td class="numeric">{{ project.total_hours|floatformat:1 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 40px; color: #718096;">
+                    No project cost data available for the selected criteria.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Resource Cost Analysis -->
+<div class="cost-breakdown">
+    <div class="section-header">
+        <h3 class="section-title">Resource Cost Analysis</h3>
+    </div>
+    
+    <table class="cost-table">
+        <thead>
+            <tr>
+                <th>Resource</th>
+                <th>Role</th>
+                <th class="numeric">Hourly Rate</th>
+                <th class="numeric">Hours Logged</th>
+                <th class="numeric">Total Cost</th>
+                <th class="numeric">Billable Hours</th>
+                <th class="numeric">Revenue Generated</th>
+                <th class="numeric">Profit Margin</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for resource in resource_costs %}
+            <tr>
+                <td>
+                    <strong>{{ resource.name }}</strong>
+                    <br><small style="color: #718096;">{{ resource.department|default:'No Department' }}</small>
+                </td>
+                <td>{{ resource.role }}</td>
+                <td class="numeric">${{ resource.hourly_rate|floatformat:0 }}</td>
+                <td class="numeric">{{ resource.hours_logged|floatformat:1 }}</td>
+                <td class="numeric">${{ resource.total_cost|floatformat:0 }}</td>
+                <td class="numeric">{{ resource.billable_hours|floatformat:1 }}</td>
+                <td class="numeric">${{ resource.revenue_generated|floatformat:0 }}</td>
+                <td class="numeric">
+                    <span style="color: {% if resource.profit_margin > 0 %}#38a169{% else %}#e53e3e{% endif %};">
+                        {{ resource.profit_margin|floatformat:1 }}%
+                    </span>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 40px; color: #718096;">
+                    No resource cost data available.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Cost Trends Chart Placeholder -->
+<div class="cost-breakdown">
+    <div class="section-header">
+        <h3 class="section-title">Cost Trends</h3>
+    </div>
+    <div class="cost-chart">
+        <p>Cost trend visualization would be displayed here</p>
+        <p style="font-size: 0.9rem; margin-top: 10px;">
+            This section can be enhanced with chart libraries like Chart.js or D3.js to show:
+        </p>
+        <ul style="text-align: left; max-width: 400px; margin: 15px auto;">
+            <li>Monthly cost trends</li>
+            <li>Budget vs actual comparisons</li>
+            <li>Cost breakdown by department/project</li>
+            <li>Resource utilization costs</li>
+        </ul>
+    </div>
+</div>
+
+<!-- Export Section -->
+<div class="cost-breakdown">
+    <div class="section-header">
+        <h3 class="section-title">Export Options</h3>
+    </div>
+    <div style="padding: 20px;">
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <a href="{% url 'analytics:export_cost_report' %}?format=pdf&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&project_status={{ project_status }}&client={{ selected_client }}" 
+               class="btn btn-primary">Export as PDF</a>
+            <a href="{% url 'analytics:export_cost_report' %}?format=excel&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&project_status={{ project_status }}&client={{ selected_client }}" 
+               class="btn btn-success">Export as Excel</a>
+        </div>
+        <p style="color: #718096; font-size: 0.9rem;">
+            Export includes detailed cost breakdowns, project variances, resource costs, and budget analysis.
+        </p>
+    </div>
+</div>
+{% endblock %}

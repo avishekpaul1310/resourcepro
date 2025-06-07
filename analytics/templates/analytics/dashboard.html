@@ -1,0 +1,288 @@
+{% extends 'base.html' %}
+
+{% block title %}Analytics Dashboard - ResourcePro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .metric-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-left: 4px solid #4c51bf;
+    }
+    
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #2d3748;
+        margin-bottom: 5px;
+    }
+    
+    .metric-label {
+        color: #718096;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .metric-change {
+        font-size: 0.8rem;
+        margin-top: 5px;
+    }
+    
+    .metric-change.positive { color: #38a169; }
+    .metric-change.negative { color: #e53e3e; }
+    
+    .chart-container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .chart-title {
+        font-size: 1.25rem;
+        font-weight: bold;
+        margin-bottom: 15px;
+        color: #2d3748;
+    }
+    
+    .forecast-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+    
+    .forecast-table th,
+    .forecast-table td {
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .forecast-table th {
+        background-color: #f7fafc;
+        font-weight: 600;
+        color: #4a5568;
+    }
+    
+    .skill-bar {
+        height: 20px;
+        background-color: #edf2f7;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 5px 0;
+    }
+    
+    .skill-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #4c51bf, #667eea);
+        transition: width 0.3s ease;
+    }
+    
+    .export-buttons {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        text-decoration: none;
+        display: inline-block;
+        transition: background-color 0.2s;
+    }
+    
+    .btn-primary {
+        background-color: #4c51bf;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: #434190;
+    }
+    
+    .btn-secondary {
+        background-color: #718096;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #4a5568;
+    }
+    
+    .btn-success {
+        background-color: #38a169;
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background-color: #2f855a;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <h1 class="title">Analytics Dashboard</h1>
+    <div class="actions">
+        <div class="export-buttons">
+            <a href="{% url 'analytics:export_utilization_report' %}?format=pdf" class="btn btn-primary">Export PDF</a>
+            <a href="{% url 'analytics:export_utilization_report' %}?format=excel" class="btn btn-success">Export Excel</a>
+        </div>
+    </div>
+</div>
+
+<!-- Key Metrics -->
+<div class="dashboard-grid">
+    <div class="metric-card">
+        <div class="metric-value">{{ total_resources }}</div>
+        <div class="metric-label">Total Resources</div>
+    </div>
+    
+    <div class="metric-card">
+        <div class="metric-value">{{ avg_utilization|floatformat:1 }}%</div>
+        <div class="metric-label">Average Utilization</div>
+        <div class="metric-change {% if utilization_trend > 0 %}positive{% else %}negative{% endif %}">
+            {% if utilization_trend > 0 %}↑{% else %}↓{% endif %} {{ utilization_trend|floatformat:1 }}% from last month
+        </div>
+    </div>
+    
+    <div class="metric-card">
+        <div class="metric-value">${{ total_budget|floatformat:0 }}</div>
+        <div class="metric-label">Total Project Budget</div>
+    </div>
+    
+    <div class="metric-card">
+        <div class="metric-value">${{ actual_costs|floatformat:0 }}</div>
+        <div class="metric-label">Actual Costs</div>
+        <div class="metric-change {% if budget_variance >= 0 %}positive{% else %}negative{% endif %}">
+            {% if budget_variance >= 0 %}Under{% else %}Over{% endif %} budget by ${{ budget_variance|floatformat:0 }}
+        </div>
+    </div>
+</div>
+
+<!-- Resource Demand Forecast -->
+<div class="chart-container">
+    <h2 class="chart-title">Resource Demand Forecast (Next 30 Days)</h2>
+    {% if forecast_data %}
+        <table class="forecast-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Predicted Demand</th>
+                    <th>Confidence</th>
+                    <th>Recommended Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for forecast in forecast_data %}
+                <tr>
+                    <td>{{ forecast.forecast_date|date:"M d, Y" }}</td>
+                    <td>{{ forecast.predicted_demand|floatformat:1 }}</td>
+                    <td>{{ forecast.confidence_score|floatformat:2 }}</td>
+                    <td>
+                        {% if forecast.predicted_demand > 0.8 %}
+                            <span style="color: #e53e3e;">High demand - Consider hiring</span>
+                        {% elif forecast.predicted_demand > 0.6 %}
+                            <span style="color: #d69e2e;">Moderate demand - Monitor closely</span>
+                        {% else %}
+                            <span style="color: #38a169;">Normal demand - Maintain current level</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No forecast data available. Historical data is needed to generate predictions.</p>
+    {% endif %}
+</div>
+
+<!-- Skill Demand Analysis -->
+<div class="chart-container">
+    <h2 class="chart-title">Top Skills in Demand</h2>
+    {% if skill_demand %}
+        {% for skill in skill_demand %}
+        <div style="margin-bottom: 15px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span style="font-weight: 500;">{{ skill.skill_name }}</span>
+                <span>{{ skill.demand_score|floatformat:1 }}</span>
+            </div>            <div class="skill-bar">
+                <div class="skill-fill" style="width: {{ skill.demand_score|floatformat:0 }}%;"></div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p>No skill demand data available.</p>
+    {% endif %}
+</div>
+
+<!-- Recent Utilization Trends -->
+<div class="chart-container">
+    <h2 class="chart-title">Recent Utilization Trends</h2>
+    {% if utilization_data %}
+        <table class="forecast-table">
+            <thead>
+                <tr>
+                    <th>Resource</th>
+                    <th>Current Utilization</th>
+                    <th>Trend (30 days)</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for util in utilization_data %}
+                <tr>
+                    <td>{{ util.resource.name }}</td>
+                    <td>{{ util.utilization_rate|floatformat:1 }}%</td>
+                    <td>
+                        <div class="skill-bar">
+                            <div class="skill-fill" style="width: {{ util.utilization_rate|floatformat:0 }}%"></div>
+                        </div>
+                    </td>
+                    <td>
+                        {% if util.utilization_rate > 90 %}
+                            <span style="color: #e53e3e;">Overutilized</span>
+                        {% elif util.utilization_rate > 75 %}
+                            <span style="color: #d69e2e;">High utilization</span>
+                        {% elif util.utilization_rate > 50 %}
+                            <span style="color: #38a169;">Normal</span>
+                        {% else %}
+                            <span style="color: #718096;">Underutilized</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No utilization data available.</p>
+    {% endif %}
+</div>
+
+<!-- Quick Actions -->
+<div class="chart-container">
+    <h2 class="chart-title">Quick Actions</h2>
+    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+        <a href="{% url 'analytics:forecasting' %}" class="btn btn-primary">View Detailed Forecasts</a>
+        <a href="{% url 'analytics:skill_analysis' %}" class="btn btn-secondary">Skill Analysis</a>
+        <a href="{% url 'analytics:utilization_report' %}" class="btn btn-secondary">Utilization Report</a>
+        <a href="{% url 'analytics:cost_report' %}" class="btn btn-secondary">Cost Report</a>
+        <a href="{% url 'resources:time_tracking' %}" class="btn btn-success">Time Tracking</a>
+    </div>
+</div>
+{% endblock %}
