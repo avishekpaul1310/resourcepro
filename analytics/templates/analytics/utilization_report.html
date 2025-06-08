@@ -361,8 +361,7 @@
             {% for resource_data in utilization_data %}
             <tr>
                 <td>
-                    <div class="resource-info">
-                        <div class="resource-avatar" style="background-color: {{ resource_data.resource.avatar_color|default:""#4c51bf"" }}">
+                    <div class="resource-info">                        <div class="resource-avatar" style="background-color: {{ resource_data.resource.avatar_color|default:'#4c51bf' }};">
                             {{ resource_data.resource.name.0|upper }}
                         </div>
                         <div class="resource-details">
@@ -377,10 +376,20 @@
                 <td>
                     <div class="utilization-bar">
                         <div class="utilization-fill" 
-                             style="width: {% if resource_data.utilization_rate > 100 %}100%{% else %}{{ resource_data.utilization_rate|floatformat:0 }}%{% endif %};
-                                    background-color: {% if resource_data.utilization_rate > 90 %}#e53e3e{% elif resource_data.utilization_rate > 75 %}#d69e2e{% elif resource_data.utilization_rate > 50 %}#38a169{% else %}#718096{% endif %};"></div>
+                             data-rate="{{ resource_data.utilization_rate|floatformat:0 }}"
+                             data-color="{% if resource_data.utilization_rate > 90 %}#e53e3e{% elif resource_data.utilization_rate > 75 %}#d69e2e{% elif resource_data.utilization_rate > 50 %}#38a169{% else %}#718096{% endif %}"></div>
                         <div class="utilization-text">{{ resource_data.utilization_rate|floatformat:1 }}%</div>
                     </div>
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const fills = document.querySelectorAll('.utilization-fill');
+                            fills.forEach(fill => {
+                                const rate = Math.min(fill.dataset.rate, 100);
+                                fill.style.width = rate + '%';
+                                fill.style.backgroundColor = fill.dataset.color;
+                            });
+                        });
+                    </script>
                 </td>
                 <td>{{ resource_data.billable_hours|floatformat:1 }}</td>
                 <td>

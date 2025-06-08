@@ -427,16 +427,15 @@
                         ${{ project.variance|floatformat:0 }}
                     </span>
                 </td>
-                <td>
-                    <div class="progress-bar">
-                        {% with width=project.budget_percentage|floatformat:0 %}
-                        {% with bg_color=project.budget_percentage > 100|yesno:'#e53e3e,#d69e2e' %}
-                        {% with final_width=project.budget_percentage > 100|yesno:'100,'|add:width %}
-                        {% with final_color=project.budget_percentage > 80|yesno:bg_color,'#38a169' %}
-                        <div class="progress-fill" style="width: {{ final_width }}%; background-color: {{ final_color }};"></div>
-                        {% endwith %}
-                        {% endwith %}
-                        {% endwith %}
+                <td>                    <div class="progress-bar">
+                        {% with project.budget_percentage|floatformat:0 as width %}
+                            {% if project.budget_percentage > 100 %}
+                                <div class="progress-fill" style="width: 100%; background-color: #e53e3e;"></div>
+                            {% elif project.budget_percentage > 80 %}
+                                <div class="progress-fill" style="width: {{ width|default:"0" }}%; background-color: #d69e2e;"></div>
+                            {% else %}
+                                <div class="progress-fill" style="width: {{ width|default:"0" }}%; background-color: #38a169;"></div>
+                            {% endif %}
                         {% endwith %}
                         <div class="progress-text">{{ project.budget_percentage|floatformat:1 }}%</div>
                     </div>
@@ -487,7 +486,7 @@
                 <td class="numeric">{{ resource.billable_hours|floatformat:1 }}</td>
                 <td class="numeric">${{ resource.revenue_generated|floatformat:0 }}</td>
                 <td class="numeric">
-                    <span style="color: {% if resource.profit_margin > 0 %}#38a169{% else %}#e53e3e{% endif %};">
+                    <span {% if resource.profit_margin > 0 %}style="color: #38a169;"{% elif resource.profit_margin <= 0 %}style="color: #e53e3e;"{% endif %}>
                         {{ resource.profit_margin|floatformat:1 }}%
                     </span>
                 </td>
@@ -527,11 +526,10 @@
     <div class="section-header">
         <h3 class="section-title">Export Options</h3>
     </div>
-    <div style="padding: 20px;">
-        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-            <a href="{% url 'analytics:export_cost_report' %}?format=pdf&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&project_status={{ project_status }}&client={{ selected_client }}" 
+    <div style="padding: 20px;">        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <a href="{% url 'analytics:export_report' report_type='cost' %}?format=pdf&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&project_status={{ project_status }}&client={{ selected_client }}" 
                class="btn btn-primary">Export as PDF</a>
-            <a href="{% url 'analytics:export_cost_report' %}?format=excel&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&project_status={{ project_status }}&client={{ selected_client }}" 
+            <a href="{% url 'analytics:export_report' report_type='cost' %}?format=excel&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&project_status={{ project_status }}&client={{ selected_client }}" 
                class="btn btn-success">Export as Excel</a>
         </div>
         <p style="color: #718096; font-size: 0.9rem;">
