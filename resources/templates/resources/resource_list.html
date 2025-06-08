@@ -34,12 +34,11 @@
             <tbody>
                 {% for resource in resources %}
                 <tr class="table-row">
-                    <td class="table-cell">
-                        <div class="resource-info">
+                    <td class="table-cell">                        <div class="resource-info">
                             <div class="resource-avatar" data-color="{{ resource.color }}">
                                 {{ resource.name|first|upper }}
                             </div>
-                            <a href="{% url 'resource_detail' resource.id %}">{{ resource.name }}</a>
+                            <a href="{% url 'resources:resource_detail' resource.id %}">{{ resource.name }}</a>
                         </div>
                     </td>
                     <td class="table-cell">{{ resource.role }}</td>
@@ -65,9 +64,8 @@
                                      style="height: 100%; border-radius: 4px;"></div>
                             </div>
                         </div>
-                    </td>
-                    <td style="padding: 12px 15px;">
-                        <a href="{% url 'resource_edit' resource.id %}" style="color: #4a5568; text-decoration: none; margin-right: 10px;">Edit</a>
+                    </td>                    <td style="padding: 12px 15px;">
+                        <a href="{% url 'resources:resource_edit' resource.id %}" style="color: #4a5568; text-decoration: none; margin-right: 10px;">Edit</a>
                     </td>
                 </tr>
                 {% empty %}

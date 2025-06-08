@@ -162,12 +162,10 @@ def time_entry_list(request):
         time_entries = time_entries.filter(date__gte=start_date)
     if end_date:
         time_entries = time_entries.filter(date__lte=end_date)
-    
-    # Pagination
+      # Pagination
     time_entries = time_entries[:50]  # Limit to 50 entries
     
     resources = Resource.objects.all()
-    
     context = {
         'time_entries': time_entries,
         'resources': resources,
@@ -176,7 +174,7 @@ def time_entry_list(request):
         'end_date': end_date
     }
     
-    return render(request, 'resources/time_entry_list.html', context)
+    return render(request, 'resources/time_entries.html', context)
 
 @login_required
 def time_entry_create(request):

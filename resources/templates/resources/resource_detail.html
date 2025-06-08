@@ -4,10 +4,9 @@
 
 {% block content %}
 <div class="page-title">
-    <h1 class="title">Resource Details</h1>
-    <div class="actions">
-        <a href="{% url 'resource_edit' resource.id %}" class="btn btn-secondary">Edit</a>
-        <a href="{% url 'resource_list' %}" class="btn btn-primary">Back to Resources</a>
+    <h1 class="title">Resource Details</h1>    <div class="actions">
+        <a href="{% url 'resources:resource_edit' resource.id %}" class="btn btn-secondary">Edit</a>
+        <a href="{% url 'resources:resource_list' %}" class="btn btn-primary">Back to Resources</a>
     </div>
 </div>
 

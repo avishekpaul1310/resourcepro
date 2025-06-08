@@ -29,9 +29,8 @@
                 <tr>
                     <td>{{ skill.name }}</td>
                     <td>{{ skill.description|default:"-" }}</td>
-                    <td>{{ skill.usage_count }} resource(s)</td>
-                    <td>
-                        <a href="{% url 'skill_delete' skill.id %}" class="btn btn-sm btn-danger">Delete</a>
+                    <td>{{ skill.usage_count }} resource(s)</td>                    <td>
+                        <a href="{% url 'resources:skill_delete' skill.id %}" class="btn btn-sm btn-danger">Delete</a>
                     </td>
                 </tr>
                 {% empty %}
@@ -130,9 +129,8 @@
             
             // Get CSRF token
             const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
-            
-            // Send AJAX request
-            fetch('{% url "create_skill" %}', {
+              // Send AJAX request
+            fetch('{% url "resources:create_skill" %}', {
                 method: 'POST',
                 body: formData,
                 headers: {

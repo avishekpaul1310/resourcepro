@@ -13,9 +13,9 @@ urlpatterns = [
     path('skills/<int:pk>/delete/', views.skill_delete, name='skill_delete'),
       # Time tracking URLs
     path('time-tracking/', views.time_entry_list, name='time_tracking'),
-    path('time-entries/', views.time_entry_list, name='time_entry_list'),
-    path('time-entries/create/', views.time_entry_create, name='time_entry_create'),
+    path('time-entries/', views.time_entry_list, name='time_entry_list'),    path('time-entries/create/', views.time_entry_create, name='time_entry_create'),
     path('time-entries/<int:pk>/edit/', views.time_entry_edit, name='time_entry_edit'),
+    path('time-entries/<int:pk>/delete/', views.time_entry_delete, name='time_entry_delete'),
     path('time-entries/bulk/', views.bulk_time_entry, name='bulk_time_entry'),
     
     # Availability URLs

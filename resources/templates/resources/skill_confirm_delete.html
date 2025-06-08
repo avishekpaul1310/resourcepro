@@ -4,9 +4,8 @@
 
 {% block content %}
 <div class="page-title">
-    <h1 class="title">Delete Skill</h1>
-    <div class="actions">
-        <a href="{% url 'skill_list' %}" class="btn btn-secondary">Cancel</a>
+    <h1 class="title">Delete Skill</h1>    <div class="actions">
+        <a href="{% url 'resources:skill_list' %}" class="btn btn-secondary">Cancel</a>
     </div>
 </div>
 
@@ -25,9 +24,8 @@
         {% endif %}
         
         <form method="post">
-            {% csrf_token %}
-            <div class="form-actions">
-                <a href="{% url 'skill_list' %}" class="btn btn-secondary">Cancel</a>
+            {% csrf_token %}            <div class="form-actions">
+                <a href="{% url 'resources:skill_list' %}" class="btn btn-secondary">Cancel</a>
                 <button type="submit" class="btn btn-danger">Delete Skill</button>
             </div>
         </form>

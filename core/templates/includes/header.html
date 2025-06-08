@@ -1,10 +1,9 @@
 <header class="header">
     <div class="container header-content">
-        <div class="logo">Resource<span>Pro</span></div>
-        <nav class="nav">
+        <div class="logo">Resource<span>Pro</span></div>        <nav class="nav">
             <a href="{% url 'dashboard' %}" class="nav-item {% if request.path == '/dashboard/' %}active{% endif %}">Dashboard</a>
             <a href="{% url 'project_list' %}" class="nav-item {% if '/projects/' in request.path %}active{% endif %}">Projects</a>
-            <a href="{% url 'resource_list' %}" class="nav-item {% if '/resources/' in request.path %}active{% endif %}">Resources</a>
+            <a href="{% url 'resources:resource_list' %}" class="nav-item {% if '/resources/' in request.path %}active{% endif %}">Resources</a>
             <a href="{% url 'allocation_board' %}" class="nav-item {% if '/allocation/' in request.path %}active{% endif %}">Allocation</a>
         </nav>
         <div class="user-menu">

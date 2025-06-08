@@ -110,7 +110,7 @@
                             <div style="width: 32px; height: 32px; border-radius: 50%; background-color: '{{ assignment.resource.color }}'; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
                                                             {{ assignment.resource.name|first|upper }}
                                                         </div>
-                            <a href="{% url 'resource_detail' assignment.resource.id %}">{{ assignment.resource.name }}</a>
+                            <a href="{% url 'resources:resource_detail' assignment.resource.id %}">{{ assignment.resource.name }}</a>
                         </div>
                     </td>
                     <td>{{ assignment.resource.role }}</td>

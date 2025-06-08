@@ -370,9 +370,9 @@
 <div class="export-section">
     <h3 style="margin-bottom: 10px;">Export Time Entries</h3>
     <div style="display: flex; gap: 10px;">
-        <a href="{% url 'analytics:export_time_entries' %}?format=pdf&{{ request.GET.urlencode }}" 
+        <a href="{% url 'analytics:export_report' 'time_entries' %}?format=pdf&{{ request.GET.urlencode }}" 
            class="btn btn-primary">Export as PDF</a>
-        <a href="{% url 'analytics:export_time_entries' %}?format=excel&{{ request.GET.urlencode }}" 
+        <a href="{% url 'analytics:export_report' 'time_entries' %}?format=excel&{{ request.GET.urlencode }}" 
            class="btn btn-success">Export as Excel</a>
     </div>
 </div>
