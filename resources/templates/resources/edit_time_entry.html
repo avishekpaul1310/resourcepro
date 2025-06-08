@@ -171,8 +171,7 @@
                 <p class="text-danger">This action cannot be undone.</p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form method="post" action="{% url 'resources:delete_time_entry' time_entry.id %}" style="display: inline;">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>                <form method="post" action="{% url 'resources:time_entry_delete' time_entry.id %}" style="display: inline;">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-danger">
                         <i class="fas fa-trash"></i> Delete Entry

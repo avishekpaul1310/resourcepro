@@ -17,6 +17,7 @@ urlpatterns = [
     path('time-entries/<int:pk>/edit/', views.time_entry_edit, name='time_entry_edit'),
     path('time-entries/<int:pk>/delete/', views.time_entry_delete, name='time_entry_delete'),
     path('time-entries/bulk/', views.bulk_time_entry, name='bulk_time_entry'),
+    path('time-entries/bulk-action/', views.bulk_time_action, name='bulk_time_action'),
     
     # Availability URLs
     path('availability/', views.availability_calendar, name='availability_calendar'),

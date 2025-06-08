@@ -215,6 +215,21 @@ def time_entry_edit(request, pk):
     })
 
 @login_required
+def time_entry_delete(request, pk):
+    """Delete a time entry"""
+    time_entry = get_object_or_404(TimeEntry, pk=pk)
+    
+    if request.method == 'POST':
+        time_entry_info = f"{time_entry.resource.name} - {time_entry.date} ({time_entry.hours}h)"
+        time_entry.delete()
+        messages.success(request, f'Time entry "{time_entry_info}" deleted successfully.')
+        return redirect('resources:time_entry_list')
+    
+    # For GET requests, redirect to edit page or time entry list
+    # Since there's no dedicated delete confirmation template, just delete on POST
+    return redirect('resources:time_entry_list')
+
+@login_required
 def bulk_time_entry(request):
     """Create multiple time entries for a date range"""
     if request.method == 'POST':
@@ -258,6 +273,38 @@ def bulk_time_entry(request):
         'form': form,
         'title': 'Bulk Time Entry'
     })
+
+@login_required
+def bulk_time_action(request):
+    """Handle bulk actions on time entries (delete, etc.)"""
+    if request.method != 'POST':
+        return redirect('resources:time_entry_list')
+    
+    action = request.POST.get('action')
+    entry_ids = request.POST.getlist('entry_ids')
+    
+    if not action or not entry_ids:
+        messages.error(request, 'No action or entries selected.')
+        return redirect('resources:time_entry_list')
+    
+    # Convert string IDs to integers
+    try:
+        entry_ids = [int(id_) for id_ in entry_ids]
+    except ValueError:
+        messages.error(request, 'Invalid entry IDs.')
+        return redirect('resources:time_entry_list')
+    
+    # Get the time entries to operate on
+    time_entries = TimeEntry.objects.filter(id__in=entry_ids)
+    
+    if action == 'delete':
+        count = time_entries.count()
+        time_entries.delete()
+        messages.success(request, f'Successfully deleted {count} time entries.')
+    else:
+        messages.error(request, f'Unknown action: {action}')
+    
+    return redirect('resources:time_entry_list')
 
 @login_required
 def availability_calendar(request):
