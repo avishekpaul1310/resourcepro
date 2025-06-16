@@ -33,10 +33,15 @@
             <div>
                 <div class="info-label">Priority</div>
                 <div class="info-value">{{ project.priority }} / 5</div>
-            </div>
-            <div>
+            </div>            <div>
                 <div class="info-label">Manager</div>
-                <div class="info-value">{{ project.manager.get_full_name|default:project.manager.username|default:"Not assigned" }}</div>
+                <div class="info-value">
+                    {% if project.manager %}
+                        {{ project.manager.get_full_name|default:project.manager.username }}
+                    {% else %}
+                        Not assigned
+                    {% endif %}
+                </div>
             </div>
         </div>
         

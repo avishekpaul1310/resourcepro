@@ -179,24 +179,24 @@
     <h2 class="chart-title">Resource Demand Forecast (Next 30 Days)</h2>
     {% if forecast_data %}
         <table class="forecast-table">
-            <thead>
-                <tr>
+            <thead>                <tr>
                     <th>Date</th>
-                    <th>Predicted Demand</th>
+                    <th>Role</th>
+                    <th>Predicted Demand (Hours)</th>
                     <th>Confidence</th>
                     <th>Recommended Action</th>
                 </tr>
             </thead>
             <tbody>
-                {% for forecast in forecast_data %}
-                <tr>
+                {% for forecast in forecast_data %}                <tr>
                     <td>{{ forecast.forecast_date|date:"M d, Y" }}</td>
-                    <td>{{ forecast.predicted_demand|floatformat:1 }}</td>
+                    <td>{{ forecast.resource_role }}</td>
+                    <td>{{ forecast.predicted_demand_hours|floatformat:1 }}h</td>
                     <td>{{ forecast.confidence_score|floatformat:2 }}</td>
                     <td>
-                        {% if forecast.predicted_demand > 0.8 %}
+                        {% if forecast.predicted_demand_hours > 80 %}
                             <span style="color: #e53e3e;">High demand - Consider hiring</span>
-                        {% elif forecast.predicted_demand > 0.6 %}
+                        {% elif forecast.predicted_demand_hours > 40 %}
                             <span style="color: #d69e2e;">Moderate demand - Monitor closely</span>
                         {% else %}
                             <span style="color: #38a169;">Normal demand - Maintain current level</span>
@@ -221,7 +221,7 @@
                 <span style="font-weight: 500;">{{ skill.skill_name }}</span>
                 <span>{{ skill.demand_score|floatformat:1 }}</span>
             </div>            <div class="skill-bar">
-                <div class="skill-fill" style="width: {{ skill.demand_score|floatformat:0 }}%"></div>
+                <div class="skill-fill" style="width: {{ skill.display_percentage }}%"></div>
             </div>
         </div>
         {% endfor %}

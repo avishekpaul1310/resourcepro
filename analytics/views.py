@@ -16,17 +16,20 @@ from projects.models import Project
 def analytics_dashboard(request):
     """Main analytics dashboard"""
     # Get recent forecasts
-    recent_forecasts = ResourceDemandForecast.objects.all()[:5]
+    recent_forecasts = ResourceDemandForecast.objects.all()[:5]    # Get skill demand analysis - get latest analyses for each skill
+    skill_analyses_raw = SkillDemandAnalysis.objects.order_by('-analysis_date')[:10]
     
-    # Get skill demand analysis
-    skill_analyses = SkillDemandAnalysis.objects.filter(
-        analysis_date=timezone.now().date()
-    )[:10]
+    # Add display percentage (capped at 100%)
+    skill_analyses = []
+    for skill in skill_analyses_raw:
+        skill.display_percentage = min(100, max(0, round(float(skill.demand_score) * 10, 0)))
+        skill_analyses.append(skill)
     
     # Get utilization trends
     utilization_service = UtilizationTrackingService()
     utilization_trends = utilization_service.get_utilization_trends(days=30)
-      # Get cost tracking data
+    
+    # Get cost tracking data
     cost_service = CostTrackingService()
     cost_report = cost_service.get_cost_variance_report()
     
@@ -34,13 +37,58 @@ def analytics_dashboard(request):
     total_resources = Resource.objects.count()
     total_projects = Project.objects.count()
     
+    # Calculate utilization metrics
+    all_utilizations = HistoricalUtilization.objects.filter(
+        date__gte=timezone.now().date() - timedelta(days=30)
+    )
+    
+    avg_utilization = all_utilizations.aggregate(
+        avg=models.Avg('utilization_percentage')
+    )['avg'] or 0
+    
+    # Calculate utilization trend (compare last 30 days to previous 30 days)
+    previous_utilizations = HistoricalUtilization.objects.filter(
+        date__gte=timezone.now().date() - timedelta(days=60),
+        date__lt=timezone.now().date() - timedelta(days=30)
+    )
+    
+    previous_avg = previous_utilizations.aggregate(
+        avg=models.Avg('utilization_percentage')
+    )['avg'] or 0
+    
+    utilization_trend = avg_utilization - previous_avg
+    
+    # Calculate budget metrics
+    total_budget = sum(item.get('estimated_cost', 0) for item in cost_report)
+    actual_costs = sum(item.get('actual_cost', 0) for item in cost_report)
+    budget_variance = total_budget - actual_costs
+    
+    # Get utilization data for the dashboard
+    utilization_data = []
+    for resource in Resource.objects.all()[:10]:
+        recent_util = HistoricalUtilization.objects.filter(
+            resource=resource,
+            date__gte=timezone.now().date() - timedelta(days=30)
+        ).aggregate(avg=models.Avg('utilization_percentage'))['avg'] or 0
+        
+        utilization_data.append({
+            'resource': resource,
+            'utilization_rate': round(recent_util, 1)
+        })
+    
     context = {
-        'recent_forecasts': recent_forecasts,
-        'skill_analyses': skill_analyses,
+        'forecast_data': recent_forecasts,  # Match template variable name
+        'skill_demand': skill_analyses,     # Match template variable name
+        'utilization_data': utilization_data,  # Match template variable name
         'utilization_trends': utilization_trends,
         'cost_report': cost_report[:10],  # Top 10 projects
         'total_resources': total_resources,
         'total_projects': total_projects,
+        'avg_utilization': round(avg_utilization, 1),
+        'utilization_trend': round(utilization_trend, 1),
+        'total_budget': total_budget,
+        'actual_costs': actual_costs,
+        'budget_variance': budget_variance,
     }
     
     return render(request, 'analytics/dashboard.html', context)
