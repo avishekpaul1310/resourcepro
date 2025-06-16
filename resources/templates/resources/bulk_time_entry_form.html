@@ -1,0 +1,387 @@
+{% extends 'base.html' %}
+
+{% block title %}Bulk Time Entry - ResourcePro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #374151;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+    
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.15s ease-in-out;
+    }
+    
+    .btn-primary {
+        background-color: #4f46e5;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: #4338ca;
+        transform: translateY(-1px);
+    }
+    
+    .btn-secondary {
+        background-color: #6b7280;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #4b5563;
+    }
+    
+    .help-text {
+        margin-top: 6px;
+        font-size: 12px;
+        color: #6b7280;
+    }
+    
+    .info-card {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 6px;
+        padding: 16px;
+        margin-bottom: 24px;
+    }
+    
+    .info-card h4 {
+        color: #1e40af;
+        margin: 0 0 8px 0;
+        font-size: 16px;
+    }
+    
+    .info-card p {
+        color: #1e40af;
+        margin: 0;
+        font-size: 14px;
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        margin-top: 32px;
+        padding-top: 24px;
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    .date-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    
+    @media (max-width: 768px) {
+        .date-row {
+            grid-template-columns: 1fr;
+        }
+        
+        .form-actions {
+            flex-direction: column;
+        }
+        
+        .btn {
+            justify-content: center;
+        }
+    }
+    
+    .error {
+        color: #dc2626;
+        font-size: 12px;
+        margin-top: 4px;
+    }
+    
+    .errorlist {
+        list-style: none;
+        padding: 0;
+        margin: 8px 0 0 0;
+    }
+    
+    .errorlist li {
+        color: #dc2626;
+        font-size: 12px;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 4px;
+        padding: 8px 12px;
+        margin-bottom: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ title }}</h1>
+    <p>Create multiple time entries for a date range quickly and efficiently.</p>
+</div>
+
+<div class="form-container">
+    <div class="info-card">
+        <h4>📋 Bulk Time Entry</h4>
+        <p>This form allows you to create time entries for multiple consecutive days at once. Perfect for logging recurring tasks or catching up on time tracking.</p>
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+            <div class="errorlist">
+                {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </div>
+        {% endif %}
+        
+        <!-- Resource Field -->
+        <div class="form-group">
+            <label for="{{ form.resource.id_for_label }}">
+                Resource
+                <span style="color: #dc2626;">*</span>
+            </label>
+            {{ form.resource }}
+            {% if form.resource.errors %}
+                <div class="errorlist">
+                    {% for error in form.resource.errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            <div class="help-text">Select the team member who performed the work.</div>
+        </div>
+        
+        <!-- Task Field -->
+        <div class="form-group">
+            <label for="{{ form.task.id_for_label }}">
+                Task
+                <span style="color: #dc2626;">*</span>
+            </label>
+            {{ form.task }}
+            {% if form.task.errors %}
+                <div class="errorlist">
+                    {% for error in form.task.errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            <div class="help-text">Choose the task that was worked on during this period.</div>
+        </div>
+        
+        <!-- Date Range -->
+        <div class="date-row">
+            <div class="form-group">
+                <label for="{{ form.start_date.id_for_label }}">
+                    Start Date
+                    <span style="color: #dc2626;">*</span>
+                </label>
+                {{ form.start_date }}
+                {% if form.start_date.errors %}
+                    <div class="errorlist">
+                        {% for error in form.start_date.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ form.end_date.id_for_label }}">
+                    End Date
+                    <span style="color: #dc2626;">*</span>
+                </label>
+                {{ form.end_date }}
+                {% if form.end_date.errors %}
+                    <div class="errorlist">
+                        {% for error in form.end_date.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="help-text" style="margin-top: -12px; margin-bottom: 20px;">
+            ℹ️ Time entries will be created for weekdays only (Monday to Friday). Maximum range: 30 days.
+        </div>
+        
+        <!-- Hours per Day -->
+        <div class="form-group">
+            <label for="{{ form.hours_per_day.id_for_label }}">
+                Hours per Day
+                <span style="color: #dc2626;">*</span>
+            </label>
+            {{ form.hours_per_day }}
+            {% if form.hours_per_day.errors %}
+                <div class="errorlist">
+                    {% for error in form.hours_per_day.errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            <div class="help-text">Number of hours to log for each day (use 0.25 increments for quarter hours).</div>
+        </div>
+          <!-- Description -->
+        <div class="form-group">
+            <label for="{{ form.description.id_for_label }}">
+                Description
+            </label>
+            {{ form.description }}
+            {% if form.description.errors %}
+                <div class="errorlist">
+                    {% for error in form.description.errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            <div class="help-text">Optional description that will be applied to all created time entries.</div>
+        </div>
+          <!-- Billable -->
+        <div class="form-group">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                {{ form.is_billable }}
+                <label for="{{ form.is_billable.id_for_label }}" style="margin: 0; cursor: pointer;">
+                    Mark as billable
+                </label>
+            </div>
+            {% if form.is_billable.errors %}
+                <div class="errorlist">
+                    {% for error in form.is_billable.errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            <div class="help-text">Check this box if the time entries should be marked as billable to the client.</div>
+        </div>
+
+        <!-- Include Weekends -->
+        <div class="form-group">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                {{ form.include_weekends }}
+                <label for="{{ form.include_weekends.id_for_label }}" style="margin: 0; cursor: pointer;">
+                    Include weekends (Saturday & Sunday)
+                </label>
+            </div>
+            {% if form.include_weekends.errors %}
+                <div class="errorlist">
+                    {% for error in form.include_weekends.errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            <div class="help-text">By default, only weekdays (Monday-Friday) are included. Check this to also create entries for weekends.</div>
+        </div>
+        
+        <div class="form-actions">
+            <a href="{% url 'resources:time_entry_list' %}" class="btn btn-secondary">
+                Cancel
+            </a>
+            <button type="submit" class="btn btn-primary">
+                📅 Create Time Entries
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+// Add some basic client-side validation and UX improvements
+document.addEventListener('DOMContentLoaded', function() {
+    const startDateInput = document.getElementById('{{ form.start_date.id_for_label }}');
+    const endDateInput = document.getElementById('{{ form.end_date.id_for_label }}');
+    const hoursInput = document.getElementById('{{ form.hours_per_day.id_for_label }}');
+    
+    // Set default dates if empty
+    if (!startDateInput.value) {
+        startDateInput.value = new Date().toISOString().split('T')[0];
+    }
+    
+    // Auto-set end date when start date changes
+    startDateInput.addEventListener('change', function() {
+        if (!endDateInput.value || endDateInput.value < this.value) {
+            endDateInput.value = this.value;
+        }
+    });
+    
+    // Set default hours
+    if (!hoursInput.value) {
+        hoursInput.value = '8.00';
+    }
+    
+    // Show estimated entries count
+    function updateEstimate() {
+        const startDate = new Date(startDateInput.value);
+        const endDate = new Date(endDateInput.value);
+        
+        if (startDate && endDate && startDate <= endDate) {
+            let count = 0;
+            let current = new Date(startDate);
+            
+            while (current <= endDate) {
+                // Count weekdays only
+                if (current.getDay() >= 1 && current.getDay() <= 5) {
+                    count++;
+                }
+                current.setDate(current.getDate() + 1);
+            }
+            
+            // Update or create estimate display
+            let estimateEl = document.getElementById('entries-estimate');
+            if (!estimateEl) {
+                estimateEl = document.createElement('div');
+                estimateEl.id = 'entries-estimate';
+                estimateEl.style.cssText = 'margin-top: 8px; padding: 8px 12px; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 4px; font-size: 12px; color: #0369a1;';
+                endDateInput.parentNode.appendChild(estimateEl);
+            }
+            
+            estimateEl.textContent = `📊 This will create approximately ${count} time entries (weekdays only)`;
+        }
+    }
+    
+    startDateInput.addEventListener('change', updateEstimate);
+    endDateInput.addEventListener('change', updateEstimate);
+    
+    // Initial estimate
+    updateEstimate();
+});
+</script>
+{% endblock %}

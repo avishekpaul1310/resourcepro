@@ -437,12 +437,11 @@
             {% for entry in time_entries %}
             <tr>
                 <td><input type="checkbox" class="entry-checkbox" value="{{ entry.id }}"></td>
-                <td>{{ entry.date|date:"M d, Y" }}</td>
-                <td>
+                <td>{{ entry.date|date:"M d, Y" }}</td>                <td>
                     <div class="project-info">
-                        <div class="project-name">{{ entry.project.name }}</div>
-                        {% if entry.project.client %}
-                        <div class="project-client">{{ entry.project.client }}</div>
+                        <div class="project-name">{{ entry.task.project.name }}</div>
+                        {% if entry.task.project.manager %}
+                        <div class="project-client">{{ entry.task.project.manager.username }}</div>
                         {% endif %}
                     </div>
                 </td>

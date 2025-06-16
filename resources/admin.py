@@ -19,8 +19,8 @@ class SkillAdmin(admin.ModelAdmin):
 
 @admin.register(TimeEntry)
 class TimeEntryAdmin(admin.ModelAdmin):
-    list_display = ['resource', 'task', 'date', 'hours', 'created_at']
-    list_filter = ['resource', 'task', 'date', 'created_at']
+    list_display = ['resource', 'task', 'date', 'hours', 'is_billable', 'created_at']
+    list_filter = ['resource', 'task', 'date', 'is_billable', 'created_at']
     search_fields = ['resource__name', 'task__name', 'description']
     readonly_fields = ['created_at', 'updated_at']
     ordering = ['-date']

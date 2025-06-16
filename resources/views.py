@@ -146,32 +146,96 @@ def skill_delete(request, pk):
 
 @login_required
 def time_entry_list(request):
-    """List time entries with filtering"""
-    time_entries = TimeEntry.objects.select_related('resource', 'task').order_by('-date')
+    """List time entries with filtering and summary statistics"""
+    from django.db.models import Sum, Count, Q
+    from projects.models import Project
+    from decimal import Decimal
     
-    # Filter by resource if provided
+    # Start with all time entries
+    time_entries = TimeEntry.objects.select_related('resource', 'task', 'task__project').order_by('-date')
+    
+    # Get filter parameters
     resource_id = request.GET.get('resource')
+    project_id = request.GET.get('project')
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    billable_filter = request.GET.get('billable')
+    
+    # Apply filters
     if resource_id:
         time_entries = time_entries.filter(resource_id=resource_id)
     
-    # Filter by date range
-    start_date = request.GET.get('start_date')
-    end_date = request.GET.get('end_date')
+    if project_id:
+        time_entries = time_entries.filter(task__project_id=project_id)
     
     if start_date:
         time_entries = time_entries.filter(date__gte=start_date)
+    
     if end_date:
         time_entries = time_entries.filter(date__lte=end_date)
-      # Pagination
-    time_entries = time_entries[:50]  # Limit to 50 entries
     
-    resources = Resource.objects.all()
+    if billable_filter:
+        if billable_filter == 'true':
+            time_entries = time_entries.filter(is_billable=True)
+        elif billable_filter == 'false':
+            time_entries = time_entries.filter(is_billable=False)
+    
+    # Calculate summary statistics
+    summary_stats = time_entries.aggregate(
+        total_entries=Count('id'),
+        total_hours=Sum('hours')
+    )
+    
+    # Calculate billable hours and statistics
+    billable_entries = time_entries.filter(is_billable=True)
+    billable_stats = billable_entries.aggregate(
+        billable_hours=Sum('hours')
+    )
+    
+    # Calculate totals with defaults
+    total_entries = summary_stats['total_entries'] or 0
+    total_hours = summary_stats['total_hours'] or Decimal('0')
+    billable_hours = billable_stats['billable_hours'] or Decimal('0')
+    
+    # Calculate billable percentage
+    billable_percentage = (billable_hours / total_hours * 100) if total_hours > 0 else 0
+    
+    # Calculate estimated value (simplified - using average cost per hour)
+    estimated_value = Decimal('0')
+    if billable_hours > 0:
+        # Get average cost per hour from resources with billable time
+        resources_with_billable_time = Resource.objects.filter(
+            time_entries__in=billable_entries,
+            cost_per_hour__isnull=False
+        ).distinct()
+        
+        if resources_with_billable_time.exists():
+            total_cost_per_hour = sum(r.cost_per_hour for r in resources_with_billable_time)
+            avg_cost_per_hour = total_cost_per_hour / len(resources_with_billable_time)
+            estimated_value = billable_hours * avg_cost_per_hour
+    
+    # Pagination - limit to 100 entries for performance
+    time_entries = time_entries[:100]
+    
+    # Get dropdown data
+    resources = Resource.objects.all().order_by('name')
+    projects = Project.objects.all().order_by('name')
+    
     context = {
         'time_entries': time_entries,
         'resources': resources,
+        'projects': projects,
         'selected_resource': resource_id,
+        'selected_project': project_id,
         'start_date': start_date,
-        'end_date': end_date
+        'end_date': end_date,
+        'billable_filter': billable_filter,
+        # Summary statistics
+        'total_entries': total_entries,
+        'total_hours': total_hours,
+        'billable_hours': billable_hours,
+        'billable_percentage': billable_percentage,
+        'estimated_value': estimated_value,
     }
     
     return render(request, 'resources/time_entries.html', context)
@@ -237,35 +301,60 @@ def bulk_time_entry(request):
         
         if form.is_valid():
             # Create time entries for each day in the range
-            resource = form.cleaned_data['resource']
+            resource = form.cleaned_data['resource']            
             task = form.cleaned_data['task']
             start_date = form.cleaned_data['start_date']
             end_date = form.cleaned_data['end_date']
             hours_per_day = form.cleaned_data['hours_per_day']
             description = form.cleaned_data['description']
-            
+            is_billable = form.cleaned_data.get('is_billable', True)
+            include_weekends = form.cleaned_data.get('include_weekends', False)
             created_count = 0
+            updated_count = 0
             current_date = start_date
             
             while current_date <= end_date:
-                # Skip weekends if desired (optional)
-                if current_date.weekday() < 5:  # Monday to Friday
+                # Skip weekends unless specifically included
+                should_create = True
+                if not include_weekends and current_date.weekday() >= 5:  # Saturday (5) or Sunday (6)
+                    should_create = False
+                
+                if should_create:
                     time_entry, created = TimeEntry.objects.get_or_create(
                         resource=resource,
                         task=task,
-                        date=current_date,
+                        date=current_date,                        
                         defaults={
                             'hours': hours_per_day,
-                            'description': description
+                            'description': description,
+                            'is_billable': is_billable
                         }
                     )
+                    
                     if created:
                         created_count += 1
-                
+                    else:
+                        # Entry already exists, update it
+                        time_entry.hours = hours_per_day
+                        time_entry.description = description
+                        time_entry.is_billable = is_billable
+                        time_entry.save()
+                        updated_count += 1
+                        
                 current_date += timedelta(days=1)
             
-            messages.success(request, f'Created {created_count} time entries.')
-            return redirect('time_entry_list')
+            # Create appropriate success message
+            if created_count > 0 and updated_count > 0:
+                message = f'Created {created_count} new time entries and updated {updated_count} existing entries.'
+            elif created_count > 0:
+                message = f'Created {created_count} time entries.'
+            elif updated_count > 0:
+                message = f'Updated {updated_count} existing time entries.'
+            else:
+                message = 'No time entries were created or updated.'
+            
+            messages.success(request, message)
+            return redirect('resources:time_entry_list')
     else:
         form = BulkTimeEntryForm(user=request.user)
     

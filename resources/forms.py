@@ -29,11 +29,12 @@ ResourceSkillFormSet = inlineformset_factory(
 class TimeEntryForm(forms.ModelForm):
     class Meta:
         model = TimeEntry
-        fields = ['resource', 'task', 'date', 'hours', 'description']
+        fields = ['resource', 'task', 'date', 'hours', 'description', 'is_billable']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
             'hours': forms.NumberInput(attrs={'step': '0.25', 'min': '0', 'max': '24'}),
             'description': forms.Textarea(attrs={'rows': 3}),
+            'is_billable': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -95,8 +96,7 @@ class BulkTimeEntryForm(forms.Form):
         widget=forms.Select(attrs={'class': 'form-control'})
     )
     start_date = forms.DateField(
-        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
-    )
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})    )
     end_date = forms.DateField(
         widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
     )
@@ -108,6 +108,18 @@ class BulkTimeEntryForm(forms.Form):
     description = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={'rows': 3, 'class': 'form-control'})
+    )
+    is_billable = forms.BooleanField(
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    include_weekends = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="Include weekends",
+        help_text="Check to include Saturday and Sunday in the date range",
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
     
     def __init__(self, *args, **kwargs):
