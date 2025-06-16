@@ -220,9 +220,9 @@
 <div class="forecast-results">
     <h3>Detailed Forecast</h3>
     <table class="forecast-table">
-        <thead>
-            <tr>
+        <thead>            <tr>
                 <th>Date</th>
+                <th>Resource Role</th>
                 <th>Predicted Demand</th>
                 <th>Confidence Score</th>
                 <th>Demand Level</th>
@@ -230,10 +230,10 @@
             </tr>
         </thead>
         <tbody>
-            {% for forecast in forecasts %}
-            <tr>
+            {% for forecast in forecasts %}            <tr>
                 <td>{{ forecast.forecast_date|date:"M d, Y" }}</td>
-                <td>{{ forecast.predicted_demand|floatformat:2 }}</td>
+                <td>{{ forecast.resource_role }}</td>
+                <td>{{ forecast.predicted_demand_hours|floatformat:2 }}h</td>
                 <td>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <div class="confidence-bar" style="width: 80px;">
@@ -243,20 +243,20 @@
                     </div>
                 </td>
                 <td>
-                    {% if forecast.predicted_demand > 0.8 %}
+                    {% if forecast.predicted_demand_hours > 80 %}
                         <span class="demand-indicator demand-high">High</span>
-                    {% elif forecast.predicted_demand > 0.5 %}
+                    {% elif forecast.predicted_demand_hours > 40 %}
                         <span class="demand-indicator demand-medium">Medium</span>
                     {% else %}
                         <span class="demand-indicator demand-low">Low</span>
                     {% endif %}
                 </td>
                 <td>
-                    {% if forecast.predicted_demand > 0.8 %}
+                    {% if forecast.predicted_demand_hours > 80 %}
                         Consider additional hiring or contractor engagement
-                    {% elif forecast.predicted_demand > 0.6 %}
+                    {% elif forecast.predicted_demand_hours > 40 %}
                         Monitor resource allocation closely
-                    {% elif forecast.predicted_demand < 0.3 %}
+                    {% elif forecast.predicted_demand_hours < 20 %}
                         Review project timelines and resource assignments
                     {% else %}
                         Current resource level appropriate
@@ -270,11 +270,10 @@
 
 <!-- Export Options -->
 <div class="forecast-results">
-    <h3>Export Options</h3>
-    <div style="display: flex; gap: 10px;">
-        <a href="{% url 'analytics:export_forecast_report' %}?format=pdf&forecast_days={{ forecast_days }}&skill_filter={{ skill_filter }}" 
+    <h3>Export Options</h3>    <div style="display: flex; gap: 10px;">
+        <a href="{% url 'analytics:export_report' 'forecast' %}?format=pdf&forecast_days={{ forecast_days }}&skill_filter={{ skill_filter }}" 
            class="btn btn-primary">Export as PDF</a>
-        <a href="{% url 'analytics:export_forecast_report' %}?format=excel&forecast_days={{ forecast_days }}&skill_filter={{ skill_filter }}" 
+        <a href="{% url 'analytics:export_report' 'forecast' %}?format=excel&forecast_days={{ forecast_days }}&skill_filter={{ skill_filter }}" 
            class="btn btn-primary" style="background-color: #38a169;">Export as Excel</a>
     </div>
 </div>

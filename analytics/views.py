@@ -120,9 +120,69 @@ def generate_forecast(request):
                 'message': 'Insufficient historical data for forecasting'
             })
     
-    # GET request - display the forecasting page
-    recent_forecasts = ResourceDemandForecast.objects.order_by('-forecast_date')[:10]
-    context = {'recent_forecasts': recent_forecasts}
+    # GET request - display the forecasting page with filters
+    from resources.models import Skill
+    
+    # Get filter parameters
+    forecast_days = int(request.GET.get('forecast_days', 30))
+    skill_filter = request.GET.get('skill_filter', '')
+    
+    # Get available skills for the filter
+    available_skills = Skill.objects.all()
+    
+    # If form was submitted, generate new forecasts
+    if 'forecast_days' in request.GET:
+        analytics_service = PredictiveAnalyticsService()
+        new_forecasts = analytics_service.generate_resource_demand_forecast(forecast_days)    # Get recent forecasts to display
+    forecasts_query = ResourceDemandForecast.objects.order_by('-forecast_date')
+    
+    # Apply skill filter if provided
+    if skill_filter:
+        try:
+            # Get the skill object
+            selected_skill = Skill.objects.get(id=skill_filter)
+            
+            # Find resources that have this skill
+            resources_with_skill = Resource.objects.filter(skills=selected_skill)
+            
+            # Get the roles of these resources
+            roles_with_skill = [resource.role for resource in resources_with_skill]
+            
+            # Filter forecasts by these roles
+            if roles_with_skill:
+                forecasts_query = forecasts_query.filter(resource_role__in=roles_with_skill)
+                # Order by resource_role first to ensure variety, then by date
+                forecasts_query = forecasts_query.order_by('resource_role', '-forecast_date')
+            else:
+                # No resources have this skill, so no forecasts should be shown
+                forecasts_query = forecasts_query.none()
+                
+        except (Skill.DoesNotExist, ValueError):
+            # Invalid skill ID, show no results
+            forecasts_query = forecasts_query.none()
+    
+    recent_forecasts = forecasts_query[:50]  # Show more results when filtered
+    
+    # Calculate summary statistics
+    if recent_forecasts:
+        avg_demand = sum(f.predicted_demand_hours for f in recent_forecasts) / len(recent_forecasts)
+        peak_demand = max(f.predicted_demand_hours for f in recent_forecasts)
+        avg_confidence = sum(f.confidence_score for f in recent_forecasts) / len(recent_forecasts)
+        high_demand_days = len([f for f in recent_forecasts if f.predicted_demand_hours > 80])
+    else:
+        avg_demand = peak_demand = avg_confidence = high_demand_days = 0
+    
+    context = {
+        'forecasts': recent_forecasts,
+        'available_skills': available_skills,
+        'forecast_days': forecast_days,
+        'skill_filter': skill_filter,
+        'avg_demand': avg_demand,
+        'peak_demand': peak_demand,
+        'avg_confidence': avg_confidence,
+        'high_demand_days': high_demand_days,
+    }
+    
     return render(request, 'analytics/forecasting.html', context)
 
 @login_required
