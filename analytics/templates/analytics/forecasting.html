@@ -279,14 +279,37 @@
 </div>
 
 {% else %}
-<div class="forecast-results">
-    <p>No forecast data available. Please ensure you have historical utilization data and try generating a forecast.</p>
-    <p>To improve forecast accuracy, make sure to:</p>
-    <ul>
-        <li>Record time entries regularly</li>
-        <li>Update resource allocations</li>
-        <li>Maintain project timelines</li>
-    </ul>
+<div class="forecast-results">    {% if skill_filter %}
+        <div style="text-align: center; padding: 40px 20px;">
+            <h3 style="color: #718096; margin-bottom: 15px;">📊 No Forecast Data for "{{ selected_skill_name|default:"Selected Skill" }}"</h3>
+            <p style="color: #4a5568; margin-bottom: 20px;">
+                No forecasts can be generated for <strong>{{ selected_skill_name|default:"this skill" }}</strong> because <strong>no team members currently have this skill</strong>.
+            </p>
+            
+            <div style="background-color: #f7fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <h4 style="color: #2d3748; margin-bottom: 10px;">💡 Suggestions:</h4>
+                <ul style="text-align: left; color: #4a5568; line-height: 1.6;">
+                    <li><strong>Assign this skill to existing team members</strong> who have this expertise</li>
+                    <li><strong>Plan training</strong> for team members to develop this skill</li>
+                    <li><strong>Consider hiring</strong> resources with this skill if it's critical for upcoming projects</li>
+                    <li><strong>Remove the filter</strong> to see forecasts for skills your team currently has</li>
+                </ul>
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <a href="{% url 'analytics:forecasting' %}" class="btn btn-primary">View All Forecasts</a>
+                <a href="{% url 'resources:resource_list' %}" class="btn btn-secondary">Manage Team Skills</a>
+            </div>
+        </div>
+    {% else %}
+        <p>No forecast data available. Please ensure you have historical utilization data and try generating a forecast.</p>
+        <p>To improve forecast accuracy, make sure to:</p>
+        <ul>
+            <li>Record time entries regularly</li>
+            <li>Update resource allocations</li>
+            <li>Maintain project timelines</li>
+        </ul>
+    {% endif %}
 </div>
 {% endif %}
 {% endblock %}
