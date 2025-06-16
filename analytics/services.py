@@ -86,6 +86,95 @@ class PredictiveAnalyticsService:
         
         return role_forecasts
     
+    def generate_skill_specific_forecast(self, skill_id, days_ahead=30):
+        """Generate forecasts specifically for a skill, not just role-based"""
+        from resources.models import Skill
+        
+        try:
+            skill = Skill.objects.get(id=skill_id)
+        except Skill.DoesNotExist:
+            return None
+        
+        # Get resources that have this skill
+        resources_with_skill = Resource.objects.filter(skills=skill)
+        
+        if not resources_with_skill:
+            return None
+        
+        # Get historical data for these specific resources
+        historical_data = self._get_skill_specific_historical_data(skill, resources_with_skill)
+        
+        if len(historical_data) < 5:  # Need minimum data points
+            return None
+        
+        # Prepare data for ML model
+        df = pd.DataFrame(historical_data)
+        df['date'] = pd.to_datetime(df['date'])
+        df['week_of_year'] = df['date'].dt.isocalendar().week
+        df['month'] = df['date'].dt.month
+        df['quarter'] = df['date'].dt.quarter
+        
+        # Group by date and aggregate
+        skill_data = df.groupby('date').agg({
+            'allocated_hours': 'sum',
+            'week_of_year': 'first',
+            'month': 'first',
+            'quarter': 'first'
+        }).reset_index()
+        
+        if len(skill_data) < 3:
+            return None
+        
+        # Prepare features for prediction
+        X = skill_data[['week_of_year', 'month', 'quarter']].values
+        y = skill_data['allocated_hours'].values
+        
+        # Train model
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+        
+        model = LinearRegression()
+        model.fit(X_scaled, y)
+        
+        # Generate forecast
+        future_date = timezone.now().date() + timedelta(days=days_ahead)
+        future_features = [[
+            future_date.isocalendar()[1],  # week
+            future_date.month,
+            (future_date.month - 1) // 3 + 1  # quarter
+        ]]
+        
+        future_scaled = scaler.transform(future_features)
+        predicted_demand = model.predict(future_scaled)[0]
+        
+        # Calculate confidence score based on R²
+        r2_score = model.score(X_scaled, y)
+        confidence = max(0.1, min(1.0, r2_score))
+        
+        # Create forecasts for each role that has this skill
+        forecasts = []
+        roles_with_skill = list(set([r.role for r in resources_with_skill]))
+        
+        for role in roles_with_skill:
+            # Distribute the predicted demand across roles based on resource count
+            role_resources = [r for r in resources_with_skill if r.role == role]
+            role_weight = len(role_resources) / len(resources_with_skill)
+            role_demand = predicted_demand * role_weight
+            
+            # Create a unique forecast for this skill-role combination
+            forecast = ResourceDemandForecast.objects.create(
+                forecast_date=timezone.now().date(),
+                resource_role=f"{role} ({skill.name})",  # Make it skill-specific
+                predicted_demand_hours=max(0, role_demand),
+                confidence_score=confidence,
+                period_start=future_date,
+                period_end=future_date + timedelta(days=7)
+            )
+            
+            forecasts.append(forecast)
+        
+        return forecasts
+    
     def analyze_skill_demand(self):
         """Analyze current and predicted skill demand"""
         from resources.models import Skill
@@ -148,6 +237,27 @@ class PredictiveAnalyticsService:
                 'allocated_hours': float(assignment.allocated_hours),
                 'resource_id': assignment.resource.id,
                 'task_id': assignment.task.id
+            })
+        
+        return data
+    
+    def _get_skill_specific_historical_data(self, skill, resources_with_skill):
+        """Get historical assignment data for resources with a specific skill"""
+        assignments = Assignment.objects.select_related('resource', 'task').filter(
+            resource__in=resources_with_skill,
+            task__skills_required=skill,  # Only tasks that require this skill
+            created_at__gte=timezone.now() - timedelta(days=180)
+        )
+        
+        data = []
+        for assignment in assignments:
+            data.append({
+                'date': assignment.created_at.date(),
+                'role': assignment.resource.role,
+                'allocated_hours': float(assignment.allocated_hours),
+                'resource_id': assignment.resource.id,
+                'task_id': assignment.task.id,
+                'skill': skill.name
             })
         
         return data
