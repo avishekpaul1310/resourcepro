@@ -295,14 +295,15 @@
             <label for="end_date">End Date</label>
             <input type="date" name="end_date" id="end_date" value="{{ end_date|date:'Y-m-d' }}">
         </div>
-        
-        <div class="form-group">
+          <div class="form-group">
             <label for="project_status">Project Status</label>
             <select name="project_status" id="project_status">
                 <option value="">All Projects</option>
+                <option value="planning" {% if project_status == 'planning' %}selected{% endif %}>Planning</option>
                 <option value="active" {% if project_status == 'active' %}selected{% endif %}>Active</option>
                 <option value="completed" {% if project_status == 'completed' %}selected{% endif %}>Completed</option>
                 <option value="on_hold" {% if project_status == 'on_hold' %}selected{% endif %}>On Hold</option>
+                <option value="cancelled" {% if project_status == 'cancelled' %}selected{% endif %}>Cancelled</option>
             </select>
         </div>
         
@@ -502,22 +503,58 @@
     </table>
 </div>
 
-<!-- Cost Trends Chart Placeholder -->
+<!-- Cost Trends Section -->
 <div class="cost-breakdown">
     <div class="section-header">
-        <h3 class="section-title">Cost Trends</h3>
+        <h3 class="section-title">Cost Trends Summary</h3>
     </div>
-    <div class="cost-chart">
-        <p>Cost trend visualization would be displayed here</p>
-        <p style="font-size: 0.9rem; margin-top: 10px;">
-            This section can be enhanced with chart libraries like Chart.js or D3.js to show:
-        </p>
-        <ul style="text-align: left; max-width: 400px; margin: 15px auto;">
-            <li>Monthly cost trends</li>
-            <li>Budget vs actual comparisons</li>
-            <li>Cost breakdown by department/project</li>
-            <li>Resource utilization costs</li>
-        </ul>
+    <div style="padding: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+            <div style="background: #f7fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #4c51bf;">
+                <h4 style="margin: 0 0 10px 0; color: #2d3748;">Monthly Spending Rate</h4>
+                <div style="font-size: 1.5rem; font-weight: bold; color: #4c51bf;">
+                    ${{ actual_costs|floatformat:0 }}
+                </div>
+                <small style="color: #718096;">Current period total</small>
+            </div>
+            
+            <div style="background: #f0fff4; padding: 15px; border-radius: 8px; border-left: 4px solid #38a169;">
+                <h4 style="margin: 0 0 10px 0; color: #2d3748;">Budget Efficiency</h4>
+                <div style="font-size: 1.5rem; font-weight: bold; color: #38a169;">
+                    {{ budget_utilization|floatformat:1 }}%
+                </div>
+                <small style="color: #718096;">Of total budget used</small>
+            </div>
+            
+            <div style="background: #fffbeb; padding: 15px; border-radius: 8px; border-left: 4px solid #d69e2e;">
+                <h4 style="margin: 0 0 10px 0; color: #2d3748;">Cost Per Hour</h4>
+                <div style="font-size: 1.5rem; font-weight: bold; color: #d69e2e;">
+                    ${{ avg_hourly_rate|floatformat:0 }}
+                </div>
+                <small style="color: #718096;">Average across resources</small>
+            </div>
+            
+            <div style="background: #fef2f2; padding: 15px; border-radius: 8px; border-left: 4px solid #e53e3e;">
+                <h4 style="margin: 0 0 10px 0; color: #2d3748;">Projects Over Budget</h4>
+                <div style="font-size: 1.5rem; font-weight: bold; color: #e53e3e;">
+                    {{ projects_over_budget }}
+                </div>
+                <small style="color: #718096;">Out of {{ total_projects }} total</small>
+            </div>
+        </div>
+        
+        <div style="margin-top: 20px; padding: 15px; background: #edf2f7; border-radius: 8px;">
+            <h5 style="margin: 0 0 10px 0;">Key Insights:</h5>
+            <ul style="margin: 0; padding-left: 20px;">
+                <li>Total remaining budget: <strong>${{ remaining_budget|floatformat:0 }}</strong></li>
+                <li>Average project budget utilization: <strong>{{ budget_utilization|floatformat:1 }}%</strong></li>
+                {% if projects_over_budget > 0 %}
+                <li style="color: #e53e3e;">⚠️ {{ projects_over_budget }} project(s) are over budget</li>
+                {% else %}
+                <li style="color: #38a169;">✅ All projects are within budget</li>
+                {% endif %}
+            </ul>
+        </div>
     </div>
 </div>
 

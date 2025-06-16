@@ -337,10 +337,23 @@ class CostTrackingService:
                     'budget_variance': budget_variance
                 }
             )
-    
-    def get_cost_variance_report(self):
-        """Generate cost variance report"""
-        projects = Project.objects.filter(status__in=['active', 'planning'])
+    def get_cost_variance_report(self, start_date=None, end_date=None, project_status=None, client=None):
+        """Generate cost variance report with optional filters"""
+        projects = Project.objects.all()
+        
+        # Apply filters
+        if project_status:
+            projects = projects.filter(status=project_status)
+        
+        if client:
+            projects = projects.filter(manager__username=client)
+        
+        # Date filtering based on project dates
+        if start_date:
+            projects = projects.filter(end_date__gte=start_date)
+        
+        if end_date:
+            projects = projects.filter(start_date__lte=end_date)
         
         report_data = []
         for project in projects:

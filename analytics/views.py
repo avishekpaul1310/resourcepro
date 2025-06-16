@@ -3,7 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
 from django.db import models
-from datetime import timedelta
+from datetime import timedelta, datetime
+from decimal import Decimal
 import json
 
 from .services import PredictiveAnalyticsService, UtilizationTrackingService, CostTrackingService
@@ -57,9 +58,8 @@ def analytics_dashboard(request):
     )['avg'] or 0
     
     utilization_trend = avg_utilization - previous_avg
-    
-    # Calculate budget metrics
-    total_budget = sum(item.get('estimated_cost', 0) for item in cost_report)
+      # Calculate budget metrics
+    total_budget = sum(item.get('budget', 0) for item in cost_report if item.get('budget'))
     actual_costs = sum(item.get('actual_cost', 0) for item in cost_report)
     budget_variance = total_budget - actual_costs
     
@@ -338,29 +338,119 @@ def analyze_skills(request):
 @login_required
 def utilization_report(request):
     """Display utilization report"""
+    from datetime import datetime
+    from django.db.models import Sum, Count
+    from projects.models import Project
+    from allocation.models import Assignment
+    
+    # Get filter parameters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    department = request.GET.get('department', '')
+    selected_role = request.GET.get('role', '')
+    
+    # Set default date range if not provided
+    if not start_date or not end_date:
+        end_date = timezone.now().date()
+        start_date = end_date - timedelta(days=30)
+    else:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    
+    # Get resources with filtering
     resources = Resource.objects.all()
-    days = int(request.GET.get('days', 30))
+    if department:
+        resources = resources.filter(department=department)
+    if selected_role:
+        resources = resources.filter(role=selected_role)
     
     utilization_service = UtilizationTrackingService()
     
     # Record today's utilization if not already done
     utilization_service.record_daily_utilization()
     
-    # Get trends for each resource
-    resource_data = []
+    # Get utilization data for each resource
+    utilization_data = []
+    total_hours = 0
+    billable_hours = 0
+    overutilized_count = 0
+    underutilized_count = 0
+    
     for resource in resources:
-        trends = utilization_service.get_utilization_trends(resource, days)
-        avg_utilization = trends.aggregate(avg=models.Avg('utilization_percentage'))['avg'] or 0
+        # Get utilization trends for the period
+        trends = HistoricalUtilization.objects.filter(
+            resource=resource,
+            date__gte=start_date,
+            date__lte=end_date
+        )
         
-        resource_data.append({
+        # Calculate metrics
+        avg_utilization = trends.aggregate(avg=models.Avg('utilization_percentage'))['avg'] or 0
+        total_allocated = trends.aggregate(sum=models.Sum('allocated_hours'))['sum'] or 0
+        total_available = trends.aggregate(sum=models.Sum('available_hours'))['sum'] or 0        # Calculate actual hours (simplified - using allocated hours)
+        actual_hours = total_allocated if total_allocated else Decimal('0')
+        # Calculate billable hours (assume 80% of actual hours are billable)
+        resource_billable_hours = actual_hours * Decimal('0.8')
+        
+        # Get active projects for this resource
+        active_projects = Assignment.objects.filter(
+            resource=resource,
+            task__start_date__lte=end_date,
+            task__end_date__gte=start_date
+        ).values('task__project').distinct().count()
+        
+        # Determine status
+        if avg_utilization > 90:
+            overutilized_count += 1
+        elif avg_utilization < 50:
+            underutilized_count += 1
+        
+        utilization_data.append({
             'resource': resource,
-            'avg_utilization': round(avg_utilization, 1),
-            'trends': trends[:10]  # Last 10 days
-        })
+            'utilization_rate': round(avg_utilization, 1),
+            'actual_hours': round(actual_hours, 1),
+            'billable_hours': round(resource_billable_hours, 1),
+            'active_projects': active_projects,
+            'trends': trends[:10]  # Last 10 entries for detail view
+        })        
+        total_hours += actual_hours
+        billable_hours += resource_billable_hours
+    
+    # Calculate summary statistics
+    total_resources = resources.count()
+    avg_utilization = sum(item['utilization_rate'] for item in utilization_data) / len(utilization_data) if utilization_data else 0
+    billable_percentage = (billable_hours / total_hours * 100) if total_hours > 0 else 0
+    
+    # Calculate utilization trend (compare with previous period)
+    previous_start = start_date - timedelta(days=(end_date - start_date).days)
+    previous_utilizations = HistoricalUtilization.objects.filter(
+        resource__in=resources,
+        date__gte=previous_start,
+        date__lt=start_date
+    )
+    previous_avg = previous_utilizations.aggregate(avg=models.Avg('utilization_percentage'))['avg'] or 0
+    utilization_trend = avg_utilization - previous_avg
+    
+    # Get available departments and roles for filters
+    departments = Resource.objects.values_list('department', flat=True).distinct().exclude(department__isnull=True)
+    roles = Resource.objects.values_list('role', flat=True).distinct().exclude(role__isnull=True)
     
     context = {
-        'resource_data': resource_data,
-        'days': days
+        'utilization_data': utilization_data,
+        'start_date': start_date,
+        'end_date': end_date,
+        'department': department,
+        'selected_role': selected_role,
+        'departments': departments,
+        'roles': roles,
+        'total_resources': total_resources,
+        'avg_utilization': round(avg_utilization, 1),
+        'utilization_trend': round(utilization_trend, 1),
+        'total_hours': round(total_hours, 0),
+        'billable_hours': round(billable_hours, 0),
+        'billable_percentage': round(billable_percentage, 1),
+        'overutilized_count': overutilized_count,
+        'underutilized_count': underutilized_count,
     }
     
     return render(request, 'analytics/utilization_report.html', context)
@@ -368,28 +458,146 @@ def utilization_report(request):
 @login_required
 def cost_tracking_report(request):
     """Display cost tracking and budget analysis"""
-    cost_service = CostTrackingService()
+    cost_service = CostTrackingService()    # Get filter parameters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    project_status = request.GET.get('project_status', '')
+    selected_client = request.GET.get('client', '')
+    
+    # Convert string dates to date objects
+    start_date_obj = None
+    end_date_obj = None
+    
+    if start_date:
+        try:
+            start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+        except ValueError:
+            start_date = None
+    
+    if end_date:
+        try:
+            end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+        except ValueError:
+            end_date = None
     
     # Update costs for all projects
     cost_service.update_project_costs()
     
-    # Get cost variance report
-    cost_report = cost_service.get_cost_variance_report()
+    # Debug logging for processed filters
+    print(f"DEBUG: Processed filter parameters:")
+    print(f"  start_date_obj: {start_date_obj}")
+    print(f"  end_date_obj: {end_date_obj}")
+    print(f"  project_status: '{project_status}' (will be None if empty)")
+    print(f"  selected_client: '{selected_client}' (will be None if empty)")
+    
+    # Get cost variance report with filters
+    cost_report = cost_service.get_cost_variance_report(
+        start_date=start_date_obj,
+        end_date=end_date_obj,
+        project_status=project_status if project_status else None,
+        client=selected_client if selected_client else None
+    )
+    print(f"DEBUG: Cost report returned {len(cost_report)} projects")
     
     # Calculate summary statistics
     total_estimated = sum(item['estimated_cost'] for item in cost_report)
     total_actual = sum(item['actual_cost'] for item in cost_report)
     total_variance = total_estimated - total_actual
+    total_budget = sum(item['budget'] for item in cost_report if item['budget'])
+    
+    print(f"DEBUG: Calculated totals:")
+    print(f"  total_budget: ${total_budget}")
+    print(f"  total_actual: ${total_actual}")
+    print(f"  total_estimated: ${total_estimated}")
     
     projects_over_budget = len([item for item in cost_report if item['variance'] < 0])
     
+    # Calculate additional metrics for the template
+    budget_variance = total_budget - total_actual if total_budget else 0
+    budget_utilization = (total_actual / total_budget * 100) if total_budget > 0 else 0
+    remaining_budget = total_budget - total_actual if total_budget else 0
+    
+    # Calculate average hourly rate
+    resources = Resource.objects.filter(cost_per_hour__isnull=False)
+    avg_hourly_rate = resources.aggregate(avg=models.Avg('cost_per_hour'))['avg'] or 0
+    
+    # Calculate cost trend (simplified - could be enhanced with historical data)
+    cost_trend = 0  # Placeholder for now
+      # Generate budget alerts
+    budget_alerts = []
+    for item in cost_report:
+        if item['variance'] < 0:
+            budget_alerts.append(f"{item['project'].name} is over budget by ${abs(item['variance']):,.0f}")
+        elif item['budget_utilization'] > 90:
+            budget_alerts.append(f"{item['project'].name} has used {item['budget_utilization']:.1f}% of budget")
+      # Get unique clients for filter
+    clients = list(set([p.manager.username for p in Project.objects.filter(manager__isnull=False)]))
+    
+    # Prepare project cost data for the table
+    project_costs = []
+    for item in cost_report:
+        project = item['project']
+        total_hours = sum(entry.hours for task in project.tasks.all() for entry in task.time_entries.all())
+        client_name = project.manager.username if project.manager else '-'
+        
+        project_costs.append({
+            'name': project.name,
+            'description': project.description,
+            'client': client_name,
+            'status': project.status,
+            'get_status_display': project.get_status_display(),
+            'budget': item['budget'],
+            'actual_cost': item['actual_cost'],
+            'variance': item['variance'],
+            'budget_percentage': item['budget_utilization'],
+            'total_hours': total_hours,
+        })    # Prepare resource cost data for the table
+    resource_costs = []
+    for resource in Resource.objects.filter(cost_per_hour__isnull=False):
+        hours_logged = sum(entry.hours for entry in resource.time_entries.all())
+        # Use Decimal arithmetic to avoid type conflicts
+        total_cost = hours_logged * resource.cost_per_hour if resource.cost_per_hour else Decimal('0')
+        # For now, assume all hours are billable and use a simple profit margin calculation
+        billable_hours = hours_logged  # Could be enhanced with actual billable hours tracking
+        markup_multiplier = Decimal('1.5')  # 50% markup
+        revenue_generated = billable_hours * (resource.cost_per_hour * markup_multiplier) if resource.cost_per_hour else Decimal('0')
+        profit_margin = float((revenue_generated - total_cost) / revenue_generated * 100) if revenue_generated > 0 else 0
+        
+        resource_costs.append({
+            'name': resource.name,
+            'department': resource.department,
+            'role': resource.role,
+            'hourly_rate': resource.cost_per_hour,
+            'hours_logged': hours_logged,
+            'total_cost': total_cost,
+            'billable_hours': billable_hours,
+            'revenue_generated': revenue_generated,
+            'profit_margin': profit_margin,
+        })
+    
     context = {
         'cost_report': cost_report,
+        'project_costs': project_costs,  # For the project table
+        'resource_costs': resource_costs,  # For the resource table
         'total_estimated': total_estimated,
         'total_actual': total_actual,
+        'actual_costs': total_actual,  # Template expects this name
         'total_variance': total_variance,
+        'total_budget': total_budget,
+        'budget_variance': budget_variance,
+        'budget_utilization': budget_utilization,
+        'remaining_budget': remaining_budget,
+        'avg_hourly_rate': avg_hourly_rate,
+        'cost_trend': cost_trend,
         'projects_over_budget': projects_over_budget,
-        'total_projects': len(cost_report)
+        'overbudget_projects': projects_over_budget,  # Template expects this name
+        'total_projects': len(cost_report),
+        'budget_alerts': budget_alerts,
+        'start_date': start_date,
+        'end_date': end_date,
+        'project_status': project_status,
+        'selected_client': selected_client,
+        'clients': clients,
     }
     
     return render(request, 'analytics/cost_report.html', context)

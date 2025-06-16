@@ -152,6 +152,7 @@ class TimeEntry(models.Model):
     date = models.DateField()
     hours = models.DecimalField(max_digits=4, decimal_places=2)
     description = models.TextField(blank=True, null=True)
+    is_billable = models.BooleanField(default=True, help_text="Whether this time entry is billable to the client")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
