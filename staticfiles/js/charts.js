@@ -43,22 +43,22 @@ document.addEventListener('DOMContentLoaded', function() {
     if (progressCtx) {
         const projectNames = JSON.parse(progressCtx.dataset.labels);
         const progressData = JSON.parse(progressCtx.dataset.values);
-        
-        new Chart(progressCtx, {
+          new Chart(progressCtx, {
             type: 'doughnut',
             data: {
                 labels: projectNames,
                 datasets: [{
                     data: progressData,
                     backgroundColor: [
-                        '#4C51BF', // indigo-800
-                        '#667EEA', // indigo-500
-                        '#A3BFFA', // indigo-300
-                        '#EBF4FF', // indigo-100
-                        '#F97316', // orange-500
-                        '#FDBA74', // orange-300
+                        '#4C51BF', // indigo-700 (good contrast)
+                        '#667EEA', // indigo-500 (good contrast)
+                        '#2563EB', // blue-600 (better contrast)
+                        '#DC2626', // red-600 (high contrast)
+                        '#F97316', // orange-500 (good contrast)
+                        '#059669', // green-600 (high contrast)
                     ],
-                    borderWidth: 1
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
                 }]
             },
             options: {
@@ -66,6 +66,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 plugins: {
                     legend: {
                         position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                return label + ': ' + value.toFixed(1) + '%';
+                            }
+                        }
                     }
                 }
             }
