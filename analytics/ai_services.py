@@ -176,6 +176,8 @@ For each recommendation, provide:
 - confidence_score: Decimal from 0.0-1.0 based on data certainty
 - estimated_impact: Brief description of expected business impact
 
+IMPORTANT: If no items exist for a category, return an empty array []. Never use null or None values.
+
 Respond with valid JSON in this exact format:
 {{
     "skills_to_develop": [
@@ -218,8 +220,7 @@ Respond with valid JSON in this exact format:
             "training_areas": [],
             "obsolete_skills": []
         }
-        
-        # Process each category
+          # Process each category
         for category, db_type in [
             ("skills_to_develop", "develop"),
             ("training_areas", "training"),
@@ -227,7 +228,8 @@ Respond with valid JSON in this exact format:
         ]:
             if category in ai_response:
                 for item in ai_response[category]:
-                    skill_name = item.get("skill_name", "").strip()
+                    skill_name = item.get("skill_name") or ""
+                    skill_name = skill_name.strip() if skill_name else ""
                     if not skill_name:  # Skip empty skill names
                         continue
                         
@@ -479,15 +481,16 @@ Sort recommendations by match_score (highest first). Only include resources with
                 resource_id = rec.get("resource_id")
                 if resource_id in resource_dict:
                     resource = resource_dict[resource_id]
-                    
-                    # Store suggestion in database
-                    suggestion = AIResourceAllocationSuggestion.objects.create(
+                      # Store suggestion in database (handle duplicates)
+                    suggestion, created = AIResourceAllocationSuggestion.objects.get_or_create(
                         task=task,
                         suggested_resource=resource,
-                        match_score=Decimal(str(rec.get("match_score", 0.5))),
-                        reasoning=rec.get("reasoning", ""),
-                        estimated_completion_time=Decimal(str(rec.get("estimated_completion_time", task.estimated_hours))),
-                        cost_efficiency_score=Decimal(str(rec.get("cost_efficiency_score", 0.5)))
+                        defaults={
+                            'match_score': Decimal(str(rec.get("match_score", 0.5))),
+                            'reasoning': rec.get("reasoning", ""),
+                            'estimated_completion_time': Decimal(str(rec.get("estimated_completion_time", task.estimated_hours))),
+                            'cost_efficiency_score': Decimal(str(rec.get("cost_efficiency_score", 0.5)))
+                        }
                     )
                     
                     suggestions.append({
