@@ -4,6 +4,7 @@
 {% block title %}Dashboard - ResourcePro{% endblock %}
 
 {% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <style>
     .dashboard-metrics {
         display: grid;
@@ -11,31 +12,153 @@
         gap: 20px;
         margin-bottom: 30px;
     }
-    
-    .metric-card {
+      .metric-card {
         background-color: white;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         padding: 20px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(180deg, #4c51bf, #667eea);
+        transition: width 0.3s ease;
+    }
+    
+    .metric-card:hover::before {
+        width: 6px;
+    }
+    
+    .metric-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 15px;
+    }
+    
+    .metric-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        color: white;
+        margin-bottom: 10px;
     }
     
     .metric-title {
         color: #718096;
         font-size: 0.875rem;
-        margin-bottom: 5px;
+        margin-bottom: 8px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
     
     .metric-value {
-        font-size: 1.875rem;
-        font-weight: 600;
+        font-size: 2.5rem;
+        font-weight: 700;
         color: #2d3748;
+        margin-bottom: 8px;
     }
     
-    .metric-status {
+    .metric-change {
+        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-weight: 500;
+    }
+    
+    .metric-change.positive {
+        background-color: #c6f6d5;
+        color: #25855a;
+    }
+    
+    .metric-change.negative {
+        background-color: #fed7d7;
+        color: #c53030;
+    }
+    
+    .metric-change.neutral {
+        background-color: #e2e8f0;
+        color: #4a5568;
+    }
+      .metric-status {
         display: flex;
         align-items: center;
         gap: 5px;
-        margin-top: 5px;
+        margin-top: 10px;
+    }
+    
+    .metric-icon.resources {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+    }
+    
+    .metric-icon.projects {
+        background: linear-gradient(135deg, #48bb78, #38a169);
+    }
+    
+    .metric-icon.overallocated {
+        background: linear-gradient(135deg, #ed8936, #dd6b20);
+    }
+    
+    .metric-icon.overallocated.danger {
+        background: linear-gradient(135deg, #e53e3e, #c53030);
+    }
+    
+    .metric-icon.tasks {
+        background: linear-gradient(135deg, #4c51bf, #667eea);
+    }
+      .metric-icon.tasks.danger {
+        background: linear-gradient(135deg, #f56565, #e53e3e);
+    }
+    
+    .dashboard-charts {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    @media (max-width: 768px) {
+        .dashboard-metrics {
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+        
+        .dashboard-charts {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .metric-card:focus {
+        outline: 2px solid #4c51bf;
+        outline-offset: 2px;
+    }
+    
+    .metric-card .metric-change i {
+        margin-right: 4px;
+    }
         font-size: 0.875rem;
     }
     
@@ -199,25 +322,88 @@
 
 <!-- Dashboard Metrics -->
 <div class="dashboard-metrics">
-    <div class="metric-card">
-        <div class="metric-title">Total Resources</div>
-        <div class="metric-value">{{ total_resources }}</div>
-    </div>
+    <a href="{% url 'resources:resource_list' %}" class="metric-card" title="View all team resources and their current status">
+        <div class="metric-header">
+            <div>
+                <div class="metric-icon resources">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="metric-title">Total Resources</div>
+                <div class="metric-value">{{ total_resources }}</div>
+            </div>
+        </div>
+        <div class="metric-status">
+            <span class="metric-change {% if total_resources > 0 %}positive{% else %}neutral{% endif %}">
+                {% if total_resources > 0 %}
+                    <i class="fas fa-arrow-up"></i> {{ total_resources }} active
+                {% else %}
+                    No resources yet
+                {% endif %}
+            </span>
+        </div>
+    </a>
     
-    <div class="metric-card">
-        <div class="metric-title">Active Projects</div>
-        <div class="metric-value">{{ projects|length }}</div>
-    </div>
+    <a href="{% url 'project_list' %}" class="metric-card" title="View all active projects and their progress">
+        <div class="metric-header">
+            <div>
+                <div class="metric-icon projects">
+                    <i class="fas fa-project-diagram"></i>
+                </div>
+                <div class="metric-title">Active Projects</div>
+                <div class="metric-value">{{ projects|length }}</div>
+            </div>
+        </div>
+        <div class="metric-status">
+            <span class="metric-change {% if projects|length > 0 %}positive{% else %}neutral{% endif %}">
+                {% if projects|length > 0 %}
+                    <i class="fas fa-chart-line"></i> {{ projects|length }} in progress
+                {% else %}
+                    No active projects
+                {% endif %}
+            </span>
+        </div>
+    </a>
     
-    <div class="metric-card">
-        <div class="metric-title">Overallocated Resources</div>
-        <div class="metric-value">{{ overallocated_resources|length }}</div>
-    </div>
-    
-    <div class="metric-card">
-        <div class="metric-title">Unassigned Tasks</div>
-        <div class="metric-value">{{ unassigned_tasks }}</div>
-    </div>
+    <a href="{% url 'analytics:utilization_report' %}" class="metric-card" title="View detailed utilization report and resource allocation">
+        <div class="metric-header">
+            <div>
+                <div class="metric-icon overallocated {% if overallocated_resources|length > 0 %}danger{% endif %}">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="metric-title">Overallocated Resources</div>
+                <div class="metric-value">{{ overallocated_resources|length }}</div>
+            </div>
+        </div>
+        <div class="metric-status">
+            <span class="metric-change {% if overallocated_resources|length > 0 %}negative{% else %}positive{% endif %}">
+                {% if overallocated_resources|length > 0 %}
+                    <i class="fas fa-arrow-up"></i> Need attention
+                {% else %}
+                    <i class="fas fa-check-circle"></i> All balanced
+                {% endif %}
+            </span>
+        </div>
+    </a>
+      <a href="{% url 'allocation_board' %}" class="metric-card" title="View unassigned tasks on the allocation board">
+        <div class="metric-header">
+            <div>
+                <div class="metric-icon tasks {% if unassigned_tasks > 0 %}danger{% endif %}">
+                    <i class="fas fa-tasks"></i>
+                </div>
+                <div class="metric-title">Unassigned Tasks</div>
+                <div class="metric-value">{{ unassigned_tasks }}</div>
+            </div>
+        </div>
+        <div class="metric-status">
+            <span class="metric-change {% if unassigned_tasks > 0 %}negative{% else %}positive{% endif %}">
+                {% if unassigned_tasks > 0 %}
+                    <i class="fas fa-clock"></i> Awaiting assignment
+                {% else %}
+                    <i class="fas fa-check-circle"></i> All assigned
+                {% endif %}
+            </span>
+        </div>
+    </a>
 </div>
 
 <!-- Dashboard Charts -->
@@ -298,8 +484,30 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
+<script>    document.addEventListener('DOMContentLoaded', function() {
+        // Add click animation to metric cards
+        const metricCards = document.querySelectorAll('.metric-card');
+        metricCards.forEach(card => {
+            card.addEventListener('click', function(e) {
+                // Add a subtle scale animation
+                this.style.transform = 'translateY(-2px) scale(0.98)';
+                setTimeout(() => {
+                    this.style.transform = 'translateY(-2px) scale(1)';
+                }, 150);
+            });
+            
+            // Add keyboard navigation
+            card.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.click();
+                }
+            });
+            
+            // Make cards focusable
+            card.setAttribute('tabindex', '0');
+        });
+        
         // Resource Utilization Chart
         const utilizationCtx = document.getElementById('utilizationChart');
         if (utilizationCtx) {

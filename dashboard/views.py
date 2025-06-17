@@ -43,6 +43,23 @@ def dashboard(request):
         status__in=['not_started', 'in_progress', 'blocked']
     ).count()
     
+    # Calculate some trending data for enhanced metrics
+    last_week = today - timedelta(days=7)
+    
+    # Count projects created in the last week
+    recent_projects = Project.objects.filter(
+        created_at__gte=last_week
+    ).count() if hasattr(Project, 'created_at') else 0
+    
+    # Count tasks completed in the last week
+    completed_tasks_recent = Task.objects.filter(
+        status='completed',
+        updated_at__gte=last_week
+    ).count() if hasattr(Task, 'updated_at') else 0
+    
+    # Calculate average utilization
+    avg_utilization = sum(r.utilization for r in resources) / len(resources) if resources else 0
+    
     # Prepare data for charts
     resource_names = [r.name for r in resources]
     resource_utilizations = [r.utilization for r in resources]
@@ -68,6 +85,9 @@ def dashboard(request):
         'unassigned_tasks': unassigned_tasks,
         'total_resources': resources.count(),
         'total_projects': projects.count(),
+        'recent_projects': recent_projects,
+        'completed_tasks_recent': completed_tasks_recent,
+        'avg_utilization': round(avg_utilization, 1),
         # Add these for the charts as JSON strings
         'resource_names_json': json.dumps(resource_names),
         'resource_utilizations_json': json.dumps(resource_utilizations),
