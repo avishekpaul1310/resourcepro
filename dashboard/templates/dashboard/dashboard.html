@@ -155,10 +155,11 @@
         outline: 2px solid #4c51bf;
         outline-offset: 2px;
     }
-    
-    .metric-card .metric-change i {
+      .metric-card .metric-change i {
         margin-right: 4px;
     }
+    
+    .metric-card .metric-change {
         font-size: 0.875rem;
     }
     
@@ -190,9 +191,8 @@
         color: #2d3748;
         margin-bottom: 15px;
     }
-    
-    .chart-container {
-        height: 300px;
+      .chart-container {
+        height: 450px;
     }
     
     .dashboard-section {
@@ -234,9 +234,16 @@
         display: flex;
         flex-direction: column;
     }
-    
-    .deadline-task {
+      .deadline-task {
         font-weight: 500;
+        color: #2d3748;
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .deadline-task:hover {
+        color: #4c51bf;
+        text-decoration: underline;
     }
     
     .deadline-project {
@@ -436,11 +443,10 @@
         Upcoming Deadlines
     </div>
     <div class="section-content">
-        <div class="deadline-list">
-            {% for task in upcoming_deadlines %}
+        <div class="deadline-list">            {% for task in upcoming_deadlines %}
             <div class="deadline-item">
                 <div class="deadline-details">
-                    <span class="deadline-task">{{ task.name }}</span>
+                    <a href="{% url 'task_detail' task.id %}" class="deadline-task">{{ task.name }}</a>
                     <span class="deadline-project">{{ task.project.name }}</span>
                 </div>
                 <span class="deadline-date {% if task.is_overdue %}deadline-overdue{% endif %}">
@@ -450,35 +456,7 @@
             {% empty %}
             <div class="empty-message">No upcoming deadlines!</div>
             {% endfor %}
-        </div>
-    </div>
-</div>
-
-<!-- Overallocated Resources Section -->
-<div class="dashboard-section">
-    <div class="section-header">
-        Overallocated Resources
-    </div>
-    <div class="section-content">
-        {% for resource in overallocated_resources %}
-        <div class="resource-overallocated">
-            <div class="resource-info">
-                <div class="resource-avatar" style="background-color: '{{ resource.color }}';">
-                    {{ resource.name|first|upper }}
-                </div>
-                <div class="resource-details">
-                    <span class="resource-name">{{ resource.name }}</span>
-                    <span class="resource-role">{{ resource.role }}</span>
-                </div>
-            </div>
-            <span class="utilization-label">
-                {{ resource.utilization }}% Utilized
-            </span>
-        </div>
-        {% empty %}
-        <div class="empty-message">No overallocated resources!</div>
-        {% endfor %}
-    </div>
+        </div>    </div>
 </div>
 {% endblock %}
 
@@ -525,13 +503,12 @@
                         backgroundColor: colors,
                         borderWidth: 1
                     }]
-                },
-                options: {
+                },                options: {
                     responsive: true,
                     scales: {
                         y: {
                             beginAtZero: true,
-                            max: 120,
+                            max: Math.max(Math.max(...utilizationData) * 1.2, 50),
                             title: {
                                 display: true,
                                 text: 'Utilization (%)'
@@ -568,13 +545,22 @@
                         ],
                         borderWidth: 2,
                         borderColor: '#ffffff'
-                    }]
-                },
+                    }]                },
                 options: {
                     responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'bottom'
+                    maintainAspectRatio: false,
+                    plugins: {legend: {
+                            position: 'right',
+                            align: 'center',
+                            labels: {
+                                boxWidth: 16,
+                                padding: 20,
+                                usePointStyle: true,
+                                font: {
+                                    size: 14,
+                                    weight: '500'
+                                }
+                            }
                         },
                         tooltip: {
                             callbacks: {
@@ -582,10 +568,17 @@
                                     const label = context.label || '';
                                     const value = context.parsed || 0;
                                     return label + ': ' + value.toFixed(1) + '%';
-                                }
-                            }
+                                }                            }
                         }
-                    }                }
+                    },
+                    layout: {
+                        padding: {
+                            top: 20,
+                            right: 20,
+                            bottom: 20,
+                            left: 20
+                        }                    }
+                }
             });
         }
     });

@@ -37,7 +37,31 @@ tooltip: {
 }
 ```
 
-### 3. **Bonus Enhancement: Improved Visual Styling** ✅ ADDED
+### 3. **Layout Optimization: Legend Positioning** ✅ IMPROVED
+**Enhancement:** Moved legend from bottom to right side to better utilize available space.
+
+**Implementation:**
+```javascript
+legend: {
+    position: 'right',
+    align: 'center',
+    labels: {
+        boxWidth: 12,
+        padding: 15,
+        usePointStyle: true,
+        font: {
+            size: 12
+        }
+    }
+}
+```
+
+**Benefits:**
+- Better utilization of horizontal space
+- More balanced and professional layout
+- Cleaner appearance with compact legend styling
+
+### 4. **Bonus Enhancement: Improved Visual Styling** ✅ ADDED
 **Added:** Enhanced border styling for better segment definition:
 ```javascript
 borderWidth: 2,

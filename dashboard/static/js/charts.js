@@ -16,13 +16,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     backgroundColor: colors,
                     borderWidth: 1
                 }]
-            },
-            options: {
+            },            options: {
                 responsive: true,
                 scales: {
                     y: {
                         beginAtZero: true,
-                        max: 120,
+                        max: Math.max(Math.max(...utilizationData) * 1.2, 50),
                         title: {
                             display: true,
                             text: 'Utilization (%)'
@@ -60,12 +59,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     borderWidth: 2,
                     borderColor: '#ffffff'
                 }]
-            },
-            options: {
+            },            options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        position: 'bottom'
+                        position: 'right',
+                        align: 'center',
+                        labels: {
+                            boxWidth: 16,
+                            padding: 20,
+                            usePointStyle: true,
+                            font: {
+                                size: 14,
+                                weight: '500'
+                            }
+                        }
                     },
                     tooltip: {
                         callbacks: {
@@ -75,6 +84,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                 return label + ': ' + value.toFixed(1) + '%';
                             }
                         }
+                    }
+                },
+                layout: {
+                    padding: {
+                        top: 20,
+                        right: 20,
+                        bottom: 20,
+                        left: 20
                     }
                 }
             }
