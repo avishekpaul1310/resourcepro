@@ -3,4 +3,8 @@ from . import views
 
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
+    path('api/simulate-intervention/', views.simulate_intervention, name='simulate_intervention'),
+    path('api/nli-query/', views.process_nli_query, name='process_nli_query'),
+    path('api/refresh-ai-analysis/', views.refresh_ai_analysis, name='refresh_ai_analysis'),
+    path('api/resolve-insight/<int:insight_id>/', views.resolve_insight, name='resolve_insight'),
 ]

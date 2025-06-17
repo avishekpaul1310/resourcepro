@@ -1,0 +1,540 @@
+{% load dashboard_tags %}
+
+<!-- AI Dashboard Analyst Widget -->
+<div class="ai-analyst-widget">
+    <div class="ai-widget-header">
+        <div class="ai-header-title">
+            <i class="fas fa-robot ai-icon"></i>
+            <h3>🤖 AI-Powered Daily Briefing</h3>
+        </div>
+        <div class="ai-header-actions">
+            <button class="btn-refresh-ai" onclick="refreshAIAnalysis()" title="Refresh Analysis">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+            {% if ai_analysis.is_fresh %}
+                <span class="freshness-indicator fresh">Fresh</span>
+            {% else %}
+                <span class="freshness-indicator stale">Updating...</span>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if ai_analysis.error %}
+        <div class="ai-error">
+            <i class="fas fa-exclamation-triangle"></i>
+            <p>{{ ai_analysis.error }}</p>
+            <button class="btn btn-primary btn-sm" onclick="refreshAIAnalysis()">Retry</button>
+        </div>
+    {% else %}
+        <div class="ai-content">
+            <!-- Summary Section -->
+            <div class="ai-section">
+                <div class="ai-section-header">
+                    <i class="fas fa-lightbulb"></i>
+                    <h4>💡 Summary</h4>
+                </div>
+                <p class="ai-summary">{{ ai_analysis.summary }}</p>
+            </div>
+            
+            <!-- Risks Section -->
+            {% if ai_analysis.risks %}
+            <div class="ai-section">
+                <div class="ai-section-header">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h4>⚠️ Key Risks</h4>
+                </div>
+                <div class="ai-risks">
+                    {% for risk in ai_analysis.risks %}
+                    <div class="ai-risk-item risk-{{ risk.priority }}">
+                        <div class="risk-header">
+                            <span class="risk-title">{{ risk.title }}</span>
+                            <span class="risk-priority priority-{{ risk.priority }}">{{ risk.priority|title }}</span>
+                        </div>
+                        <p class="risk-description">{{ risk.description }}</p>
+                        {% if risk.affected_items %}
+                        <div class="risk-affected">
+                            <small>Affects: {{ risk.affected_items|join:", " }}</small>
+                        </div>
+                        {% endif %}
+                        <div class="risk-actions">
+                            <button class="btn-simulate" onclick="openInterventionSimulator('{{ risk.title }}', {{ risk|jsonify }})">
+                                <i class="fas fa-cogs"></i> Simulate Solutions
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Recommendations Section -->
+            {% if ai_analysis.recommendations %}
+            <div class="ai-section">
+                <div class="ai-section-header">
+                    <i class="fas fa-check-circle"></i>
+                    <h4>✅ Recommendations</h4>
+                </div>
+                <div class="ai-recommendations">
+                    {% for rec in ai_analysis.recommendations %}
+                    <div class="ai-recommendation-item rec-{{ rec.priority }}">
+                        <div class="rec-header">
+                            <span class="rec-title">{{ rec.title }}</span>
+                            <span class="rec-priority priority-{{ rec.priority }}">{{ rec.priority|title }}</span>
+                        </div>
+                        <p class="rec-description">{{ rec.description }}</p>
+                        {% if rec.affected_items %}
+                        <div class="rec-affected">
+                            <small>Related: {{ rec.affected_items|join:", " }}</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Confidence and Timestamp -->
+            <div class="ai-footer">
+                <div class="ai-confidence">
+                    <span class="confidence-label">Confidence:</span>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" style="width: {{ ai_analysis.confidence_score|floatformat:0|mul:100 }}%"></div>
+                    </div>
+                    <span class="confidence-value">{{ ai_analysis.confidence_score|floatformat:1|mul:100 }}%</span>
+                </div>
+                <div class="ai-timestamp">
+                    <small><i class="fas fa-clock"></i> Updated: {{ ai_analysis.created_at|date:"M d, H:i" }}</small>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Active AI Insights -->
+{% if active_insights %}
+<div class="ai-insights-widget">
+    <div class="ai-widget-header">
+        <h4><i class="fas fa-bell"></i> Active AI Insights</h4>
+    </div>
+    <div class="insights-list">
+        {% for insight in active_insights %}
+        <div class="insight-item severity-{{ insight.severity }}">
+            <div class="insight-icon">
+                {% if insight.insight_type == 'deadline_risk' %}
+                    <i class="fas fa-calendar-times"></i>
+                {% elif insight.insight_type == 'bottleneck' %}
+                    <i class="fas fa-hourglass-half"></i>
+                {% elif insight.insight_type == 'overallocation' %}
+                    <i class="fas fa-exclamation-circle"></i>
+                {% else %}
+                    <i class="fas fa-info-circle"></i>
+                {% endif %}
+            </div>
+            <div class="insight-content">
+                <div class="insight-title">{{ insight.title }}</div>
+                <div class="insight-description">{{ insight.description|truncatewords:15 }}</div>
+            </div>
+            <div class="insight-actions">
+                <button class="btn-resolve" onclick="resolveInsight({{ insight.id }})" title="Resolve">
+                    <i class="fas fa-check"></i>
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<style>
+/* AI Widget Styles */
+.ai-analyst-widget {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 0;
+    margin-bottom: 30px;
+    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    overflow: hidden;
+}
+
+.ai-widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.ai-header-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ai-header-title h3 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.ai-icon {
+    font-size: 1.5rem;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.ai-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.btn-refresh-ai {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-refresh-ai:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: rotate(180deg);
+}
+
+.freshness-indicator {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.freshness-indicator.fresh {
+    background: rgba(72, 187, 120, 0.8);
+}
+
+.freshness-indicator.stale {
+    background: rgba(237, 137, 54, 0.8);
+}
+
+.ai-content {
+    padding: 0 24px 24px;
+}
+
+.ai-section {
+    margin-bottom: 24px;
+}
+
+.ai-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.ai-section-header h4 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.ai-summary {
+    font-size: 1rem;
+    line-height: 1.6;
+    margin: 0;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 16px;
+    border-radius: 8px;
+}
+
+.ai-risks, .ai-recommendations {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ai-risk-item, .ai-recommendation-item {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 16px;
+    border-left: 4px solid;
+}
+
+.ai-risk-item.risk-high, .ai-recommendation-item.rec-high {
+    border-left-color: #f56565;
+}
+
+.ai-risk-item.risk-medium, .ai-recommendation-item.rec-medium {
+    border-left-color: #ed8936;
+}
+
+.ai-risk-item.risk-low, .ai-recommendation-item.rec-low {
+    border-left-color: #48bb78;
+}
+
+.risk-header, .rec-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.risk-title, .rec-title {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.risk-priority, .rec-priority {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.priority-high {
+    background: rgba(245, 101, 101, 0.8);
+}
+
+.priority-medium {
+    background: rgba(237, 137, 54, 0.8);
+}
+
+.priority-low {
+    background: rgba(72, 187, 120, 0.8);
+}
+
+.risk-description, .rec-description {
+    margin: 8px 0;
+    line-height: 1.5;
+}
+
+.risk-affected, .rec-affected {
+    font-style: italic;
+    opacity: 0.8;
+    margin-bottom: 12px;
+}
+
+.risk-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-simulate {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: white;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-simulate:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+.ai-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    margin-top: 20px;
+}
+
+.ai-confidence {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.confidence-bar {
+    width: 80px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.confidence-fill {
+    height: 100%;
+    background: #48bb78;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.confidence-value {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.ai-timestamp {
+    opacity: 0.8;
+}
+
+.ai-error {
+    padding: 24px;
+    text-align: center;
+    color: #fed7d7;
+}
+
+.ai-error i {
+    font-size: 2rem;
+    margin-bottom: 12px;
+}
+
+/* AI Insights Widget */
+.ai-insights-widget {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 30px;
+    overflow: hidden;
+}
+
+.ai-insights-widget .ai-widget-header {
+    background: #f7fafc;
+    border-bottom: 1px solid #e2e8f0;
+    color: #2d3748;
+    padding: 16px 20px;
+}
+
+.ai-insights-widget .ai-widget-header h4 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.insights-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.insight-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    transition: background-color 0.2s ease;
+}
+
+.insight-item:hover {
+    background: #f7fafc;
+}
+
+.insight-item:last-child {
+    border-bottom: none;
+}
+
+.insight-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    color: white;
+}
+
+.insight-item.severity-critical .insight-icon {
+    background: linear-gradient(135deg, #e53e3e, #c53030);
+}
+
+.insight-item.severity-high .insight-icon {
+    background: linear-gradient(135deg, #ed8936, #dd6b20);
+}
+
+.insight-item.severity-medium .insight-icon {
+    background: linear-gradient(135deg, #4c51bf, #667eea);
+}
+
+.insight-item.severity-low .insight-icon {
+    background: linear-gradient(135deg, #48bb78, #38a169);
+}
+
+.insight-content {
+    flex: 1;
+}
+
+.insight-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #2d3748;
+    margin-bottom: 4px;
+}
+
+.insight-description {
+    font-size: 0.875rem;
+    color: #718096;
+    line-height: 1.4;
+}
+
+.insight-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-resolve {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    background: #48bb78;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.btn-resolve:hover {
+    background: #38a169;
+    transform: scale(1.05);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .ai-widget-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+    }
+    
+    .ai-footer {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+    }
+    
+    .insight-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .insight-actions {
+        align-self: flex-end;
+    }
+}
+</style>

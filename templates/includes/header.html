@@ -24,8 +24,13 @@
                     <a href="{% url 'analytics:utilization_report' %}">Utilization Report</a>
                     <a href="{% url 'analytics:cost_tracking_report' %}">Cost Report</a>
                 </div>
-            </div>
-        </nav>
+            </div>        </nav>
+        
+        <!-- AI Natural Language Interface -->
+        <div class="main-header">
+            {% include 'dashboard/nli_search.html' %}
+        </div>
+        
         <div class="user-menu">
             {% if user.is_authenticated %}
             <div class="user-avatar">{{ user.username.0|upper }}</div>

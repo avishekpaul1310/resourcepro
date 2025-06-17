@@ -327,6 +327,11 @@
     </div>
 </div>
 
+<!-- AI-Powered Dashboard Features -->
+{% if has_ai_service %}
+    {% include 'dashboard/ai_widgets.html' %}
+{% endif %}
+
 <!-- Dashboard Metrics -->
 <div class="dashboard-metrics">
     <a href="{% url 'resources:resource_list' %}" class="metric-card" title="View all team resources and their current status">
@@ -578,9 +583,14 @@
                             bottom: 20,
                             left: 20
                         }                    }
-                }
-            });
+                }            });
         }
     });
 </script>
+
+<!-- AI Features Scripts and Modals -->
+{% if has_ai_service %}
+    {% include 'dashboard/intervention_modal.html' %}
+    <script src="{% static 'js/ai_dashboard.js' %}"></script>
+{% endif %}
 {% endblock %}

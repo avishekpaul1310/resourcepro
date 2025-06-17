@@ -1,0 +1,526 @@
+<!-- Intervention Simulator Modal -->
+<div id="interventionModal" class="modal-overlay" style="display: none;">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h3><i class="fas fa-cogs"></i> AI-Powered Project Intervention Simulator</h3>
+            <button class="modal-close" onclick="closeInterventionModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="modal-body">
+            <!-- Step 1: Problem Identification -->
+            <div id="step-problem" class="simulation-step active">
+                <div class="step-header">
+                    <h4>🎯 Problem Identification</h4>
+                    <p>Define the issue you want to resolve</p>
+                </div>
+                
+                <div class="problem-form">
+                    <div class="form-group">
+                        <label for="problemTitle">Problem Title</label>
+                        <input type="text" id="problemTitle" class="form-control" placeholder="e.g., API Integration project trending late">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="problemDescription">Description</label>
+                        <textarea id="problemDescription" class="form-control" rows="3" placeholder="Describe the problem in detail..."></textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="affectedProject">Affected Project</label>
+                            <select id="affectedProject" class="form-control">
+                                <option value="">Select project...</option>
+                                {% for project in projects %}
+                                <option value="{{ project.id }}">{{ project.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="problemPriority">Priority Level</label>
+                            <select id="problemPriority" class="form-control">
+                                <option value="high">High</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="low">Low</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="step-actions">
+                    <button class="btn btn-primary" onclick="nextStep('scenario')">
+                        Next: Choose Solution <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Step 2: Scenario Selection -->
+            <div id="step-scenario" class="simulation-step">
+                <div class="step-header">
+                    <h4>⚡ Intervention Scenarios</h4>
+                    <p>Select the type of intervention to simulate</p>
+                </div>
+                
+                <div class="scenario-options">
+                    <div class="scenario-card" data-scenario="reassignment">
+                        <div class="scenario-icon">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                        <h5>Task Reassignment</h5>
+                        <p>Move tasks between team members to optimize workload</p>
+                    </div>
+                    
+                    <div class="scenario-card" data-scenario="overtime">
+                        <div class="scenario-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <h5>Overtime Authorization</h5>
+                        <p>Authorize additional working hours to meet deadlines</p>
+                    </div>
+                    
+                    <div class="scenario-card" data-scenario="resource_addition">
+                        <div class="scenario-icon">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                        <h5>Additional Resource</h5>
+                        <p>Add more team members to accelerate project completion</p>
+                    </div>
+                    
+                    <div class="scenario-card" data-scenario="deadline_extension">
+                        <div class="scenario-icon">
+                            <i class="fas fa-calendar-plus"></i>
+                        </div>
+                        <h5>Deadline Extension</h5>
+                        <p>Negotiate timeline extensions with stakeholders</p>
+                    </div>
+                    
+                    <div class="scenario-card" data-scenario="scope_reduction">
+                        <div class="scenario-icon">
+                            <i class="fas fa-cut"></i>
+                        </div>
+                        <h5>Scope Reduction</h5>
+                        <p>Reduce project scope to meet original timeline</p>
+                    </div>
+                </div>
+                
+                <div class="step-actions">
+                    <button class="btn btn-secondary" onclick="previousStep('problem')">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <button class="btn btn-primary" id="nextToConfig" onclick="nextStep('configuration')" disabled>
+                        Next: Configure <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Step 3: Configuration -->
+            <div id="step-configuration" class="simulation-step">
+                <div class="step-header">
+                    <h4>⚙️ Configuration</h4>
+                    <p>Configure the parameters for your selected intervention</p>
+                </div>
+                
+                <div id="configurationForm" class="configuration-form">
+                    <!-- Dynamic configuration form will be populated here -->
+                </div>
+                
+                <div class="step-actions">
+                    <button class="btn btn-secondary" onclick="previousStep('scenario')">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <button class="btn btn-success" onclick="runSimulation()">
+                        <i class="fas fa-play"></i> Run Simulation
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Step 4: Results -->
+            <div id="step-results" class="simulation-step">
+                <div class="step-header">
+                    <h4>📊 Simulation Results</h4>
+                    <p>AI-generated analysis of your intervention scenario</p>
+                </div>
+                
+                <div id="simulationResults" class="results-container">
+                    <div class="loading-state">
+                        <div class="spinner"></div>
+                        <p>AI is analyzing your intervention scenario...</p>
+                    </div>
+                </div>
+                
+                <div class="step-actions" id="resultsActions" style="display: none;">
+                    <button class="btn btn-secondary" onclick="restartSimulation()">
+                        <i class="fas fa-redo"></i> New Simulation
+                    </button>
+                    <button class="btn btn-primary" onclick="implementScenario()">
+                        <i class="fas fa-rocket"></i> Implement Solution
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.modal-container {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e2e8f0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.modal-close {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 6px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.modal-body {
+    padding: 0;
+    max-height: calc(90vh - 80px);
+    overflow-y: auto;
+}
+
+/* Simulation Steps */
+.simulation-step {
+    display: none;
+    padding: 24px;
+}
+
+.simulation-step.active {
+    display: block;
+}
+
+.step-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.step-header h4 {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+    color: #2d3748;
+}
+
+.step-header p {
+    color: #718096;
+    font-size: 1rem;
+}
+
+/* Form Styles */
+.problem-form, .configuration-form {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #2d3748;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: border-color 0.2s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+/* Scenario Cards */
+.scenario-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 30px;
+}
+
+.scenario-card {
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.scenario-card:hover {
+    border-color: #667eea;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.scenario-card.selected {
+    border-color: #667eea;
+    background: linear-gradient(135deg, #667eea10, #764ba210);
+}
+
+.scenario-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 12px;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.scenario-card h5 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #2d3748;
+}
+
+.scenario-card p {
+    font-size: 0.875rem;
+    color: #718096;
+    line-height: 1.4;
+    margin: 0;
+}
+
+/* Step Actions */
+.step-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: #e2e8f0;
+    color: #4a5568;
+}
+
+.btn-secondary:hover {
+    background: #cbd5e0;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #48bb78, #38a169);
+    color: white;
+}
+
+.btn-success:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+}
+
+/* Results */
+.results-container {
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.loading-state {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #e2e8f0;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.result-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.result-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.result-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    color: white;
+}
+
+.result-success .result-icon {
+    background: linear-gradient(135deg, #48bb78, #38a169);
+}
+
+.result-warning .result-icon {
+    background: linear-gradient(135deg, #ed8936, #dd6b20);
+}
+
+.result-info .result-icon {
+    background: linear-gradient(135deg, #4c51bf, #667eea);
+}
+
+.probability-bar {
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 8px 0;
+}
+
+.probability-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #48bb78, #38a169);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .modal-container {
+        width: 95%;
+        margin: 20px;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .scenario-options {
+        grid-template-columns: 1fr;
+    }
+    
+    .step-actions {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+</style>

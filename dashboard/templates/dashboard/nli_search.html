@@ -1,0 +1,464 @@
+<!-- Natural Language Interface Search Bar -->
+<div class="nli-search-container">
+    <div class="nli-search-bar">
+        <div class="search-input-wrapper">
+            <i class="fas fa-search search-icon"></i>
+            <input 
+                type="text" 
+                id="nliSearchInput" 
+                class="nli-input"
+                placeholder="Ask a question about your projects or resources..."
+                autocomplete="off"
+            >
+            <div class="search-actions">
+                <button class="btn-voice" id="voiceBtn" title="Voice Search">
+                    <i class="fas fa-microphone"></i>
+                </button>
+                <button class="btn-clear" id="clearBtn" title="Clear" style="display: none;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Quick suggestions -->
+        <div class="quick-suggestions" id="quickSuggestions">
+            <div class="suggestion-item" data-query="Who is available for a new project?">
+                <i class="fas fa-users"></i>
+                <span>Who is available for a new project?</span>
+            </div>
+            <div class="suggestion-item" data-query="What are the upcoming deadlines?">
+                <i class="fas fa-calendar-alt"></i>
+                <span>What are the upcoming deadlines?</span>
+            </div>
+            <div class="suggestion-item" data-query="Show me overallocated resources">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Show me overallocated resources</span>
+            </div>
+            <div class="suggestion-item" data-query="What are the biggest risks this week?">
+                <i class="fas fa-shield-alt"></i>
+                <span>What are the biggest risks this week?</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Search Results -->
+    <div class="nli-results" id="nliResults" style="display: none;">
+        <div class="results-header">
+            <h4>AI Assistant Response</h4>
+            <button class="btn-close-results" onclick="closeNLIResults()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="results-content" id="resultsContent">
+            <!-- Results will be populated here -->
+        </div>
+    </div>
+    
+    <!-- Loading State -->
+    <div class="nli-loading" id="nliLoading" style="display: none;">
+        <div class="loading-content">
+            <div class="ai-thinking">
+                <div class="thinking-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <p>AI is processing your query...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Natural Language Interface Styles */
+.nli-search-container {
+    position: relative;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.nli-search-bar {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.nli-search-bar:focus-within {
+    border-color: #667eea;
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.2);
+}
+
+.search-input-wrapper {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    gap: 12px;
+}
+
+.search-icon {
+    color: #718096;
+    font-size: 1.1rem;
+}
+
+.nli-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 1rem;
+    color: #2d3748;
+    background: transparent;
+}
+
+.nli-input::placeholder {
+    color: #a0aec0;
+}
+
+.search-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-voice, .btn-clear {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    background: #f7fafc;
+    color: #4a5568;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.btn-voice:hover, .btn-clear:hover {
+    background: #e2e8f0;
+    color: #2d3748;
+}
+
+.btn-voice.recording {
+    background: #fed7d7;
+    color: #e53e3e;
+    animation: pulse 1.5s infinite;
+}
+
+/* Quick Suggestions */
+.quick-suggestions {
+    border-top: 1px solid #e2e8f0;
+    padding: 12px 0;
+    display: none;
+}
+
+.nli-search-bar:focus-within .quick-suggestions {
+    display: block;
+}
+
+.suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-size: 0.9rem;
+    color: #4a5568;
+}
+
+.suggestion-item:hover {
+    background: #f7fafc;
+}
+
+.suggestion-item i {
+    width: 16px;
+    color: #667eea;
+}
+
+/* Results */
+.nli-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    margin-top: 8px;
+    max-height: 400px;
+    overflow: hidden;
+    z-index: 100;
+    border: 1px solid #e2e8f0;
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f7fafc;
+}
+
+.results-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #2d3748;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.results-header h4::before {
+    content: "🤖";
+    font-size: 1.2rem;
+}
+
+.btn-close-results {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: #718096;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.btn-close-results:hover {
+    background: #e2e8f0;
+    color: #2d3748;
+}
+
+.results-content {
+    padding: 20px;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+/* Result Types */
+.result-text {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: #2d3748;
+    margin-bottom: 16px;
+    white-space: pre-line;
+}
+
+.result-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.result-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.result-list li:last-child {
+    border-bottom: none;
+}
+
+.result-list li::before {
+    content: "•";
+    color: #667eea;
+    font-weight: bold;
+}
+
+.result-data-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.result-data-item {
+    background: #f7fafc;
+    border-radius: 8px;
+    padding: 12px;
+    border-left: 3px solid #667eea;
+}
+
+.result-data-item h5 {
+    margin: 0 0 4px 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #2d3748;
+}
+
+.result-data-item p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #718096;
+}
+
+/* Loading State */
+.nli-loading {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    margin-top: 8px;
+    z-index: 100;
+    border: 1px solid #e2e8f0;
+}
+
+.loading-content {
+    padding: 30px 20px;
+    text-align: center;
+}
+
+.ai-thinking {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.thinking-dots {
+    display: flex;
+    gap: 4px;
+}
+
+.thinking-dots span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #667eea;
+    animation: thinking 1.4s infinite;
+}
+
+.thinking-dots span:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.thinking-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.thinking-dots span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes thinking {
+    0%, 80%, 100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.ai-thinking p {
+    margin: 0;
+    color: #718096;
+    font-size: 0.9rem;
+}
+
+/* Error State */
+.result-error {
+    background: #fed7d7;
+    color: #c53030;
+    padding: 16px;
+    border-radius: 8px;
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.result-error i {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+    display: block;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .nli-search-container {
+        margin: 0 16px;
+    }
+    
+    .nli-results, .nli-loading {
+        left: -16px;
+        right: -16px;
+    }
+    
+    .result-data-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .search-input-wrapper {
+        padding: 10px 12px;
+    }
+    
+    .nli-input {
+        font-size: 16px; /* Prevent zoom on iOS */
+    }
+}
+
+/* Header Integration */
+.main-header .nli-search-container {
+    max-width: 400px;
+}
+
+.main-header .nli-search-bar {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.main-header .quick-suggestions {
+    display: none !important; /* Hide suggestions in header */
+}
+
+/* Animation for showing/hiding */
+.nli-results.show,
+.nli-loading.show {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Focus and active states */
+.nli-input:focus {
+    outline: none;
+}
+
+.nli-search-bar.has-query {
+    border-color: #667eea;
+}
+
+.nli-search-bar.has-results {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.nli-results.connected {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    margin-top: 0;
+    border-top: none;
+}
+</style>

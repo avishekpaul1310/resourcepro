@@ -1,16 +1,21 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from datetime import timedelta
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 import json
+from datetime import timedelta
 from resources.models import Resource
 from projects.models import Project, Task
 from allocation.models import Assignment
+from dashboard.models import DashboardAIAnalysis, InterventionScenario, AIInsight
+from dashboard.ai_services import dashboard_ai_service, intervention_simulator_service, nli_service
 
 @login_required
 def dashboard(request):
     """
-    Dashboard view with overall resource utilization and project status.
+    Dashboard view with overall resource utilization, project status, and AI insights.
     """
     # Get all active resources
     resources = Resource.objects.all()
@@ -77,6 +82,16 @@ def dashboard(request):
         else:
             resource_colors.append("#48bb78")
     
+    # Get AI analysis for dashboard
+    ai_analysis = dashboard_ai_service.generate_daily_briefing()
+    
+    # Get active AI insights
+    active_insights = AIInsight.objects.filter(
+        is_active=True,
+        is_resolved=False
+    ).order_by('-severity', '-created_at')[:5]
+    
+    # Add AI data to context
     context = {
         'resources': resources,
         'projects': projects,
@@ -94,6 +109,76 @@ def dashboard(request):
         'resource_colors_json': json.dumps(resource_colors),
         'project_names_json': json.dumps(project_names),
         'project_completions_json': json.dumps(project_completions),
+        'ai_analysis': ai_analysis,
+        'active_insights': active_insights,
+        'has_ai_service': True,
     }
     
     return render(request, 'dashboard/dashboard.html', context)
+
+@login_required
+@require_http_methods(["POST"])
+@csrf_exempt
+def simulate_intervention(request):
+    """
+    API endpoint for simulating intervention scenarios
+    """
+    try:
+        data = json.loads(request.body)
+        simulation_result = intervention_simulator_service.simulate_intervention(
+            data, 
+            user=request.user
+        )
+        return JsonResponse(simulation_result)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON data"}, status=400)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+@login_required
+@require_http_methods(["POST"])
+@csrf_exempt
+def process_nli_query(request):
+    """
+    API endpoint for processing natural language interface queries
+    """
+    try:
+        data = json.loads(request.body)
+        query_text = data.get('query', '')
+        
+        if not query_text:
+            return JsonResponse({"error": "Query text is required"}, status=400)
+        
+        response = nli_service.process_query(query_text, user=request.user)
+        return JsonResponse(response)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON data"}, status=400)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+@login_required
+@require_http_methods(["POST"])
+def refresh_ai_analysis(request):
+    """
+    API endpoint to refresh AI analysis
+    """
+    try:
+        ai_analysis = dashboard_ai_service.generate_daily_briefing(force_refresh=True)
+        return JsonResponse(ai_analysis)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+@login_required
+@require_http_methods(["POST"])
+def resolve_insight(request, insight_id):
+    """
+    API endpoint to resolve an AI insight
+    """
+    try:
+        insight = AIInsight.objects.get(id=insight_id, is_active=True)
+        insight.resolve(user=request.user)
+        return JsonResponse({"success": True})
+    except AIInsight.DoesNotExist:
+        return JsonResponse({"error": "Insight not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
