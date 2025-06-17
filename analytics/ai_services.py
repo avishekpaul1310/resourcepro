@@ -366,14 +366,13 @@ class AIResourceAllocationService:
         return {
             "id": task.id,
             "name": task.name,
-            "description": task.description or "",
-            "priority": task.priority,
+            "description": task.description or "",            "priority": task.priority,
             "status": task.status,
             "estimated_hours": task.estimated_hours,
             "start_date": task.start_date.isoformat(),
             "end_date": task.end_date.isoformat(),
             "project": task.project.name,
-            "project_priority": task.project.priority if hasattr(task.project, 'priority') else "medium",
+            "project_priority": task.project.priority if hasattr(task.project, 'priority') else 3,
             "required_skills": [
                 {"name": skill.name, "description": skill.description or ""}
                 for skill in task.skills_required.all()
@@ -648,14 +647,13 @@ class AIForecastEnhancementService:
     def _gather_business_context(self) -> str:
         """Gather current business context automatically"""
         context_parts = []
-        
-        # Active projects context
+          # Active projects context
         active_projects = Project.objects.filter(status__in=['planning', 'active'])
         if active_projects.exists():
             context_parts.append(f"Currently {active_projects.count()} active projects")
             
-            # High priority projects
-            high_priority = active_projects.filter(priority__in=['high', 'critical']).count()
+            # High priority projects (4-5 on 1-5 scale)
+            high_priority = active_projects.filter(priority__gte=4).count()
             if high_priority > 0:
                 context_parts.append(f"{high_priority} high-priority projects requiring immediate attention")
         

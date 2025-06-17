@@ -275,9 +275,9 @@
 
 <!-- Quick Actions -->
 <div class="chart-container">
-    <h2 class="chart-title">Quick Actions</h2>
-    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-        <a href="{% url 'analytics:forecasting' %}" class="btn btn-primary">View Detailed Forecasts</a>
+    <h2 class="chart-title">Quick Actions</h2>    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+        <a href="{% url 'analytics:ai_analytics_dashboard' %}" class="btn btn-primary">🤖 AI Analytics</a>
+        <a href="{% url 'analytics:forecasting' %}" class="btn btn-secondary">View Detailed Forecasts</a>
         <a href="{% url 'analytics:skill_analysis' %}" class="btn btn-secondary">Skill Analysis</a>
         <a href="{% url 'analytics:utilization_report' %}" class="btn btn-secondary">Utilization Report</a>
         <a href="{% url 'analytics:cost_report' %}" class="btn btn-secondary">Cost Report</a>

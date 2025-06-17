@@ -18,6 +18,7 @@
               <div class="dropdown nav-item-container">
                 <a href="{% url 'analytics:analytics_dashboard' %}" class="nav-item {% if '/analytics/' in request.path %}active{% endif %}">Analytics</a>                <div class="dropdown-content">
                     <a href="{% url 'analytics:analytics_dashboard' %}">Dashboard</a>
+                    <a href="{% url 'analytics:ai_analytics_dashboard' %}">🤖 AI Analytics</a>
                     <a href="{% url 'analytics:generate_forecast' %}">Demand Forecasting</a>
                     <a href="{% url 'analytics:analyze_skills' %}">Skill Analysis</a>
                     <a href="{% url 'analytics:utilization_report' %}">Utilization Report</a>
