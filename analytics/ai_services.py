@@ -51,8 +51,7 @@ class AISkillRecommendationService:
         team_skills_data = self._get_team_skills_data()
         project_requirements_data = self._get_project_requirements_data()
         skill_demand_data = self._get_skill_demand_data()
-        
-        # Create prompt for Gemini
+          # Create prompt for Gemini
         prompt = self._create_skill_recommendation_prompt(
             team_skills_data, project_requirements_data, skill_demand_data
         )
@@ -62,6 +61,7 @@ class AISkillRecommendationService:
             ai_response = gemini_service.generate_json_response(prompt, temperature=0.3)
             
             if not ai_response:
+                logger.warning("AI service returned no response")
                 return {"error": "Failed to generate AI recommendations"}
             
             # Process and store recommendations
@@ -71,7 +71,7 @@ class AISkillRecommendationService:
             
         except Exception as e:
             logger.error(f"Error generating skill recommendations: {e}")
-            return {"error": "Failed to generate recommendations"}
+            return {"error": f"Failed to generate recommendations: {str(e)}"}
     
     def _get_team_skills_data(self) -> Dict[str, Any]:
         """Gather current team skills data"""
@@ -201,8 +201,7 @@ Respond with valid JSON in this exact format:
             "skill_name": "string",
             "priority_score": integer,
             "reasoning": "string",
-            "confidence_score": decimal,
-            "estimated_impact": "string"
+            "confidence_score": decimal,            "estimated_impact": "string"
         }}
     ]
 }}
@@ -228,12 +227,16 @@ Respond with valid JSON in this exact format:
         ]:
             if category in ai_response:
                 for item in ai_response[category]:
+                    skill_name = item.get("skill_name", "").strip()
+                    if not skill_name:  # Skip empty skill names
+                        continue
+                        
                     # Store in database
                     recommendation = AISkillRecommendation.objects.create(
                         recommendation_type=db_type,
-                        skill_name=item.get("skill_name", ""),
+                        skill_name=skill_name,
                         priority_score=item.get("priority_score", 5),
-                        reasoning=item.get("reasoning", ""),
+                        reasoning=item.get("reasoning", "No reasoning provided"),
                         confidence_score=Decimal(str(item.get("confidence_score", 0.5)))
                     )
                     
