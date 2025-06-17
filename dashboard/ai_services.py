@@ -111,8 +111,7 @@ class DashboardAIService:
                 "end_date": project.end_date.isoformat(),
                 "days_until_deadline": (project.end_date - today).days if project.end_date else None
             })
-        
-        # Get upcoming deadlines
+          # Get upcoming deadlines
         upcoming_deadlines = Task.objects.filter(
             end_date__gte=today,
             end_date__lte=today + timedelta(days=14),
@@ -122,6 +121,8 @@ class DashboardAIService:
         deadline_data = []
         for task in upcoming_deadlines:
             days_until = (task.end_date - today).days
+            # Get assigned resources through assignments
+            assigned_resources = [assignment.resource.name for assignment in task.assignments.all()]
             deadline_data.append({
                 "task": task.name,
                 "project": task.project.name,
@@ -129,7 +130,7 @@ class DashboardAIService:
                 "days_until": days_until,
                 "status": task.status,
                 "priority": task.priority,
-                "assigned_resources": [r.name for r in task.assigned_resources.all()]
+                "assigned_resources": assigned_resources
             })
         
         # Get unassigned tasks
