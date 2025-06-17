@@ -8,10 +8,12 @@ from decimal import Decimal
 import json
 
 from .services import PredictiveAnalyticsService, UtilizationTrackingService, CostTrackingService
-from .models import ResourceDemandForecast, HistoricalUtilization, SkillDemandAnalysis
+from .models import ResourceDemandForecast, HistoricalUtilization, SkillDemandAnalysis, AISkillRecommendation, AIResourceAllocationSuggestion, AIForecastAdjustment
 from .export_services import ReportExportService
+from .ai_services import AISkillRecommendationService, AIResourceAllocationService, AIForecastEnhancementService
+from utils.gemini_ai import gemini_service
 from resources.models import Resource
-from projects.models import Project
+from projects.models import Project, Task
 
 @login_required
 def analytics_dashboard(request):
@@ -635,3 +637,143 @@ def export_report(request, report_type):
     
     except Exception as e:
         return JsonResponse({'error': str(e)})
+
+# AI-Powered Analytics Views
+
+@login_required
+def ai_skill_recommendations(request):
+    """Generate AI-powered skill recommendations"""
+    if request.method == 'GET':
+        skill_service = AISkillRecommendationService()
+        force_refresh = request.GET.get('refresh', 'false').lower() == 'true'
+        
+        recommendations = skill_service.generate_skill_recommendations(force_refresh=force_refresh)
+        
+        return JsonResponse({
+            'success': True,
+            'recommendations': recommendations
+        })
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+@login_required
+def ai_resource_allocation_suggestions(request, task_id):
+    """Generate AI-powered resource allocation suggestions for a specific task"""
+    if request.method == 'GET':
+        allocation_service = AIResourceAllocationService()
+        force_refresh = request.GET.get('refresh', 'false').lower() == 'true'
+        
+        suggestions = allocation_service.suggest_optimal_resource_allocation(
+            task_id=task_id, 
+            force_refresh=force_refresh
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'suggestions': suggestions
+        })
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+@login_required  
+def ai_enhanced_forecasts(request):
+    """Generate AI-enhanced resource demand forecasts"""
+    if request.method == 'GET':
+        # Generate statistical forecasts first
+        analytics_service = PredictiveAnalyticsService()
+        days_ahead = int(request.GET.get('days_ahead', 30))
+        
+        forecasts = analytics_service.generate_resource_demand_forecast(
+            days_ahead=days_ahead, 
+            include_ai_enhancement=True
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'forecasts': forecasts
+        })
+    
+    elif request.method == 'POST':
+        # Allow custom business context
+        try:
+            data = json.loads(request.body)
+            business_context = data.get('business_context', '')
+            
+            # Get recent statistical forecasts
+            recent_forecasts = ResourceDemandForecast.objects.filter(
+                forecast_date__gte=timezone.now().date() - timedelta(days=7)
+            )
+            
+            if not recent_forecasts.exists():
+                return JsonResponse({'error': 'No recent forecasts available. Generate statistical forecasts first.'})
+            
+            # Enhance with AI
+            forecast_service = AIForecastEnhancementService()
+            enhanced_forecasts = forecast_service.enhance_resource_demand_forecast(
+                list(recent_forecasts), 
+                business_context
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'enhanced_forecasts': enhanced_forecasts
+            })
+            
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+@login_required
+def ai_strategic_recommendations(request):
+    """Generate strategic recommendations based on enhanced forecasts"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            enhanced_forecasts = data.get('enhanced_forecasts', {})
+            
+            forecast_service = AIForecastEnhancementService()
+            strategic_recommendations = forecast_service.generate_strategic_recommendations(enhanced_forecasts)
+            
+            return JsonResponse({
+                'success': True,
+                'recommendations': strategic_recommendations
+            })
+            
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+@login_required
+def ai_analytics_dashboard(request):
+    """AI Analytics Dashboard view"""
+    # Get available tasks for resource allocation analysis
+    tasks = Task.objects.filter(status__in=['not_started', 'in_progress']).select_related('project')
+    
+    # Get recent AI recommendations count
+    recent_skill_recommendations = AISkillRecommendation.objects.filter(
+        created_at__gte=timezone.now() - timedelta(days=7)
+    ).count()
+    
+    recent_allocation_suggestions = AIResourceAllocationSuggestion.objects.filter(
+        created_at__gte=timezone.now() - timedelta(days=7)
+    ).count()
+    
+    recent_forecast_adjustments = AIForecastAdjustment.objects.filter(
+        created_at__gte=timezone.now() - timedelta(days=7)
+    ).count()
+    
+    context = {
+        'tasks': tasks,
+        'recent_skill_recommendations': recent_skill_recommendations,
+        'recent_allocation_suggestions': recent_allocation_suggestions,
+        'recent_forecast_adjustments': recent_forecast_adjustments,
+        'ai_available': gemini_service.is_available(),
+    }
+    
+    return render(request, 'analytics/ai_analytics.html', context)

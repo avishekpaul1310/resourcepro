@@ -1,0 +1,531 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}AI Analytics - ResourcePro{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">AI-Powered Analytics</h1>
+            
+            {% if not ai_available %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>AI Service Unavailable:</strong> 
+                Please configure your Gemini API key to enable AI features. 
+                Set the <code>GEMINI_API_KEY</code> environment variable.
+            </div>
+            {% endif %}
+            
+            <!-- AI Skill Recommendations -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3>Smart Skill Recommendations</h3>
+                    <button id="refresh-skills" class="btn btn-primary btn-sm">
+                        <i class="fas fa-sync-alt"></i> Refresh Recommendations
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="skill-recommendations-loading" class="text-center d-none">
+                        <div class="spinner-border" role="status">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                        <p class="mt-2">Generating AI recommendations...</p>
+                    </div>
+                    <div id="skill-recommendations-content">
+                        <p class="text-muted">Click "Refresh Recommendations" to generate AI-powered skill insights.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- AI Resource Allocation (Task Selection) -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3>Smart Resource Allocation</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="task-select" class="form-label">Select Task for AI Analysis:</label>
+                            <select id="task-select" class="form-select">
+                                <option value="">-- Select a task --</option>
+                                <!-- Tasks will be loaded via AJAX -->
+                            </select>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <button id="analyze-allocation" class="btn btn-success" disabled>
+                                <i class="fas fa-brain"></i> Analyze Resource Allocation
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="allocation-results" class="mt-4 d-none">
+                        <h5>AI Allocation Suggestions</h5>
+                        <div id="allocation-content"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- AI Enhanced Forecasting -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3>AI-Enhanced Resource Forecasting</h3>
+                    <button id="generate-forecasts" class="btn btn-warning">
+                        <i class="fas fa-chart-line"></i> Generate AI Forecasts
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="forecast-days" class="form-label">Forecast Period (Days):</label>
+                            <input type="number" id="forecast-days" class="form-control" value="30" min="7" max="90">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="business-context" class="form-label">Business Context (Optional):</label>
+                            <textarea id="business-context" class="form-control" rows="2" placeholder="e.g., Launching new product, expanding team, seasonal changes..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <div id="forecasts-loading" class="text-center d-none">
+                        <div class="spinner-border" role="status">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                        <p class="mt-2">Generating AI-enhanced forecasts...</p>
+                    </div>
+                    
+                    <div id="forecasts-content">
+                        <p class="text-muted">Click "Generate AI Forecasts" to create intelligent resource demand predictions.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Strategic Recommendations -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3>Strategic Recommendations</h3>
+                </div>
+                <div class="card-body">
+                    <div id="strategic-recommendations">
+                        <p class="text-muted">Strategic recommendations will appear here after generating AI forecasts.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.skill-category {
+    margin-bottom: 2rem;
+}
+.skill-item {
+    background: #f8f9fa;
+    border-left: 4px solid #007bff;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 0.375rem;
+}
+.priority-high { border-left-color: #dc3545; }
+.priority-medium { border-left-color: #ffc107; }
+.priority-low { border-left-color: #28a745; }
+
+.resource-suggestion {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+.match-score {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #28a745;
+}
+.forecast-item {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+.adjustment-positive { color: #28a745; }
+.adjustment-negative { color: #dc3545; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load available tasks
+    loadTasks();
+    
+    // Skill recommendations
+    document.getElementById('refresh-skills').addEventListener('click', function() {
+        loadSkillRecommendations(true);
+    });
+    
+    // Resource allocation
+    document.getElementById('task-select').addEventListener('change', function() {
+        const analyzeBtn = document.getElementById('analyze-allocation');
+        analyzeBtn.disabled = !this.value;
+    });
+    
+    document.getElementById('analyze-allocation').addEventListener('click', function() {
+        const taskId = document.getElementById('task-select').value;
+        if (taskId) {
+            analyzeResourceAllocation(taskId);
+        }
+    });
+    
+    // Forecasting
+    document.getElementById('generate-forecasts').addEventListener('click', function() {
+        generateAIForecasts();
+    });
+    
+    // Load initial skill recommendations
+    loadSkillRecommendations(false);
+});
+
+function loadTasks() {
+    const taskSelect = document.getElementById('task-select');
+    taskSelect.innerHTML = '<option value="">-- Loading tasks... --</option>';
+    
+    // Load tasks from Django context
+    let options = '<option value="">-- Select a task --</option>';
+    
+    {% for task in tasks %}
+    options += '<option value="{{ task.id }}">{{ task.name|escapejs }} ({{ task.project.name|escapejs }})</option>';
+    {% empty %}
+    options += '<option value="">-- No tasks available --</option>';
+    {% endfor %}
+    
+    taskSelect.innerHTML = options;
+}
+
+function loadSkillRecommendations(forceRefresh) {
+    const loadingDiv = document.getElementById('skill-recommendations-loading');
+    const contentDiv = document.getElementById('skill-recommendations-content');
+    
+    loadingDiv.classList.remove('d-none');
+    
+    const url = forceRefresh ? 
+        '/analytics/ai/skill-recommendations/?refresh=true' : 
+        '/analytics/ai/skill-recommendations/';
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            loadingDiv.classList.add('d-none');
+            
+            if (data.success && data.recommendations) {
+                displaySkillRecommendations(data.recommendations);
+            } else {
+                contentDiv.innerHTML = `<div class="alert alert-warning">
+                    ${data.error || 'Failed to load recommendations. Please ensure your Gemini API key is configured.'}
+                </div>`;
+            }
+        })
+        .catch(error => {
+            loadingDiv.classList.add('d-none');
+            contentDiv.innerHTML = `<div class="alert alert-danger">Error loading recommendations: ${error.message}</div>`;
+        });
+}
+
+function displaySkillRecommendations(recommendations) {
+    const contentDiv = document.getElementById('skill-recommendations-content');
+    let html = '';
+    
+    // Skills to Develop
+    if (recommendations.skills_to_develop && recommendations.skills_to_develop.length > 0) {
+        html += '<div class="skill-category"><h5><i class="fas fa-arrow-up text-success"></i> Skills to Develop</h5>';
+        recommendations.skills_to_develop.forEach(skill => {
+            const priorityClass = skill.priority_score >= 8 ? 'priority-high' : 
+                                skill.priority_score >= 5 ? 'priority-medium' : 'priority-low';
+            html += `
+                <div class="skill-item ${priorityClass}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h6>${skill.skill_name}</h6>
+                        <span class="badge bg-primary">Priority: ${skill.priority_score}/10</span>
+                    </div>
+                    <p class="mb-1">${skill.reasoning}</p>
+                    <small class="text-muted">Confidence: ${(skill.confidence_score * 100).toFixed(0)}%</small>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+    
+    // Training Areas
+    if (recommendations.training_areas && recommendations.training_areas.length > 0) {
+        html += '<div class="skill-category"><h5><i class="fas fa-graduation-cap text-warning"></i> Training Areas</h5>';
+        recommendations.training_areas.forEach(skill => {
+            html += `
+                <div class="skill-item priority-medium">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h6>${skill.skill_name}</h6>
+                        <span class="badge bg-warning">Priority: ${skill.priority_score}/10</span>
+                    </div>
+                    <p class="mb-1">${skill.reasoning}</p>
+                    <small class="text-muted">Confidence: ${(skill.confidence_score * 100).toFixed(0)}%</small>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+    
+    // Obsolete Skills
+    if (recommendations.obsolete_skills && recommendations.obsolete_skills.length > 0) {
+        html += '<div class="skill-category"><h5><i class="fas fa-arrow-down text-danger"></i> Skills Becoming Obsolete</h5>';
+        recommendations.obsolete_skills.forEach(skill => {
+            html += `
+                <div class="skill-item priority-low">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h6>${skill.skill_name}</h6>
+                        <span class="badge bg-danger">Risk Level: ${skill.priority_score}/10</span>
+                    </div>
+                    <p class="mb-1">${skill.reasoning}</p>
+                    <small class="text-muted">Confidence: ${(skill.confidence_score * 100).toFixed(0)}%</small>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+    
+    if (!html) {
+        html = '<div class="alert alert-info">No recommendations available. This might be due to insufficient data or AI service unavailability.</div>';
+    }
+    
+    contentDiv.innerHTML = html;
+}
+
+function analyzeResourceAllocation(taskId) {
+    const resultsDiv = document.getElementById('allocation-results');
+    const contentDiv = document.getElementById('allocation-content');
+    
+    contentDiv.innerHTML = '<div class="text-center"><div class="spinner-border"></div><p class="mt-2">Analyzing optimal resource allocation...</p></div>';
+    resultsDiv.classList.remove('d-none');
+    
+    fetch(`/analytics/ai/resource-allocation/${taskId}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.suggestions) {
+                displayAllocationSuggestions(data.suggestions);
+            } else {
+                contentDiv.innerHTML = `<div class="alert alert-warning">${data.error || 'No suggestions available'}</div>`;
+            }
+        })
+        .catch(error => {
+            contentDiv.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+        });
+}
+
+function displayAllocationSuggestions(suggestions) {
+    const contentDiv = document.getElementById('allocation-content');
+    let html = '';
+    
+    if (suggestions.suggestions && suggestions.suggestions.length > 0) {
+        suggestions.suggestions.forEach((suggestion, index) => {
+            html += `
+                <div class="resource-suggestion">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6>${suggestion.resource.name}</h6>
+                            <p class="mb-1"><strong>Role:</strong> ${suggestion.resource.role}</p>
+                            <p class="mb-1"><strong>Department:</strong> ${suggestion.resource.department}</p>
+                            <p class="mb-2">${suggestion.reasoning}</p>
+                            <small class="text-muted">
+                                Estimated completion: ${suggestion.estimated_completion_time} hours | 
+                                Cost efficiency: ${(suggestion.cost_efficiency_score * 100).toFixed(0)}%
+                            </small>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="match-score">${(suggestion.match_score * 100).toFixed(0)}%</div>
+                            <small class="text-muted">Match Score</small>
+                            <div class="mt-2">
+                                <span class="badge bg-info">$${suggestion.resource.cost_per_hour}/hr</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        html = '<div class="alert alert-info">No allocation suggestions available for this task.</div>';
+    }
+    
+    contentDiv.innerHTML = html;
+}
+
+function generateAIForecasts() {
+    const loadingDiv = document.getElementById('forecasts-loading');
+    const contentDiv = document.getElementById('forecasts-content');
+    const daysAhead = document.getElementById('forecast-days').value;
+    
+    loadingDiv.classList.remove('d-none');
+    
+    fetch(`/analytics/ai/enhanced-forecasts/?days_ahead=${daysAhead}`)
+        .then(response => response.json())
+        .then(data => {
+            loadingDiv.classList.add('d-none');
+            
+            if (data.success && data.forecasts) {
+                displayForecasts(data.forecasts);
+                
+                // Generate strategic recommendations if we have enhanced forecasts
+                if (data.forecasts.ai_enhanced) {
+                    generateStrategicRecommendations(data.forecasts.ai_enhanced);
+                }
+            } else {
+                contentDiv.innerHTML = `<div class="alert alert-warning">${data.error || 'Failed to generate forecasts'}</div>`;
+            }
+        })
+        .catch(error => {
+            loadingDiv.classList.add('d-none');
+            contentDiv.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+        });
+}
+
+function displayForecasts(forecasts) {
+    const contentDiv = document.getElementById('forecasts-content');
+    let html = '';
+    
+    // Display statistical forecasts
+    if (forecasts.statistical_forecasts) {
+        html += '<h5>Statistical Forecasts</h5>';
+        forecasts.statistical_forecasts.forEach(forecast => {
+            html += `
+                <div class="forecast-item">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6>${forecast.resource_role}</h6>
+                            <p class="mb-1">Predicted Demand: ${forecast.predicted_demand_hours} hours</p>
+                            <small class="text-muted">Confidence: ${(forecast.confidence_score * 100).toFixed(0)}%</small>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <span class="badge bg-primary">${forecast.predicted_demand_hours}h</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    
+    // Display AI-enhanced forecasts if available
+    if (forecasts.ai_enhanced && forecasts.ai_enhanced.enhanced_forecasts) {
+        html += '<h5 class="mt-4">AI-Enhanced Forecasts</h5>';
+        forecasts.ai_enhanced.enhanced_forecasts.forEach(forecast => {
+            const adjustment = forecast.ai_adjustment.adjustment_percentage;
+            const adjustmentClass = adjustment > 0 ? 'adjustment-positive' : 'adjustment-negative';
+            const adjustmentIcon = adjustment > 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+            
+            html += `
+                <div class="forecast-item">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6>${forecast.original_forecast.resource_role}</h6>
+                            <p class="mb-1">
+                                Original: ${forecast.original_forecast.predicted_demand_hours}h → 
+                                AI Adjusted: ${forecast.ai_adjustment.adjusted_demand_hours}h
+                                <i class="fas ${adjustmentIcon} ${adjustmentClass}"></i>
+                                <span class="${adjustmentClass}">${Math.abs(adjustment).toFixed(1)}%</span>
+                            </p>
+                            <p class="mb-1"><small>${forecast.ai_adjustment.reasoning}</small></p>
+                            <small class="text-muted">AI Confidence: ${(forecast.ai_adjustment.confidence_score * 100).toFixed(0)}%</small>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <span class="badge bg-success">${forecast.ai_adjustment.adjusted_demand_hours}h</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        // Display insights
+        if (forecasts.ai_enhanced.insights) {
+            const insights = forecasts.ai_enhanced.insights;
+            html += `
+                <div class="mt-4">
+                    <h6>AI Insights</h6>
+                    <div class="alert alert-info">
+                        <p><strong>Market Trends Impact:</strong> ${insights.market_trends_impact || 'Not available'}</p>
+                        <p><strong>Strategic Recommendations:</strong> ${insights.strategic_recommendations || 'Not available'}</p>
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    if (!html) {
+        html = '<div class="alert alert-info">No forecasts available.</div>';
+    }
+    
+    contentDiv.innerHTML = html;
+}
+
+function generateStrategicRecommendations(enhancedForecasts) {
+    fetch('/analytics/ai/strategic-recommendations/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({ enhanced_forecasts: enhancedForecasts })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.recommendations) {
+            displayStrategicRecommendations(data.recommendations);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading strategic recommendations:', error);
+    });
+}
+
+function displayStrategicRecommendations(recommendations) {
+    const contentDiv = document.getElementById('strategic-recommendations');
+    let html = '';
+    
+    if (recommendations.strategic_recommendations) {
+        const recs = recommendations.strategic_recommendations;
+        
+        Object.keys(recs).forEach(category => {
+            const rec = recs[category];
+            const categoryTitle = category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+            
+            html += `
+                <div class="mb-4">
+                    <h6>${categoryTitle}</h6>
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Priority:</strong> <span class="badge bg-${rec.priority_level === 'high' ? 'danger' : rec.priority_level === 'medium' ? 'warning' : 'success'}">${rec.priority_level}</span></p>
+                                    <p><strong>Timeline:</strong> ${rec.timeline}</p>
+                                    <p><strong>Complexity:</strong> ${rec.implementation_complexity}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Expected ROI:</strong> ${rec.expected_roi}</p>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <strong>Specific Actions:</strong>
+                                <ul class="mt-1">
+                                    ${rec.specific_actions.map(action => `<li>${action}</li>`).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    
+    if (!html) {
+        html = '<div class="alert alert-info">No strategic recommendations available.</div>';
+    }
+    
+    contentDiv.innerHTML = html;
+}
+</script>
+{% endblock %}

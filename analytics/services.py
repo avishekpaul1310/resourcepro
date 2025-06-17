@@ -9,12 +9,16 @@ from resources.models import Resource, TimeEntry
 from projects.models import Project, Task
 from allocation.models import Assignment
 from .models import ResourceDemandForecast, HistoricalUtilization, SkillDemandAnalysis
+from .ai_services import AIForecastEnhancementService
 
 class PredictiveAnalyticsService:
     """Service for predictive analytics and forecasting"""
     
-    def generate_resource_demand_forecast(self, days_ahead=30):
-        """Generate resource demand forecast using historical data"""
+    def __init__(self):
+        self.ai_forecast_service = AIForecastEnhancementService()
+    
+    def generate_resource_demand_forecast(self, days_ahead=30, include_ai_enhancement=True):
+        """Generate resource demand forecast using historical data with optional AI enhancement"""
         # Get historical assignment data
         historical_data = self._get_historical_assignment_data()
         
@@ -83,6 +87,27 @@ class PredictiveAnalyticsService:
             )
             
             role_forecasts.append(forecast)
+        
+        # Apply AI enhancement if requested
+        if include_ai_enhancement and role_forecasts:
+            try:
+                enhanced_result = self.ai_forecast_service.enhance_resource_demand_forecast(
+                    role_forecasts
+                )
+                
+                # Return both statistical and AI-enhanced forecasts
+                return {
+                    "statistical_forecasts": role_forecasts,
+                    "ai_enhanced": enhanced_result,
+                    "generation_method": "statistical_with_ai_enhancement"
+                }
+            except Exception as e:
+                # Fall back to statistical forecasts if AI enhancement fails
+                print(f"AI enhancement failed: {e}")
+                return {
+                    "statistical_forecasts": role_forecasts,
+                    "generation_method": "statistical_only"
+                }
         
         return role_forecasts
     
