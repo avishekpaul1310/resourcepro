@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResourcePro - AI-Powered Resource Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --accent-color: #f093fb;
+            --dark-color: #2d3748;
+            --light-color: #f7fafc;
+            --ai-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --card-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+            color: var(--dark-color);
+            overflow-x: hidden;
+        }
+
+        .hero-section {
+            background: var(--ai-gradient);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><defs><radialGradient id="a" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="%23ffffff" stop-opacity="0.1"/><stop offset="100%" stop-color="%23ffffff" stop-opacity="0"/></radialGradient></defs><circle cx="200" cy="200" r="100" fill="url(%23a)"/><circle cx="800" cy="300" r="150" fill="url(%23a)"/><circle cx="600" cy="700" r="120" fill="url(%23a)"/></svg>');
+            opacity: 0.3;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .hero-title {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .hero-subtitle {
+            font-size: 1.3rem;
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 2rem;
+            font-weight: 300;
+        }
+
+        .ai-badge {
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: inline-block;
+            margin-bottom: 2rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .cta-buttons {
+            margin-top: 2rem;
+        }
+
+        .btn-primary-custom {
+            background: white;
+            color: var(--primary-color);
+            border: none;
+            padding: 0.8rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            margin-right: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255,255,255,0.3);
+        }
+
+        .btn-primary-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255,255,255,0.4);
+            color: var(--primary-color);
+        }
+
+        .btn-outline-custom {
+            border: 2px solid white;
+            color: white;
+            background: transparent;
+            padding: 0.8rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        .btn-outline-custom:hover {
+            background: white;
+            color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        .features-section {
+            padding: 6rem 0;
+            background: var(--light-color);
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--dark-color);
+        }
+
+        .section-subtitle {
+            text-align: center;
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 4rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .feature-card {
+            background: white;
+            border-radius: 20px;
+            padding: 2.5rem;
+            text-align: center;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s ease;
+            height: 100%;
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--ai-gradient);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            background: var(--ai-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1.5rem;
+        }
+
+        .ai-feature-card {
+            background: var(--ai-gradient);
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ai-feature-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .ai-feature-card .feature-icon {
+            color: white;
+            -webkit-text-fill-color: white;
+        }
+
+        .feature-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .feature-description {
+            color: #666;
+            line-height: 1.8;
+        }
+
+        .ai-feature-card .feature-description {
+            color: rgba(255,255,255,0.9);
+        }
+
+        .stats-section {
+            background: var(--dark-color);
+            color: white;
+            padding: 4rem 0;
+        }
+
+        .stat-item {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 700;
+            background: var(--ai-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            font-size: 1.1rem;
+            opacity: 0.8;
+        }
+
+        .cta-section {
+            background: var(--ai-gradient);
+            padding: 5rem 0;
+            text-align: center;
+            color: white;
+        }
+
+        .cta-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .cta-description {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        .floating-shapes {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .shape {
+            position: absolute;
+            opacity: 0.1;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .shape:nth-child(1) {
+            top: 20%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .shape:nth-child(2) {
+            top: 60%;
+            right: 10%;
+            animation-delay: 2s;
+        }
+
+        .shape:nth-child(3) {
+            bottom: 20%;
+            left: 20%;
+            animation-delay: 4s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 2.5rem;
+            }
+            
+            .hero-subtitle {
+                font-size: 1.1rem;
+            }
+            
+            .feature-card {
+                margin-bottom: 2rem;
+            }
+            
+            .btn-primary-custom,
+            .btn-outline-custom {
+                display: block;
+                margin-bottom: 1rem;
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="floating-shapes">
+            <div class="shape">
+                <i class="fas fa-brain fa-3x"></i>
+            </div>
+            <div class="shape">
+                <i class="fas fa-robot fa-3x"></i>
+            </div>
+            <div class="shape">
+                <i class="fas fa-chart-line fa-3x"></i>
+            </div>
+        </div>
+        
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-8 hero-content">
+                    <div class="ai-badge">
+                        <i class="fas fa-sparkles me-2"></i>AI-Powered
+                    </div>
+                    <h1 class="hero-title">ResourcePro</h1>
+                    <p class="hero-subtitle">
+                        The intelligent resource management system that leverages AI to optimize your team allocation, 
+                        predict demands, and maximize productivity with smart insights.
+                    </p>
+                    <div class="cta-buttons">
+                        <a href="{% url 'login' %}" class="btn-primary-custom">
+                            <i class="fas fa-sign-in-alt me-2"></i>Get Started
+                        </a>
+                        <a href="#features" class="btn-outline-custom">
+                            <i class="fas fa-play me-2"></i>Explore Features
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats-section">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-3 col-sm-6">
+                    <div class="stat-item">
+                        <div class="stat-number">99%</div>
+                        <div class="stat-label">Accuracy in Resource Matching</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="stat-item">
+                        <div class="stat-number">45%</div>
+                        <div class="stat-label">Reduction in Planning Time</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="stat-item">
+                        <div class="stat-number">3x</div>
+                        <div class="stat-label">Better Forecast Accuracy</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <div class="stat-item">
+                        <div class="stat-number">24/7</div>
+                        <div class="stat-label">AI-Powered Insights</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features-section">
+        <div class="container">
+            <h2 class="section-title">Powerful Features</h2>
+            <p class="section-subtitle">
+                Experience the future of resource management with our AI-enhanced platform
+            </p>
+            
+            <div class="row">
+                <!-- AI Features -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="feature-card ai-feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <h3 class="feature-title">Smart Skill Recommendations</h3>
+                        <p class="feature-description">
+                            AI analyzes your team composition and project demands to suggest skills to develop, 
+                            training areas to focus on, and future skill requirements.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="feature-card ai-feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h3 class="feature-title">AI Resource Allocation</h3>
+                        <p class="feature-description">
+                            Intelligent matching of resources to tasks based on skills, availability, 
+                            cost efficiency, and experience alignment for optimal project outcomes.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="feature-card ai-feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <h3 class="feature-title">Predictive Forecasting</h3>
+                        <p class="feature-description">
+                            Enhanced demand forecasting with AI insights considering business context, 
+                            market trends, and strategic initiatives for accurate planning.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Core Features -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <h3 class="feature-title">Team Management</h3>
+                        <p class="feature-description">
+                            Comprehensive team directory with skill tracking, availability calendar, 
+                            and detailed resource profiles for efficient team management.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-project-diagram"></i>
+                        </div>
+                        <h3 class="feature-title">Project Organization</h3>
+                        <p class="feature-description">
+                            Create and manage multiple projects with clear timelines, task assignment, 
+                            and progress tracking for seamless project execution.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <h3 class="feature-title">Time Tracking</h3>
+                        <p class="feature-description">
+                            Advanced time tracking with billable and non-billable hours, 
+                            detailed descriptions, and bulk operations for efficient time management.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                        <h3 class="feature-title">Analytics & Reports</h3>
+                        <p class="feature-description">
+                            Real-time dashboards, utilization reports, cost analysis, and export capabilities 
+                            in Excel and PDF formats for data-driven decisions.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-cogs"></i>
+                        </div>
+                        <h3 class="feature-title">Skills Management</h3>
+                        <p class="feature-description">
+                            Create and organize skill categories, track technical and soft skills, 
+                            and identify skill gaps across your organization.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <h3 class="feature-title">Security & Access</h3>
+                        <p class="feature-description">
+                            Secure authentication system with role-based access control, 
+                            ensuring data security and appropriate user permissions.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="container">
+            <h2 class="cta-title">Ready to Transform Your Resource Management?</h2>
+            <p class="cta-description">
+                Join the AI revolution in resource management and unlock your team's full potential
+            </p>
+            <div class="cta-buttons">
+                <a href="{% url 'login' %}" class="btn-primary-custom">
+                    <i class="fas fa-rocket me-2"></i>Start Your Journey
+                </a>
+                <a href="#contact" class="btn-outline-custom">
+                    <i class="fas fa-envelope me-2"></i>Contact Us
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="text-center py-4" style="background: var(--dark-color); color: white;">
+        <div class="container">
+            <p>&copy; 2025 ResourcePro. Powered by AI. Built for the Future.</p>
+            <p class="mb-0">
+                <small>
+                    <i class="fas fa-brain me-1"></i>
+                    Intelligent Resource Management | 
+                    <i class="fas fa-chart-line me-1"></i>
+                    Predictive Analytics | 
+                    <i class="fas fa-users me-1"></i>
+                    Team Optimization
+                </small>
+            </p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+
+        // Add scroll effect to hero section
+        window.addEventListener('scroll', () => {
+            const scrolled = window.pageYOffset;
+            const heroSection = document.querySelector('.hero-section');
+            if (heroSection) {
+                heroSection.style.transform = `translateY(${scrolled * 0.5}px)`;
+            }
+        });
+
+        // Animate stats on scroll
+        const observerOptions = {
+            threshold: 0.5,
+            rootMargin: '0px 0px -100px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const statNumbers = entry.target.querySelectorAll('.stat-number');
+                    statNumbers.forEach(stat => {
+                        const finalValue = stat.textContent;
+                        stat.textContent = '0';
+                        animateValue(stat, 0, parseInt(finalValue) || finalValue, 2000);
+                    });
+                }
+            });
+        }, observerOptions);
+
+        const statsSection = document.querySelector('.stats-section');
+        if (statsSection) {
+            observer.observe(statsSection);
+        }
+
+        function animateValue(element, start, end, duration) {
+            if (typeof end === 'string') {
+                setTimeout(() => element.textContent = end, duration / 2);
+                return;
+            }
+            
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                element.textContent = Math.floor(progress * (end - start) + start);
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+    </script>
+</body>
+</html>

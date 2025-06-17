@@ -2,7 +2,11 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 
 def home(request):
-    """Home page view, redirects to dashboard if authenticated"""
+    """Home page view - shows welcome page for unauthenticated users"""
     if request.user.is_authenticated:
         return redirect('dashboard')
-    return redirect('login')
+    return render(request, 'core/welcome.html')
+
+def welcome(request):
+    """Welcome page showcasing ResourcePro features"""
+    return render(request, 'core/welcome.html')
