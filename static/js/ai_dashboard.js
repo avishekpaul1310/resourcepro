@@ -29,16 +29,25 @@ function initializeAIFeatures() {
 }
 
 /**
+ * Initialize AI Analyst widget
+ */
+function initializeAIAnalyst() {
+    // Auto-refresh on visibility change (when user comes back to tab)
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            const indicator = document.querySelector('.freshness-indicator');
+            if (indicator && indicator.classList.contains('stale')) {
+                refreshAIAnalysis(false);
+            }
+        }
+    });
+}
+
+/**
  * AI Dashboard Analyst Functions
  */
 function refreshAIAnalysis(force = true) {
-    const refreshBtn = document.querySelector('.btn-refresh-ai');
     const indicator = document.querySelector('.freshness-indicator');
-    
-    if (refreshBtn) {
-        refreshBtn.disabled = true;
-        refreshBtn.innerHTML = '<i class="fas fa-spin fa-sync-alt"></i>';
-    }
     
     if (indicator) {
         indicator.textContent = 'Updating...';
@@ -65,12 +74,6 @@ function refreshAIAnalysis(force = true) {
     .catch(error => {
         console.error('Error refreshing AI analysis:', error);
         showNotification('error', 'Failed to refresh AI analysis');
-    })
-    .finally(() => {
-        if (refreshBtn) {
-            refreshBtn.disabled = false;
-            refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
-        }
     });
 }
 
@@ -176,8 +179,7 @@ function createRecommendationElement(rec) {
 
 function updateConfidenceDisplay(confidence) {
     const confidenceFill = document.querySelector('.confidence-fill');
-    const confidenceValue = document.querySelector('.confidence-value');
-    
+    const confidenceValue = document.querySelector('.confidence-value');    
     if (confidenceFill) {
         confidenceFill.style.width = `${confidence * 100}%`;
     }
@@ -185,40 +187,6 @@ function updateConfidenceDisplay(confidence) {
     if (confidenceValue) {
         confidenceValue.textContent = `${(confidence * 100).toFixed(1)}%`;
     }
-}
-
-function resolveInsight(insightId) {
-    if (!confirm('Are you sure you want to mark this insight as resolved?')) {
-        return;
-    }
-    
-    fetch(`/dashboard/api/resolve-insight/${insightId}/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCsrfToken()
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Remove the insight from the UI
-            const insightElement = document.querySelector(`[data-insight-id="${insightId}"]`);
-            if (insightElement) {
-                insightElement.style.opacity = '0.5';
-                setTimeout(() => {
-                    insightElement.remove();
-                }, 300);
-            }
-            showNotification('success', 'Insight marked as resolved');
-        } else {
-            showNotification('error', 'Failed to resolve insight: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error resolving insight:', error);
-        showNotification('error', 'Failed to resolve insight');
-    });
 }
 
 /**

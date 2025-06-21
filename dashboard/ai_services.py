@@ -226,7 +226,6 @@ Respond with valid JSON in this exact format:
     ]
 }}
 """
-    
     def _store_analysis(self, ai_response: Dict[str, Any], dashboard_data: Dict[str, Any]) -> DashboardAIAnalysis:
         """Store AI analysis in database"""
         analysis = DashboardAIAnalysis.objects.create(
@@ -238,10 +237,8 @@ Respond with valid JSON in this exact format:
             confidence_score=ai_response.get('confidence_score', 0.0)
         )
         
-        # Create AI insights from risks
-        for risk in ai_response.get('risks', []):
-            if risk.get('priority') in ['high', 'critical']:
-                self._create_ai_insight_from_risk(risk, analysis)
+        # Note: No longer automatically creating AI insights from risks
+        # to reduce redundancy - all insights are contained in the Daily Briefing
         
         return analysis
     
@@ -274,7 +271,6 @@ Respond with valid JSON in this exact format:
             return 'skill_gap'
         else:
             return 'opportunity'
-    
     def _format_analysis_response(self, analysis: DashboardAIAnalysis) -> Dict[str, Any]:
         """Format analysis for frontend response"""
         return {
@@ -283,7 +279,7 @@ Respond with valid JSON in this exact format:
             "risks": analysis.risks,
             "recommendations": analysis.recommendations,
             "confidence_score": analysis.confidence_score,
-            "created_at": analysis.created_at.isoformat(),
+            "created_at": analysis.created_at,  # Keep as datetime object for template formatting
             "is_fresh": (timezone.now() - analysis.created_at).total_seconds() < 3600  # Less than 1 hour old
         }
 

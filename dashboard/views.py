@@ -81,15 +81,8 @@ def dashboard(request):
             resource_colors.append("#ed8936")
         else:
             resource_colors.append("#48bb78")
-    
-    # Get AI analysis for dashboard
+      # Get AI analysis for dashboard
     ai_analysis = dashboard_ai_service.generate_daily_briefing()
-    
-    # Get active AI insights
-    active_insights = AIInsight.objects.filter(
-        is_active=True,
-        is_resolved=False
-    ).order_by('-severity', '-created_at')[:5]
     
     # Add AI data to context
     context = {
@@ -106,11 +99,9 @@ def dashboard(request):
         # Add these for the charts as JSON strings
         'resource_names_json': json.dumps(resource_names),
         'resource_utilizations_json': json.dumps(resource_utilizations),
-        'resource_colors_json': json.dumps(resource_colors),
-        'project_names_json': json.dumps(project_names),
+        'resource_colors_json': json.dumps(resource_colors),        'project_names_json': json.dumps(project_names),
         'project_completions_json': json.dumps(project_completions),
         'ai_analysis': ai_analysis,
-        'active_insights': active_insights,
         'has_ai_service': True,
     }
     

@@ -2,15 +2,10 @@
 
 <!-- AI Dashboard Analyst Widget -->
 <div class="ai-analyst-widget">
-    <div class="ai-widget-header">
-        <div class="ai-header-title">
+    <div class="ai-widget-header">        <div class="ai-header-title">
             <i class="fas fa-robot ai-icon"></i>
-            <h3>🤖 AI-Powered Daily Briefing</h3>
-        </div>
-        <div class="ai-header-actions">
-            <button class="btn-refresh-ai" onclick="refreshAIAnalysis()" title="Refresh Analysis">
-                <i class="fas fa-sync-alt"></i>
-            </button>
+            <h3>AI-Powered Daily Briefing</h3>
+        </div>        <div class="ai-header-actions">
             {% if ai_analysis.is_fresh %}
                 <span class="freshness-indicator fresh">Fresh</span>
             {% else %}
@@ -34,20 +29,18 @@
     {% else %}
         <div class="ai-content">
             <!-- Summary Section -->
-            <div class="ai-section">
-                <div class="ai-section-header">
+            <div class="ai-section">                <div class="ai-section-header">
                     <i class="fas fa-lightbulb"></i>
-                    <h4>💡 Summary</h4>
+                    <h4>Summary</h4>
                 </div>
                 <p class="ai-summary">{{ ai_analysis.summary }}</p>
             </div>
             
             <!-- Risks Section -->
             {% if ai_analysis.risks %}
-            <div class="ai-section">
-                <div class="ai-section-header">
+            <div class="ai-section">                <div class="ai-section-header">
                     <i class="fas fa-exclamation-triangle"></i>
-                    <h4>⚠️ Key Risks</h4>
+                    <h4>Key Risks</h4>
                 </div>
                 <div class="ai-risks">
                     {% for risk in ai_analysis.risks %}
@@ -75,10 +68,9 @@
             
             <!-- Recommendations Section -->
             {% if ai_analysis.recommendations %}
-            <div class="ai-section">
-                <div class="ai-section-header">
+            <div class="ai-section">                <div class="ai-section-header">
                     <i class="fas fa-check-circle"></i>
-                    <h4>✅ Recommendations</h4>
+                    <h4>Recommendations</h4>
                 </div>
                 <div class="ai-recommendations">
                     {% for rec in ai_analysis.recommendations %}
@@ -116,40 +108,7 @@
     {% endif %}
 </div>
 
-<!-- Active AI Insights -->
-{% if active_insights %}
-<div class="ai-insights-widget">
-    <div class="ai-widget-header">
-        <h4><i class="fas fa-bell"></i> Active AI Insights</h4>
-    </div>
-    <div class="insights-list">
-        {% for insight in active_insights %}
-        <div class="insight-item severity-{{ insight.severity }}">
-            <div class="insight-icon">
-                {% if insight.insight_type == 'deadline_risk' %}
-                    <i class="fas fa-calendar-times"></i>
-                {% elif insight.insight_type == 'bottleneck' %}
-                    <i class="fas fa-hourglass-half"></i>
-                {% elif insight.insight_type == 'overallocation' %}
-                    <i class="fas fa-exclamation-circle"></i>
-                {% else %}
-                    <i class="fas fa-info-circle"></i>
-                {% endif %}
-            </div>
-            <div class="insight-content">
-                <div class="insight-title">{{ insight.title }}</div>
-                <div class="insight-description">{{ insight.description|truncatewords:15 }}</div>
-            </div>
-            <div class="insight-actions">
-                <button class="btn-resolve" onclick="resolveInsight({{ insight.id }})" title="Resolve">
-                    <i class="fas fa-check"></i>
-                </button>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
+
 
 <style>
 /* AI Widget Styles */
@@ -211,21 +170,6 @@
     display: flex;
     align-items: center;
     gap: 12px;
-}
-
-.btn-refresh-ai {
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    border-radius: 8px;
-    padding: 8px 12px;
-    color: white;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.btn-refresh-ai:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: rotate(180deg);
 }
 
 .freshness-indicator {
@@ -472,121 +416,6 @@
     transform: translateY(-2px);
 }
 
-/* AI Insights Widget */
-.ai-insights-widget {
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    margin-bottom: 30px;
-    overflow: hidden;
-}
-
-.ai-insights-widget .ai-widget-header {
-    background: #f7fafc;
-    border-bottom: 1px solid #e2e8f0;
-    color: #2d3748;
-    padding: 16px 20px;
-}
-
-.ai-insights-widget .ai-widget-header h4 {
-    margin: 0;
-    font-size: 1.1rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.insights-list {
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-.insight-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px 20px;
-    border-bottom: 1px solid #e2e8f0;
-    transition: background-color 0.2s ease;
-}
-
-.insight-item:hover {
-    background: #f7fafc;
-}
-
-.insight-item:last-child {
-    border-bottom: none;
-}
-
-.insight-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-    color: white;
-}
-
-.insight-item.severity-critical .insight-icon {
-    background: linear-gradient(135deg, #e53e3e, #c53030);
-}
-
-.insight-item.severity-high .insight-icon {
-    background: linear-gradient(135deg, #ed8936, #dd6b20);
-}
-
-.insight-item.severity-medium .insight-icon {
-    background: linear-gradient(135deg, #4c51bf, #667eea);
-}
-
-.insight-item.severity-low .insight-icon {
-    background: linear-gradient(135deg, #48bb78, #38a169);
-}
-
-.insight-content {
-    flex: 1;
-}
-
-.insight-title {
-    font-weight: 600;
-    font-size: 0.95rem;
-    color: #2d3748;
-    margin-bottom: 4px;
-}
-
-.insight-description {
-    font-size: 0.875rem;
-    color: #718096;
-    line-height: 1.4;
-}
-
-.insight-actions {
-    display: flex;
-    gap: 8px;
-}
-
-.btn-resolve {
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    border: none;
-    background: #48bb78;
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-}
-
-.btn-resolve:hover {
-    background: #38a169;
-    transform: scale(1.05);
-}
-
 /* Responsive Design */
 @media (max-width: 768px) {
     .ai-widget-header {
@@ -599,16 +428,6 @@
         flex-direction: column;
         gap: 12px;
         align-items: flex-start;
-    }
-    
-    .insight-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-    }
-    
-    .insight-actions {
-        align-self: flex-end;
     }
 }
 </style>
