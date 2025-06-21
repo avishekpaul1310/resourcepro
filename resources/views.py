@@ -250,7 +250,7 @@ def time_entry_create(request):
         if form.is_valid():
             form.save()
             messages.success(request, 'Time entry recorded successfully.')
-            return redirect('time_entry_list')
+            return redirect('resources:time_entry_list')
     else:
         form = TimeEntryForm(user=request.user)
     
@@ -270,7 +270,7 @@ def time_entry_edit(request, pk):
         if form.is_valid():
             form.save()
             messages.success(request, 'Time entry updated successfully.')
-            return redirect('time_entry_list')
+            return redirect('resources:time_entry_list')
     else:
         form = TimeEntryForm(instance=time_entry, user=request.user)
     

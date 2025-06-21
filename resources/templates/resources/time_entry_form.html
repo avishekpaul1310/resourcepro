@@ -1,0 +1,313 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} - ResourcePro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 600px;
+        margin: 0 auto;
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .form-header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .form-header h1 {
+        color: #374151;
+        font-size: 2rem;
+        font-weight: 700;
+        margin: 0;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #374151;
+        font-size: 14px;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        box-sizing: border-box;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+    
+    .form-control textarea {
+        resize: vertical;
+        min-height: 80px;
+    }
+    
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .checkbox-group input[type="checkbox"] {
+        width: auto;
+        margin: 0;
+    }
+    
+    .checkbox-group label {
+        margin: 0;
+        font-weight: 500;
+        cursor: pointer;
+    }
+    
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+    }
+    
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background: #4b5563;
+        transform: translateY(-1px);
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    .required-field::after {
+        content: " *";
+        color: #dc2626;
+    }
+    
+    .help-text {
+        font-size: 12px;
+        color: #6b7280;
+        margin-top: 4px;
+    }
+    
+    .errorlist {
+        list-style: none;
+        padding: 0;
+        margin: 8px 0 0 0;
+    }
+    
+    .errorlist li {
+        color: #dc2626;
+        font-size: 12px;
+        background: #fef2f2;
+        padding: 4px 8px;
+        border-radius: 4px;
+        border-left: 3px solid #dc2626;
+    }
+    
+    .form-row {
+        display: flex;
+        gap: 20px;
+    }
+    
+    .form-row .form-group {
+        flex: 1;
+    }
+    
+    @media (max-width: 768px) {
+        .form-container {
+            margin: 20px;
+            padding: 20px;
+        }
+        
+        .form-row {
+            flex-direction: column;
+            gap: 0;
+        }
+        
+        .form-actions {
+            flex-direction: column;
+        }
+        
+        .btn {
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="form-header">
+        <h1>{{ title }}</h1>
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+        
+        <!-- Resource Field (usually hidden for regular users) -->
+        {% if form.resource.widget.input_type != 'hidden' %}
+        <div class="form-group">
+            <label for="{{ form.resource.id_for_label }}" class="required-field">{{ form.resource.label }}</label>
+            {{ form.resource }}
+            {% if form.resource.errors %}
+                <ul class="errorlist">
+                    {% for error in form.resource.errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+        {% else %}
+            {{ form.resource }}
+        {% endif %}
+        
+        <!-- Task Field -->
+        <div class="form-group">
+            <label for="{{ form.task.id_for_label }}" class="required-field">{{ form.task.label }}</label>
+            {{ form.task }}
+            {% if form.task.errors %}
+                <ul class="errorlist">
+                    {% for error in form.task.errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+        
+        <!-- Date and Hours Row -->
+        <div class="form-row">
+            <div class="form-group">
+                <label for="{{ form.date.id_for_label }}" class="required-field">{{ form.date.label }}</label>
+                {{ form.date }}
+                {% if form.date.errors %}
+                    <ul class="errorlist">
+                        {% for error in form.date.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ form.hours.id_for_label }}" class="required-field">{{ form.hours.label }}</label>
+                {{ form.hours }}
+                <div class="help-text">Enter hours in decimal format (e.g., 2.5 for 2 hours 30 minutes)</div>
+                {% if form.hours.errors %}
+                    <ul class="errorlist">
+                        {% for error in form.hours.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Description Field -->
+        <div class="form-group">
+            <label for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+            {{ form.description }}
+            <div class="help-text">Provide a brief description of the work performed (optional)</div>
+            {% if form.description.errors %}
+                <ul class="errorlist">
+                    {% for error in form.description.errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+        
+        <!-- Billable Checkbox -->
+        <div class="form-group">
+            <div class="checkbox-group">
+                {{ form.is_billable }}
+                <label for="{{ form.is_billable.id_for_label }}">{{ form.is_billable.label }}</label>
+            </div>
+            <div class="help-text">{{ form.is_billable.help_text }}</div>
+            {% if form.is_billable.errors %}
+                <ul class="errorlist">
+                    {% for error in form.is_billable.errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+        
+        <!-- Form Actions -->
+        <div class="form-actions">            <a href="{% url 'resources:time_entry_list' %}" class="btn btn-secondary">
+                <i class="fas fa-times"></i>
+                Cancel
+            </a>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i>
+                {% if form.instance.pk %}Update{% else %}Save{% endif %} Time Entry
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add form-control class to all form inputs
+    const inputs = document.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        if (!input.classList.contains('form-check-input')) {
+            input.classList.add('form-control');
+        }
+    });
+    
+    // Focus on first field
+    const firstInput = document.querySelector('.form-control');
+    if (firstInput && firstInput.type !== 'hidden') {
+        firstInput.focus();
+    }
+});
+</script>
+{% endblock %}
