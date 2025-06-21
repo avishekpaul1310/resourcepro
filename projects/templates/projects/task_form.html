@@ -191,9 +191,7 @@
         .form-header {
             padding: 20px;
             text-align: left;
-        }
-        
-        .form-header h1 {
+        }        .form-header h1 {
             font-size: 1.5rem;
         }
     }
@@ -306,12 +304,10 @@
                         {% endif %}
                     </div>
                 </div>
-            </div>
-            
-            <div class="form-section">
+            </div>            <div class="form-section">
                 <h2 class="section-title">
                     <i class="fas fa-cogs"></i>
-                    Requirements & Dependencies
+                    Requirements
                 </h2>
                 <div class="form-grid">
                     <div class="form-field">
@@ -321,15 +317,6 @@
                         <div class="error">{{ form.skills_required.errors }}</div>
                         {% endif %}
                         <small style="color: #6b7280; font-size: 0.875rem; margin-top: 4px;">Select skills needed to complete this task</small>
-                    </div>
-                    
-                    <div class="form-field">
-                        <label for="id_dependencies">Dependencies</label>
-                        {{ form.dependencies|add_class:"form-control" }}
-                        {% if form.dependencies.errors %}
-                        <div class="error">{{ form.dependencies.errors }}</div>
-                        {% endif %}
-                        <small style="color: #6b7280; font-size: 0.875rem; margin-top: 4px;">Tasks that must be completed before this task can start</small>
                     </div>
                 </div>
             </div>
@@ -346,71 +333,72 @@
 
 {% block extra_js %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // When project changes, reload the page with the new project ID to update dependencies
-        const projectSelect = document.getElementById('id_project');
+document.addEventListener('DOMContentLoaded', function() {
+    // Project selection handling
+    const projectSelect = document.getElementById('id_project');
+    
+    // Set the current project if it's in the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectParam = urlParams.get('project');
+    if (projectParam && projectSelect) {
+        projectSelect.value = projectParam;
+    }
+    
+    // When project changes, reload the page with the new project ID
+    if (projectSelect) {
+        projectSelect.addEventListener('change', function() {
+            const projectId = this.value;
+            if (projectId) {
+                window.location.href = "{% url 'task_create' %}?project=" + projectId;
+            }
+        });
+    }
+    
+    // Completion percentage slider functionality
+    const slider = document.getElementById('completion_slider');
+    const display = document.getElementById('completion_display');
+    const inputField = document.getElementById('id_completion_percentage');
+    
+    if (slider && display && inputField) {
+        // Hide the original input field
+        inputField.type = 'hidden';
         
-        // Set the current project if it's in the URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const projectParam = urlParams.get('project');
-        if (projectParam && projectSelect) {
-            projectSelect.value = projectParam;
-        }
+        // Update display and input when slider changes
+        slider.addEventListener('input', function() {
+            const value = this.value;
+            display.textContent = `${value}%`;
+            inputField.value = value;
+        });
         
-        if (projectSelect) {
-            projectSelect.addEventListener('change', function() {
-                const projectId = this.value;
-                if (projectId) {
-                    window.location.href = "{% url 'task_create' %}?project=" + projectId;
+        // Status field sync with completion percentage
+        const statusField = document.getElementById('id_status');
+        if (statusField) {
+            // When status changes, update completion percentage accordingly
+            statusField.addEventListener('change', function() {
+                if (this.value === 'completed') {
+                    slider.value = 100;
+                    display.textContent = '100%';
+                    inputField.value = 100;
+                } else if (this.value === 'not_started' && slider.value == 0) {
+                    slider.value = 0;
+                    display.textContent = '0%';
+                    inputField.value = 0;
+                }
+            });
+            
+            // When completion changes, update status if appropriate
+            slider.addEventListener('change', function() {
+                const value = parseInt(this.value);
+                if (value === 100 && statusField.value !== 'completed') {
+                    statusField.value = 'completed';
+                } else if (value === 0 && statusField.value === 'not_started') {
+                    // Do nothing - already correct
+                } else if (value > 0 && value < 100 && statusField.value === 'not_started') {
+                    statusField.value = 'in_progress';
                 }
             });
         }
-        
-        // Completion percentage slider functionality
-        const slider = document.getElementById('completion_slider');
-        const display = document.getElementById('completion_display');
-        const inputField = document.getElementById('id_completion_percentage');
-        
-        if (slider && display && inputField) {
-            // Hide the original input field
-            inputField.type = 'hidden';
-            
-            // Update display and input when slider changes
-            slider.addEventListener('input', function() {
-                const value = this.value;
-                display.textContent = `${value}%`;
-                inputField.value = value;
-            });
-            
-            // Status field sync with completion percentage
-            const statusField = document.getElementById('id_status');
-            if (statusField) {
-                // When status changes, update completion percentage accordingly
-                statusField.addEventListener('change', function() {
-                    if (this.value === 'completed') {
-                        slider.value = 100;
-                        display.textContent = '100%';
-                        inputField.value = 100;
-                    } else if (this.value === 'not_started' && slider.value == 0) {
-                        slider.value = 0;
-                        display.textContent = '0%';
-                        inputField.value = 0;
-                    }
-                });
-                
-                // When completion changes, update status if appropriate
-                slider.addEventListener('change', function() {
-                    const value = parseInt(this.value);
-                    if (value === 100 && statusField.value !== 'completed') {
-                        statusField.value = 'completed';
-                    } else if (value === 0 && statusField.value === 'not_started') {
-                        // Do nothing - already correct
-                    } else if (value > 0 && value < 100 && statusField.value === 'not_started') {
-                        statusField.value = 'in_progress';
-                    }
-                });
-            }
-        }
-    });
+    }
+});
 </script>
 {% endblock %}
