@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}ResourcePro{% endblock %}</title>
-    
-    {% load static %}
+      {% load static %}
     <!-- Base CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
     <link rel="stylesheet" href="{% static 'css/responsive.css' %}">
     
@@ -24,9 +24,9 @@
     </main>
     
     {% include 'includes/footer.html' %}
-    
-    <!-- Base JavaScript -->
+      <!-- Base JavaScript -->
     <script src="{% static 'js/main.js' %}"></script>
+    <script src="{% static 'js/ai_dashboard.js' %}"></script>
     
     <!-- Additional JavaScript -->
     {% block extra_js %}{% endblock %}
