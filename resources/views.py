@@ -1,10 +1,19 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
 from django.urls import reverse
 from datetime import timedelta, date
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.utils import get_column_letter
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.units import inch
+import io
 from .models import Resource, Skill, ResourceSkill, TimeEntry, ResourceAvailability
 from .forms import ResourceForm, ResourceSkillFormSet, TimeEntryForm, ResourceAvailabilityForm, BulkTimeEntryForm
 
@@ -383,14 +392,19 @@ def bulk_time_action(request):
     except ValueError:
         messages.error(request, 'Invalid entry IDs.')
         return redirect('resources:time_entry_list')
-    
-    # Get the time entries to operate on
+      # Get the time entries to operate on
     time_entries = TimeEntry.objects.filter(id__in=entry_ids)
     
     if action == 'delete':
         count = time_entries.count()
         time_entries.delete()
         messages.success(request, f'Successfully deleted {count} time entries.')
+    elif action == 'mark-billable':
+        count = time_entries.update(is_billable=True)
+        messages.success(request, f'Successfully marked {count} time entries as billable.')
+    elif action == 'mark-non-billable':
+        count = time_entries.update(is_billable=False)
+        messages.success(request, f'Successfully marked {count} time entries as non-billable.')
     else:
         messages.error(request, f'Unknown action: {action}')
     
@@ -550,3 +564,227 @@ def resource_time_tracking_report(request, pk):
     }
     
     return render(request, 'resources/time_tracking_report.html', context)
+
+@login_required
+def export_time_entries(request):
+    """Export time entries to PDF or Excel"""
+    format_type = request.GET.get('format', 'pdf')
+    
+    # Get filter parameters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    project_id = request.GET.get('project')
+    resource_id = request.GET.get('resource')
+    billable_filter = request.GET.get('billable')
+    
+    # Build queryset with filters
+    queryset = TimeEntry.objects.select_related('resource', 'task__project').order_by('-date')
+    
+    if start_date:
+        queryset = queryset.filter(date__gte=start_date)
+    if end_date:
+        queryset = queryset.filter(date__lte=end_date)
+    if project_id and project_id != 'all':
+        queryset = queryset.filter(task__project_id=project_id)
+    if resource_id and resource_id != 'all':
+        queryset = queryset.filter(resource_id=resource_id)
+    if billable_filter and billable_filter != 'all':
+        if billable_filter == 'billable':
+            queryset = queryset.filter(is_billable=True)
+        elif billable_filter == 'non_billable':
+            queryset = queryset.filter(is_billable=False)
+    
+    time_entries = list(queryset)
+    
+    if format_type == 'excel':
+        return _export_time_entries_excel(time_entries, start_date, end_date)
+    else:
+        return _export_time_entries_pdf(time_entries, start_date, end_date)
+
+def _export_time_entries_excel(time_entries, start_date, end_date):
+    """Export time entries to Excel format"""
+    # Create workbook and worksheet
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Time Entries"
+    
+    # Define styles
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_alignment = Alignment(horizontal="center", vertical="center")
+    
+    # Add title
+    title = f"Time Entries Report"
+    if start_date and end_date:
+        title += f" ({start_date} to {end_date})"
+    
+    ws.merge_cells('A1:H1')
+    ws['A1'] = title
+    ws['A1'].font = Font(bold=True, size=16)
+    ws['A1'].alignment = Alignment(horizontal="center")
+    
+    # Add summary
+    total_entries = len(time_entries)
+    total_hours = sum(float(entry.hours) for entry in time_entries)
+    billable_hours = sum(float(entry.hours) for entry in time_entries if entry.is_billable)
+    
+    ws['A3'] = f"Total Entries: {total_entries}"
+    ws['C3'] = f"Total Hours: {total_hours:.2f}"
+    ws['E3'] = f"Billable Hours: {billable_hours:.2f}"
+    ws['G3'] = f"Billable Rate: {(billable_hours/total_hours*100):.1f}%" if total_hours > 0 else "0%"
+    
+    # Headers
+    headers = ['Date', 'Resource', 'Project', 'Task', 'Hours', 'Description', 'Billable', 'Value']
+    row = 5
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=row, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+    
+    # Data rows
+    for entry in time_entries:
+        row += 1
+        ws.cell(row=row, column=1, value=entry.date.strftime('%Y-%m-%d'))
+        ws.cell(row=row, column=2, value=entry.resource.name)
+        ws.cell(row=row, column=3, value=entry.task.project.name)
+        ws.cell(row=row, column=4, value=entry.task.name)
+        ws.cell(row=row, column=5, value=float(entry.hours))
+        ws.cell(row=row, column=6, value=entry.description or '')
+        ws.cell(row=row, column=7, value='Yes' if entry.is_billable else 'No')
+        # Estimate value (you can customize this calculation)
+        estimated_value = float(entry.hours) * 100 if entry.is_billable else 0  # $100/hour example rate
+        ws.cell(row=row, column=8, value=estimated_value)    # Auto-adjust column widths (safer approach)
+    column_widths = [15, 20, 25, 30, 10, 30, 10, 15]  # Predefined widths for each column
+    for i, width in enumerate(column_widths, 1):
+        column_letter = get_column_letter(i)
+        ws.column_dimensions[column_letter].width = width
+    
+    # Save to response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="time_entries_export.xlsx"'
+    
+    # Save workbook to response
+    wb.save(response)
+    return response
+
+def _export_time_entries_pdf(time_entries, start_date, end_date):
+    """Export time entries to PDF format"""
+    # Create response
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="time_entries_export.pdf"'
+    
+    # Create PDF document
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.5*inch)
+    
+    # Get styles
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        spaceAfter=30,
+        alignment=1  # Center alignment
+    )
+    
+    # Build content
+    content = []
+    
+    # Title
+    title = f"Time Entries Report"
+    if start_date and end_date:
+        title += f" ({start_date} to {end_date})"
+    content.append(Paragraph(title, title_style))
+    
+    # Summary
+    total_entries = len(time_entries)
+    total_hours = sum(float(entry.hours) for entry in time_entries)
+    billable_hours = sum(float(entry.hours) for entry in time_entries if entry.is_billable)
+    billable_rate = (billable_hours/total_hours*100) if total_hours > 0 else 0
+    
+    summary_data = [
+        ['Total Entries:', str(total_entries), 'Total Hours:', f"{total_hours:.2f}"],
+        ['Billable Hours:', f"{billable_hours:.2f}", 'Billable Rate:', f"{billable_rate:.1f}%"]
+    ]
+    
+    summary_table = Table(summary_data, colWidths=[1.5*inch, 1*inch, 1.5*inch, 1*inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.lightgrey),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    content.append(summary_table)
+    content.append(Spacer(1, 20))
+    
+    # Time entries table
+    if time_entries:
+        # Table headers
+        table_data = [['Date', 'Resource', 'Project', 'Task', 'Hours', 'Billable']]
+        
+        # Table rows
+        for entry in time_entries:
+            table_data.append([
+                entry.date.strftime('%Y-%m-%d'),
+                entry.resource.name,
+                entry.task.project.name[:20] + '...' if len(entry.task.project.name) > 20 else entry.task.project.name,
+                entry.task.name[:25] + '...' if len(entry.task.name) > 25 else entry.task.name,
+                f"{entry.hours}h",
+                'Yes' if entry.is_billable else 'No'
+            ])
+        
+        # Create table
+        table = Table(table_data, colWidths=[1*inch, 1.5*inch, 1.8*inch, 2*inch, 0.8*inch, 0.8*inch])
+        table.setStyle(TableStyle([
+            # Header style
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            
+            # Data style
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            
+            # Alternating row colors
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+        ]))
+        content.append(table)
+    else:
+        content.append(Paragraph("No time entries found.", styles['Normal']))
+    
+    # Build PDF
+    doc.build(content)
+    
+    # Get PDF data
+    pdf_data = buffer.getvalue()
+    buffer.close()
+    
+    response.write(pdf_data)
+    return response
+
+@login_required
+def toggle_time_entry_billable(request, pk):
+    """Toggle the billable status of a time entry"""
+    time_entry = get_object_or_404(TimeEntry, pk=pk)
+    
+    if request.method == 'POST':
+        # Toggle the billable status
+        time_entry.is_billable = not time_entry.is_billable
+        time_entry.save()
+        
+        status = "billable" if time_entry.is_billable else "non-billable"
+        messages.success(request, f'Time entry marked as {status}.')
+    
+    return redirect('resources:time_entry_list')

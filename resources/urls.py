@@ -16,8 +16,10 @@ urlpatterns = [
     path('time-entries/', views.time_entry_list, name='time_entry_list'),    path('time-entries/create/', views.time_entry_create, name='time_entry_create'),
     path('time-entries/<int:pk>/edit/', views.time_entry_edit, name='time_entry_edit'),
     path('time-entries/<int:pk>/delete/', views.time_entry_delete, name='time_entry_delete'),
+    path('time-entries/<int:pk>/toggle-billable/', views.toggle_time_entry_billable, name='toggle_time_entry_billable'),
     path('time-entries/bulk/', views.bulk_time_entry, name='bulk_time_entry'),
     path('time-entries/bulk-action/', views.bulk_time_action, name='bulk_time_action'),
+    path('time-entries/export/', views.export_time_entries, name='export_time_entries'),
     
     # Availability URLs
     path('availability/', views.availability_calendar, name='availability_calendar'),
