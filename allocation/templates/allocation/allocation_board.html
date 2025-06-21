@@ -9,8 +9,7 @@
 
 {% block content %}
 <div class="page-title">
-    <h1 class="title">Resource Allocation</h1>
-    <div class="actions">
+    <h1 class="title">Resource Allocation</h1>    <div class="actions">
         <form method="get" class="filter-form">
             <select name="project" onchange="this.form.submit()" class="select">
                 <option value="">All Projects</option>
@@ -20,7 +19,11 @@
                 </option>
                 {% endfor %}
             </select>
-        </form>
+        </form>        <button class="btn btn-ai-primary ai-suggestions-main-btn" id="ai-task-suggestions" title="Get AI recommendations for all unassigned tasks with detailed explanations">
+            <span class="ai-icon">🤖</span>
+            <span class="ai-text">AI Task Suggestions</span>
+            <span class="ai-badge">SMART</span>
+        </button>
         <button class="btn btn-primary" id="save-assignments">Save Changes</button>
     </div>
 </div>
@@ -33,17 +36,23 @@
             <span>Unassigned Tasks</span>
         </div>
         <div class="panel-content">
-            <div class="task-list">
-                {% for task in unassigned_tasks %}
-                <div class="task-card" draggable="true" data-task-id="{{ task.id }}">
-                    <div class="task-header">
+            <div class="task-list">                {% for task in unassigned_tasks %}                <div class="task-card" draggable="true" data-task-id="{{ task.id }}">                    <div class="task-header">
                         <span class="task-title">{{ task.name }}</span>
-                        <span class="task-hours">{{ task.estimated_hours }}h</span>
+                        <span class="task-hours">{{ task.estimated_hours }}h</span>                        <button class="ai-suggest-btn" data-task-id="{{ task.id }}" title="Get AI recommendations for this task">
+                            🤖
+                        </button>
                     </div>
                     <div class="task-project">{{ task.project.name }}</div>
                     <div class="task-dates">
                         <span>Start: {{ task.start_date|date:"M d" }}</span>
                         <span>Due: {{ task.end_date|date:"M d" }}</span>
+                    </div>
+                    <div class="ai-suggestions" style="display: none;" data-task-id="{{ task.id }}">                            <div class="suggestions-header">
+                                🤖 AI Recommendations
+                            </div>
+                        <div class="suggestions-content">
+                            <!-- AI suggestions will be loaded here -->
+                        </div>
                     </div>
                 </div>
                 {% empty %}
@@ -59,9 +68,8 @@
             <span>Resource Assignments</span>
         </div>
         <div class="panel-content">
-            <div class="resource-list">
-                {% for resource in resources %}
-                <div class="resource-card">
+            <div class="resource-list">                {% for resource in resources %}
+                <div class="resource-card" data-resource-id="{{ resource.id }}">
                     <div class="resource-header">
                         <div class="resource-info">
                             <div class="resource-avatar" style="background-color: '{{ resource.color }}';">
@@ -92,15 +100,16 @@
                     
                     <div class="resource-assignments" data-resource-id="{{ resource.id }}">
                         {% if resource.task_assignments %}
-                        <div class="assignment-list">
-                            {% for assignment in resource.task_assignments %}
+                        <div class="assignment-list">                            {% for assignment in resource.task_assignments %}
                             <div class="assignment-card" data-assignment-id="{{ assignment.id }}">
                                 <div class="assignment-info">
                                     <span class="assignment-title">{{ assignment.task.name }}</span>
                                     <span class="assignment-project">{{ assignment.task.project.name }}</span>
                                 </div>
                                 <div class="assignment-hours">{{ assignment.allocated_hours }}h</div>
-                                <div class="assignment-remove">×</div>
+                                <button class="assignment-remove" data-assignment-id="{{ assignment.id }}" data-task-id="{{ assignment.task.id }}" title="Remove assignment">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
                             </div>
                             {% endfor %}
                         </div>
@@ -142,7 +151,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/drag-drop.js' %}"></script>
+<script src="{% static 'js/ai-allocation-debug.js' %}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Apply colors to resource avatars
