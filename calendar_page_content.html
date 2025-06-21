@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Availability Calendar - ResourcePro</title>
+    
+    
+    <!-- Base CSS -->
+    <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/responsive.css">
+    
+    <!-- Additional CSS -->
+    
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
+<style>
+    .calendar-container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .legend {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 3px;
+    }
+    
+    .vacation { background-color: #ff6b6b; }
+    .sick-leave { background-color: #feca57; }
+    .holiday { background-color: #48dbfb; }
+    .available { background-color: #1dd1a1; }
+    .partially-available { background-color: #ffeaa7; }
+    
+    .resource-filter {
+        margin-bottom: 20px;
+    }
+    
+    .resource-filter select {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    .availability-form {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 20px;
+    }
+    
+    .form-row {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+    }
+    
+    .form-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        color: #333;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    .btn-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+    }
+    
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+    }
+    
+    .btn-success {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .alert {
+        padding: 12px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+    
+    .alert-success {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+    
+    .alert-error {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+    
+    .upcoming-events {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 20px;
+        margin-top: 20px;
+    }
+    
+    .event-list {
+        list-style: none;
+        padding: 0;
+    }
+    
+    .event-item {
+        padding: 10px;
+        border-left: 4px solid #007bff;
+        margin-bottom: 10px;
+        background: #f8f9fa;
+        border-radius: 0 4px 4px 0;
+    }
+    
+    .event-date {
+        font-weight: bold;
+        color: #007bff;
+    }
+    
+    .event-resource {
+        color: #666;
+        font-size: 14px;
+    }
+</style>
+
+</head>
+<body>
+    <header class="header">
+    <div class="container header-content">
+        <div class="logo">Resource<span>Pro</span></div>        <nav class="nav">
+            <a href="/dashboard/" class="nav-item ">Dashboard</a>
+            <a href="/projects/" class="nav-item ">Projects</a>
+              <div class="dropdown nav-item-container">
+                <a href="/resources/" class="nav-item active">Resources</a>
+                <div class="dropdown-content">
+                    <a href="/resources/">View Resources</a>
+                    <a href="/resources/create/">Create Resource</a>
+                    <a href="/resources/skills/">Manage Skills</a>
+                    <a href="/resources/time-entries/">Time Tracking</a>
+                    <a href="/resources/availability/">Availability Calendar</a>
+                </div>
+            </div>
+            
+            <a href="/allocation/" class="nav-item ">Allocation</a>
+              <div class="dropdown nav-item-container">
+                <a href="/analytics/" class="nav-item ">Analytics</a>                <div class="dropdown-content">
+                    <a href="/analytics/">Dashboard</a>
+                    <a href="/analytics/ai/">🤖 AI Analytics</a>
+                    <a href="/analytics/forecast/generate/">Demand Forecasting</a>
+                    <a href="/analytics/skills/analyze/">Skill Analysis</a>
+                    <a href="/analytics/utilization/">Utilization Report</a>
+                    <a href="/analytics/costs/tracking/">Cost Report</a>
+                </div>
+            </div>        </nav>
+        
+        <!-- AI Natural Language Interface -->
+        <div class="main-header">
+            <!-- Natural Language Interface Search Bar -->
+<div class="nli-search-container">
+    <div class="nli-search-bar">
+        <div class="search-input-wrapper">
+            <i class="fas fa-search search-icon"></i>
+            <input 
+                type="text" 
+                id="nliSearchInput" 
+                class="nli-input"
+                placeholder="Ask a question about your projects or resources..."
+                autocomplete="off"
+            >
+            <div class="search-actions">
+                <button class="btn-voice" id="voiceBtn" title="Voice Search">
+                    <i class="fas fa-microphone"></i>
+                </button>
+                <button class="btn-clear" id="clearBtn" title="Clear" style="display: none;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Quick suggestions -->
+        <div class="quick-suggestions" id="quickSuggestions">
+            <div class="suggestion-item" data-query="Who is available for a new project?">
+                <i class="fas fa-users"></i>
+                <span>Who is available for a new project?</span>
+            </div>
+            <div class="suggestion-item" data-query="What are the upcoming deadlines?">
+                <i class="fas fa-calendar-alt"></i>
+                <span>What are the upcoming deadlines?</span>
+            </div>
+            <div class="suggestion-item" data-query="Show me overallocated resources">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Show me overallocated resources</span>
+            </div>
+            <div class="suggestion-item" data-query="What are the biggest risks this week?">
+                <i class="fas fa-shield-alt"></i>
+                <span>What are the biggest risks this week?</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Search Results -->
+    <div class="nli-results" id="nliResults" style="display: none;">
+        <div class="results-header">
+            <h4>AI Assistant Response</h4>
+            <button class="btn-close-results" onclick="closeNLIResults()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="results-content" id="resultsContent">
+            <!-- Results will be populated here -->
+        </div>
+    </div>
+    
+    <!-- Loading State -->
+    <div class="nli-loading" id="nliLoading" style="display: none;">
+        <div class="loading-content">
+            <div class="ai-thinking">
+                <div class="thinking-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <p>AI is processing your query...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Natural Language Interface Styles */
+.nli-search-container {
+    position: relative;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.nli-search-bar {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.nli-search-bar:focus-within {
+    border-color: #667eea;
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.2);
+}
+
+.search-input-wrapper {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    gap: 12px;
+}
+
+.search-icon {
+    color: #718096;
+    font-size: 1.1rem;
+}
+
+.nli-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 1rem;
+    color: #2d3748;
+    background: transparent;
+}
+
+.nli-input::placeholder {
+    color: #a0aec0;
+}
+
+.search-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-voice, .btn-clear {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    background: #f7fafc;
+    color: #4a5568;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.btn-voice:hover, .btn-clear:hover {
+    background: #e2e8f0;
+    color: #2d3748;
+}
+
+.btn-voice.recording {
+    background: #fed7d7;
+    color: #e53e3e;
+    animation: pulse 1.5s infinite;
+}
+
+/* Quick Suggestions */
+.quick-suggestions {
+    border-top: 1px solid #e2e8f0;
+    padding: 12px 0;
+    display: none;
+}
+
+.nli-search-bar:focus-within .quick-suggestions {
+    display: block;
+}
+
+.suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-size: 0.9rem;
+    color: #4a5568;
+}
+
+.suggestion-item:hover {
+    background: #f7fafc;
+}
+
+.suggestion-item i {
+    width: 16px;
+    color: #667eea;
+}
+
+/* Results */
+.nli-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    margin-top: 8px;
+    max-height: 400px;
+    overflow: hidden;
+    z-index: 100;
+    border: 1px solid #e2e8f0;
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f7fafc;
+}
+
+.results-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #2d3748;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.results-header h4::before {
+    content: "🤖";
+    font-size: 1.2rem;
+}
+
+.btn-close-results {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: #718096;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.btn-close-results:hover {
+    background: #e2e8f0;
+    color: #2d3748;
+}
+
+.results-content {
+    padding: 20px;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+/* Result Types */
+.result-text {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: #2d3748;
+    margin-bottom: 16px;
+    white-space: pre-line;
+}
+
+.result-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.result-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.result-list li:last-child {
+    border-bottom: none;
+}
+
+.result-list li::before {
+    content: "•";
+    color: #667eea;
+    font-weight: bold;
+}
+
+.result-data-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.result-data-item {
+    background: #f7fafc;
+    border-radius: 8px;
+    padding: 12px;
+    border-left: 3px solid #667eea;
+}
+
+.result-data-item h5 {
+    margin: 0 0 4px 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #2d3748;
+}
+
+.result-data-item p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #718096;
+}
+
+/* Loading State */
+.nli-loading {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    margin-top: 8px;
+    z-index: 100;
+    border: 1px solid #e2e8f0;
+}
+
+.loading-content {
+    padding: 30px 20px;
+    text-align: center;
+}
+
+.ai-thinking {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.thinking-dots {
+    display: flex;
+    gap: 4px;
+}
+
+.thinking-dots span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #667eea;
+    animation: thinking 1.4s infinite;
+}
+
+.thinking-dots span:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.thinking-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.thinking-dots span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes thinking {
+    0%, 80%, 100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.ai-thinking p {
+    margin: 0;
+    color: #718096;
+    font-size: 0.9rem;
+}
+
+/* Error State */
+.result-error {
+    background: #fed7d7;
+    color: #c53030;
+    padding: 16px;
+    border-radius: 8px;
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.result-error i {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+    display: block;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .nli-search-container {
+        margin: 0 16px;
+    }
+    
+    .nli-results, .nli-loading {
+        left: -16px;
+        right: -16px;
+    }
+    
+    .result-data-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .search-input-wrapper {
+        padding: 10px 12px;
+    }
+    
+    .nli-input {
+        font-size: 16px; /* Prevent zoom on iOS */
+    }
+}
+
+/* Header Integration */
+.main-header .nli-search-container {
+    max-width: 400px;
+}
+
+.main-header .nli-search-bar {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.main-header .quick-suggestions {
+    display: none !important; /* Hide suggestions in header */
+}
+
+/* Animation for showing/hiding */
+.nli-results.show,
+.nli-loading.show {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Focus and active states */
+.nli-input:focus {
+    outline: none;
+}
+
+.nli-search-bar.has-query {
+    border-color: #667eea;
+}
+
+.nli-search-bar.has-results {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.nli-results.connected {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    margin-top: 0;
+    border-top: none;
+}
+</style>
+
+        </div>
+        
+        <div class="user-menu">
+            
+            <div class="user-avatar">A</div>
+            <span>admin</span>
+            <form method="post" action="/accounts/logout/" style="display: inline;">
+                <input type="hidden" name="csrfmiddlewaretoken" value="0aYGudnCXfjqv98ECGbVwZWpCqq8L4T2jD6Z1Y1ThIdC3qG6HUxg2KWB84nA3Vzp">
+                <button type="submit" class="btn-link">Logout</button>
+            </form>
+            
+        </div>
+    </div>
+</header>
+
+<style>
+    /* Dropdown menu styles */
+    .dropdown {
+        position: relative;
+        display: inline-block;
+    }
+    
+    /* Fix for nav item alignment */
+    .nav-item-container {
+        display: inline-flex;
+        align-items: center;
+        margin: 0;
+        padding: 0;
+    }
+    
+    /* Ensure consistent vertical alignment */
+    .nav {
+        display: flex;
+        align-items: center;
+    }
+    
+    .dropdown-content {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        background-color: #fff;
+        min-width: 160px;
+        box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+        z-index: 1;
+        border-radius: 4px;
+    }
+    
+    .dropdown-content a {
+        color: #333;
+        padding: 12px 16px;
+        text-decoration: none;
+        display: block;
+        transition: background-color 0.2s;
+    }
+    
+    .dropdown-content a:hover {
+        background-color: #f5f5f5;
+    }
+    
+    .dropdown:hover .dropdown-content {
+        display: block;
+    }
+</style>
+    
+    <main class="main-content">
+        <div class="container">
+            
+            
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Availability Calendar</h1>
+        <div>
+            <a href="/resources/time-tracking/" class="btn btn-secondary">
+                <i class="fas fa-clock"></i> Time Tracking
+            </a>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#availabilityModal">
+                <i class="fas fa-plus"></i> Add Availability Entry
+            </button>
+        </div>
+    </div>
+
+    
+
+    <!-- Resource Filter -->
+    <div class="resource-filter">
+        <select id="resourceFilter" onchange="filterByResource()">
+            <option value="">All Resources</option>            
+                <option value="4" >
+                    
+                          - UI/UX Designer
+                    
+                </option>
+            
+                <option value="3" >
+                    
+                          - Junior Developer
+                    
+                </option>
+            
+                <option value="2" >
+                    
+                        Jane Smith - Project Manager
+                    
+                </option>
+            
+                <option value="1" >
+                    
+                        John Doe - Senior Developer
+                    
+                </option>
+            
+                <option value="5" >
+                    
+                        Mike Wilson - DevOps Engineer
+                    
+                </option>
+            
+        </select>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-color vacation"></div>
+            <span>Vacation</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color sick-leave"></div>
+            <span>Sick Leave</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color holiday"></div>
+            <span>Holiday</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color available"></div>
+            <span>Available</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color partially-available"></div>
+            <span>Partially Available</span>
+        </div>
+    </div>
+
+    <!-- Calendar -->
+    <div class="calendar-container">
+        <div id="calendar"></div>
+    </div>
+
+    <!-- Upcoming Events -->
+    <div class="upcoming-events">
+        <h3>Upcoming Availability Events</h3>
+        <ul class="event-list">
+                            <li class="event-item">
+                    <div class="event-date">Jun 18, 2025 - Jun 22, 2025</div>
+                    <div>
+                        
+                            Mike Wilson
+                        
+                        - Vacation
+                    </div>
+                    
+                        <div class="event-resource">Mike Wilson - scheduled time off</div>
+                    
+                </li>
+                            <li class="event-item">
+                    <div class="event-date">Jun 22, 2025 - Jun 22, 2025</div>
+                    <div>
+                        
+                             
+                        
+                        - Vacation
+                    </div>
+                    
+                        <div class="event-resource">Personal day off</div>
+                    
+                </li>
+                            <li class="event-item">
+                    <div class="event-date">Jun 23, 2025 - Jun 23, 2025</div>
+                    <div>
+                        
+                             
+                        
+                        - Sick Leave
+                    </div>
+                    
+                        <div class="event-resource">Sick day</div>
+                    
+                </li>
+                            <li class="event-item">
+                    <div class="event-date">Jun 24, 2025 - Jun 26, 2025</div>
+                    <div>
+                        
+                             
+                        
+                        - Vacation
+                    </div>
+                    
+                        <div class="event-resource">Long weekend vacation</div>
+                    
+                </li>
+                            <li class="event-item">
+                    <div class="event-date">Jun 28, 2025 - Jun 28, 2025</div>
+                    <div>
+                        
+                             
+                        
+                        - Training
+                    </div>
+                    
+                        <div class="event-resource">Team training session</div>
+                    
+                </li>
+                            <li class="event-item">
+                    <div class="event-date">Jun 29, 2025 - Jul 02, 2025</div>
+                    <div>
+                        
+                            Mike Wilson
+                        
+                        - Sick Leave
+                    </div>
+                    
+                        <div class="event-resource">Mike Wilson - scheduled time off</div>
+                    
+                </li>
+                            <li class="event-item">
+                    <div class="event-date">Jul 01, 2025 - Jul 03, 2025</div>
+                    <div>
+                        
+                             
+                        
+                        - Available
+                    </div>
+                    
+                        <div class="event-resource">Fully available</div>
+                    
+                </li>
+                            <li class="event-item">
+                    <div class="event-date">Jul 02, 2025 - Jul 06, 2025</div>
+                    <div>
+                        
+                             
+                        
+                        - Vacation
+                    </div>
+                    
+                        <div class="event-resource">Bob Johnson - scheduled time off</div>
+                    
+                </li>
+                            <li class="event-item">
+                    <div class="event-date">Jul 10, 2025 - Jul 15, 2025</div>
+                    <div>
+                        
+                            John Doe
+                        
+                        - Vacation
+                    </div>
+                    
+                        <div class="event-resource">John Doe - scheduled time off</div>
+                    
+                </li>
+            
+        </ul>
+    </div>
+</div>
+
+<!-- Availability Modal -->
+<div class="modal fade" id="availabilityModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Availability Entry</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post" action="/resources/availability/">
+                    <input type="hidden" name="csrfmiddlewaretoken" value="0aYGudnCXfjqv98ECGbVwZWpCqq8L4T2jD6Z1Y1ThIdC3qG6HUxg2KWB84nA3Vzp">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="id_resource">Resource:</label>
+                            <select name="resource" required id="id_resource">
+  <option value="" selected>---------</option>
+
+  <option value="4">Alice Brown</option>
+
+  <option value="3">Bob Johnson</option>
+
+  <option value="2">Jane Smith</option>
+
+  <option value="1">John Doe</option>
+
+  <option value="5">Mike Wilson</option>
+
+</select>
+                        </div>
+                        <div class="form-group">
+                            <label for="id_availability_type">Availability type:</label>
+                            <select name="availability_type" id="id_availability_type">
+  <option value="available" selected>Available</option>
+
+  <option value="vacation">Vacation</option>
+
+  <option value="sick_leave">Sick Leave</option>
+
+  <option value="personal_leave">Personal Leave</option>
+
+  <option value="training">Training</option>
+
+  <option value="meeting">Meeting</option>
+
+  <option value="unavailable">Unavailable</option>
+
+</select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="id_start_date">Start date:</label>
+                            <input type="date" name="start_date" required id="id_start_date">
+                        </div>
+                        <div class="form-group">
+                            <label for="id_end_date">End date:</label>
+                            <input type="date" name="end_date" required id="id_end_date">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="id_notes">Notes:</label>
+                        <textarea name="notes" cols="40" rows="3" id="id_notes">
+</textarea>
+                    </div>
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save"></i> Save Entry
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+        </div>
+    </main>
+    
+    <footer class="footer">
+    <div class="container">
+        <p>&copy; 2025 ResourcePro. All rights reserved.</p>
+    </div>
+</footer>
+    
+    <!-- Base JavaScript -->
+    <script src="/static/js/main.js"></script>
+    
+    <!-- Additional JavaScript -->
+    
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var calendarEl = document.getElementById('calendar');
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,listWeek'
+        },        events: [
+                        {
+                title: '  - Vacation',
+                start: '2025-06-09',
+                end: '2025-06-14',
+                backgroundColor: getEventColor('vacation'),
+                borderColor: getEventColor('vacation'),
+                extendedProps: {
+                    resourceId: 3,
+                    type: 'vacation',
+                    notes: 'Bob Johnson \u002D scheduled time off'
+                }
+            },
+                        {
+                title: 'Mike Wilson - Vacation',
+                start: '2025-06-18',
+                end: '2025-06-22',
+                backgroundColor: getEventColor('vacation'),
+                borderColor: getEventColor('vacation'),
+                extendedProps: {
+                    resourceId: 5,
+                    type: 'vacation',
+                    notes: 'Mike Wilson \u002D scheduled time off'
+                }
+            },
+                        {
+                title: '  - Vacation',
+                start: '2025-06-22',
+                end: '2025-06-22',
+                backgroundColor: getEventColor('vacation'),
+                borderColor: getEventColor('vacation'),
+                extendedProps: {
+                    resourceId: 4,
+                    type: 'vacation',
+                    notes: 'Personal day off'
+                }
+            },
+                        {
+                title: '  - Sick Leave',
+                start: '2025-06-23',
+                end: '2025-06-23',
+                backgroundColor: getEventColor('sick_leave'),
+                borderColor: getEventColor('sick_leave'),
+                extendedProps: {
+                    resourceId: 3,
+                    type: 'sick_leave',
+                    notes: 'Sick day'
+                }
+            },
+                        {
+                title: '  - Vacation',
+                start: '2025-06-24',
+                end: '2025-06-26',
+                backgroundColor: getEventColor('vacation'),
+                borderColor: getEventColor('vacation'),
+                extendedProps: {
+                    resourceId: 4,
+                    type: 'vacation',
+                    notes: 'Long weekend vacation'
+                }
+            },
+                        {
+                title: '  - Training',
+                start: '2025-06-28',
+                end: '2025-06-28',
+                backgroundColor: getEventColor('training'),
+                borderColor: getEventColor('training'),
+                extendedProps: {
+                    resourceId: 4,
+                    type: 'training',
+                    notes: 'Team training session'
+                }
+            },
+                        {
+                title: 'Mike Wilson - Sick Leave',
+                start: '2025-06-29',
+                end: '2025-07-02',
+                backgroundColor: getEventColor('sick_leave'),
+                borderColor: getEventColor('sick_leave'),
+                extendedProps: {
+                    resourceId: 5,
+                    type: 'sick_leave',
+                    notes: 'Mike Wilson \u002D scheduled time off'
+                }
+            },
+                        {
+                title: '  - Available',
+                start: '2025-07-01',
+                end: '2025-07-03',
+                backgroundColor: getEventColor('available'),
+                borderColor: getEventColor('available'),
+                extendedProps: {
+                    resourceId: 4,
+                    type: 'available',
+                    notes: 'Fully available'
+                }
+            },
+                        {
+                title: '  - Vacation',
+                start: '2025-07-02',
+                end: '2025-07-06',
+                backgroundColor: getEventColor('vacation'),
+                borderColor: getEventColor('vacation'),
+                extendedProps: {
+                    resourceId: 3,
+                    type: 'vacation',
+                    notes: 'Bob Johnson \u002D scheduled time off'
+                }
+            },
+                        {
+                title: 'John Doe - Vacation',
+                start: '2025-07-10',
+                end: '2025-07-15',
+                backgroundColor: getEventColor('vacation'),
+                borderColor: getEventColor('vacation'),
+                extendedProps: {
+                    resourceId: 1,
+                    type: 'vacation',
+                    notes: 'John Doe \u002D scheduled time off'
+                }
+            },
+                        {
+                title: '  - Sick Leave',
+                start: '2025-07-25',
+                end: '2025-07-30',
+                backgroundColor: getEventColor('sick_leave'),
+                borderColor: getEventColor('sick_leave'),
+                extendedProps: {
+                    resourceId: 4,
+                    type: 'sick_leave',
+                    notes: 'Alice Brown \u002D scheduled time off'
+                }
+            },
+                        {
+                title: 'Mike Wilson - Training',
+                start: '2025-07-27',
+                end: '2025-07-28',
+                backgroundColor: getEventColor('training'),
+                borderColor: getEventColor('training'),
+                extendedProps: {
+                    resourceId: 5,
+                    type: 'training',
+                    notes: 'Mike Wilson \u002D scheduled time off'
+                }
+            },
+                        {
+                title: 'Jane Smith - Sick Leave',
+                start: '2025-07-28',
+                end: '2025-08-01',
+                backgroundColor: getEventColor('sick_leave'),
+                borderColor: getEventColor('sick_leave'),
+                extendedProps: {
+                    resourceId: 2,
+                    type: 'sick_leave',
+                    notes: 'Jane Smith \u002D scheduled time off'
+                }
+            }
+            
+        ],
+        eventClick: function(info) {
+            alert('Event: ' + info.event.title + '\nNotes: ' + info.event.extendedProps.notes);
+        }
+    });
+    
+    calendar.render();
+    
+    // Store calendar reference globally
+    window.resourceCalendar = calendar;
+});
+
+function getEventColor(type) {
+    const colors = {
+        'vacation': '#ff6b6b',
+        'sick_leave': '#feca57',
+        'holiday': '#48dbfb',
+        'available': '#1dd1a1',
+        'partially_available': '#ffeaa7'
+    };
+    return colors[type] || '#007bff';
+}
+
+function filterByResource() {
+    const select = document.getElementById('resourceFilter');
+    const resourceId = select.value;
+    
+    if (resourceId) {
+        window.location.href = '/resources/availability/?resource=' + resourceId;
+    } else {
+        window.location.href = '/resources/availability/';
+    }
+}
+</script>
+
+</body>
+</html>

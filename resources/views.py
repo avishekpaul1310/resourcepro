@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.utils import timezone
+from django.urls import reverse
 from datetime import timedelta, date
 from .models import Resource, Skill, ResourceSkill, TimeEntry, ResourceAvailability
 from .forms import ResourceForm, ResourceSkillFormSet, TimeEntryForm, ResourceAvailabilityForm, BulkTimeEntryForm
@@ -398,26 +399,53 @@ def bulk_time_action(request):
 @login_required
 def availability_calendar(request):
     """Display availability calendar"""
+    # Handle POST request for creating availability entries
+    if request.method == 'POST':
+        form = ResourceAvailabilityForm(request.POST, user=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Availability entry created successfully.')
+            # Redirect to avoid form resubmission
+            resource_id = request.GET.get('resource')
+            if resource_id:
+                return redirect(f"{reverse('resources:availability_calendar')}?resource={resource_id}")
+            return redirect('resources:availability_calendar')
+    else:
+        form = ResourceAvailabilityForm(user=request.user)
+    
     resource_id = request.GET.get('resource')
     
-    # Get availability data for next 30 days
-    start_date = timezone.now().date()
-    end_date = start_date + timedelta(days=30)
+    # Get availability data for calendar display (broader range for calendar view)
+    start_date = timezone.now().date().replace(day=1)  # Start of current month
+    end_date = (start_date + timedelta(days=90)).replace(day=1) - timedelta(days=1)  # ~3 months ahead
     
-    availability_data = ResourceAvailability.objects.filter(
+    calendar_events = ResourceAvailability.objects.filter(
         start_date__lte=end_date,
         end_date__gte=start_date
     ).select_related('resource')
     
+    # Get upcoming events for the sidebar (next 30 days)
+    upcoming_start = timezone.now().date()
+    upcoming_end = upcoming_start + timedelta(days=30)
+    
+    upcoming_events = ResourceAvailability.objects.filter(
+        start_date__lte=upcoming_end,
+        end_date__gte=upcoming_start
+    ).select_related('resource').order_by('start_date')
+    
+    # Filter by resource if specified
     if resource_id:
-        availability_data = availability_data.filter(resource_id=resource_id)
+        calendar_events = calendar_events.filter(resource_id=resource_id)
+        upcoming_events = upcoming_events.filter(resource_id=resource_id)
     
     resources = Resource.objects.all()
     
     context = {
-        'availability_data': availability_data,
+        'calendar_events': calendar_events,
+        'upcoming_events': upcoming_events,
+        'availability_form': form,
         'resources': resources,
-        'selected_resource': resource_id,
+        'selected_resource': int(resource_id) if resource_id else None,
         'start_date': start_date,
         'end_date': end_date
     }

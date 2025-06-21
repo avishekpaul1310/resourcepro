@@ -2,30 +2,166 @@
 
 {% block title %}Login - ResourcePro{% endblock %}
 
-{% block content %}
-<div class="login-container" style="max-width: 400px; margin: 100px auto; padding: 20px; background-color: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
-    <h2 style="margin-bottom: 20px; text-align: center;">Login to ResourcePro</h2>
+{% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<style>
+    .login-container {
+        max-width: 450px;
+        margin: 100px auto;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        overflow: hidden;
+    }
     
-    <form method="post">
-        {% csrf_token %}
-        
-        <div class="form-group">
-            <label for="id_username" class="form-label">Username:</label>
-            <input type="text" name="username" id="id_username" required class="form-control">
-        </div>
-        
-        <div class="form-group">
-            <label for="id_password" class="form-label">Password:</label>
-            <input type="password" name="password" id="id_password" required class="form-control">
-        </div>
-        
-        <div style="margin-top: 20px;">
-            <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
-        </div>
-        
-        <div style="text-align: center; margin-top: 15px;">
-            Don't have an account? <a href="{% url 'register' %}">Register here</a>
-        </div>
-    </form>
+    .login-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 40px 30px;
+        text-align: center;
+    }
+    
+    .login-header h2 {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 700;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .login-header p {
+        margin: 8px 0 0 0;
+        opacity: 0.9;
+        font-size: 1.1rem;
+    }
+    
+    .login-body {
+        padding: 40px 30px;
+    }
+    
+    .form-field {
+        margin-bottom: 24px;
+    }
+    
+    .form-field label {
+        display: block;
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+    }
+    
+    .form-field input {
+        width: 100%;
+        padding: 14px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+        background-color: #fafafa;
+        box-sizing: border-box;
+    }
+    
+    .form-field input:focus {
+        outline: none;
+        border-color: #667eea;
+        background-color: white;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .login-btn {
+        width: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 16px;
+        border-radius: 8px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    
+    .login-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    }
+    
+    .register-link {
+        text-align: center;
+        margin-top: 20px;
+        color: #6b7280;
+        font-size: 0.95rem;
+    }
+    
+    .register-link a {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 500;
+    }
+    
+    .register-link a:hover {
+        text-decoration: underline;
+    }
+    
+    .input-icon {
+        position: relative;
+    }
+    
+    .input-icon i {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af;
+        font-size: 1rem;
+    }
+    
+    .input-icon input {
+        padding-left: 44px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-header">
+        <h2><i class="fas fa-user-shield"></i> Welcome Back</h2>
+        <p>Sign in to ResourcePro</p>
+    </div>
+    
+    <div class="login-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="form-field">
+                <label for="id_username">Username</label>
+                <div class="input-icon">
+                    <i class="fas fa-user"></i>
+                    <input type="text" name="username" id="id_username" required placeholder="Enter your username">
+                </div>
+            </div>
+            
+            <div class="form-field">
+                <label for="id_password">Password</label>
+                <div class="input-icon">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" name="password" id="id_password" required placeholder="Enter your password">
+                </div>
+            </div>
+            
+            <button type="submit" class="login-btn">
+                <i class="fas fa-sign-in-alt"></i>
+                Sign In
+            </button>
+            
+            <div class="register-link">
+                Don't have an account? <a href="{% url 'register' %}">Create one here</a>
+            </div>
+        </form>
+    </div>
 </div>
 {% endblock %}

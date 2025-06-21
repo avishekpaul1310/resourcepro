@@ -1,90 +1,548 @@
 {% extends 'base.html' %}
+{% load dashboard_tags %}
 
 {% block title %}{{ title }} - ResourcePro{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<style>
+    .modern-form-container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+    }
+    
+    .form-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+    }
+    
+    .form-header h1 {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 700;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .form-header p {
+        margin: 8px 0 0 0;
+        opacity: 0.9;
+        font-size: 1.1rem;
+    }
+    
+    .modern-form-body {
+        padding: 40px;
+    }
+    
+    .form-section {
+        margin-bottom: 32px;
+    }
+    
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 20px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #e5e7eb;
+        position: relative;
+    }
+    
+    .section-title::before {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 40px;
+        height: 2px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .modern-form-group {
+        margin-bottom: 24px;
+    }
+    
+    .modern-form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #374151;
+        font-size: 0.95rem;
+    }
+    
+    .form-field {
+        width: 100%;
+        padding: 14px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.2s ease-in-out;
+        background: #fff;
+    }
+    
+    .form-field:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        transform: translateY(-1px);
+    }
+    
+    .form-field:hover {
+        border-color: #d1d5db;
+    }
+    
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+    
+    .priority-selector {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+    }
+    
+    .priority-option {
+        width: 40px;
+        height: 40px;
+        border: 2px solid #e5e7eb;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-weight: 600;
+        color: #6b7280;
+    }
+    
+    .priority-option:hover {
+        border-color: #667eea;
+        transform: scale(1.05);
+    }
+    
+    .priority-option.selected {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-color: #667eea;
+        color: white;
+    }
+    
+    .color-picker {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+    }
+    
+    .color-option {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        border: 3px solid transparent;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+    
+    .color-option:hover {
+        transform: scale(1.1);
+    }
+    
+    .color-option.selected {
+        border-color: #374151;
+        box-shadow: 0 0 0 2px white, 0 0 0 4px #374151;
+    }
+    
+    .modern-form-actions {
+        display: flex;
+        gap: 16px;
+        justify-content: flex-end;
+        margin-top: 40px;
+        padding-top: 24px;
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    .modern-btn {
+        padding: 14px 28px;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+        min-width: 120px;
+        justify-content: center;
+    }
+    
+    .modern-btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .modern-btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+    
+    .modern-btn-secondary {
+        background: #f9fafb;
+        color: #374151;
+        border: 2px solid #e5e7eb;
+    }
+    
+    .modern-btn-secondary:hover {
+        background: #f3f4f6;
+        border-color: #d1d5db;
+        transform: translateY(-1px);
+    }
+    
+    .error-message {
+        color: #ef4444;
+        font-size: 0.875rem;
+        margin-top: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .help-text {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-top: 6px;
+    }
+    
+    @media (max-width: 768px) {
+        .modern-form-container {
+            margin: 10px;
+            border-radius: 8px;
+        }
+        
+        .modern-form-body {
+            padding: 24px;
+        }
+        
+        .form-header {
+            padding: 24px;
+        }
+        
+        .form-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        
+        .modern-form-actions {
+            flex-direction: column-reverse;
+        }
+        
+        .modern-btn {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="page-title">
     <h1 class="title">{{ title }}</h1>
     <div class="actions">
-        <a href="{% url 'project_list' %}" class="btn btn-secondary">Cancel</a>
+        <a href="{% url 'project_list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Projects
+        </a>
     </div>
 </div>
 
-<div class="card">
-    <div class="card-body">
-        <form method="post">
+<div class="modern-form-container">
+    <div class="form-header">
+        <h1>
+            <i class="fas fa-plus-circle"></i>
+            Create New Project
+        </h1>
+        <p>Set up your project with all the essential details</p>
+    </div>
+    
+    <div class="modern-form-body">
+        <form method="post" id="project-form">
             {% csrf_token %}
             
-            <div class="form-group">
-                <label for="id_name" class="form-label">Project Name</label>
-                {{ form.name }}
-                {% if form.name.errors %}
-                <div class="error">{{ form.name.errors }}</div>
-                {% endif %}
-            </div>
-            
-            <div class="form-group">
-                <label for="id_description" class="form-label">Description</label>
-                {{ form.description }}
-                {% if form.description.errors %}
-                <div class="error">{{ form.description.errors }}</div>
-                {% endif %}
-            </div>
-            
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
-                <div class="form-group">
-                    <label for="id_start_date" class="form-label">Start Date</label>
-                    {{ form.start_date }}
-                    {% if form.start_date.errors %}
-                    <div class="error">{{ form.start_date.errors }}</div>
+            <!-- Basic Information Section -->
+            <div class="form-section">
+                <h3 class="section-title">Basic Information</h3>
+                
+                <div class="modern-form-group">
+                    <label for="id_name" class="modern-form-label">
+                        <i class="fas fa-project-diagram"></i> Project Name
+                    </label>
+                    {{ form.name|add_class:"form-field" }}
+                    {% if form.name.errors %}
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i>
+                            {{ form.name.errors }}
+                        </div>
                     {% endif %}
+                    <div class="help-text">Choose a clear, descriptive name for your project</div>
                 </div>
                 
-                <div class="form-group">
-                    <label for="id_end_date" class="form-label">End Date</label>
-                    {{ form.end_date }}
-                    {% if form.end_date.errors %}
-                    <div class="error">{{ form.end_date.errors }}</div>
+                <div class="modern-form-group">
+                    <label for="id_description" class="modern-form-label">
+                        <i class="fas fa-align-left"></i> Description
+                    </label>
+                    {{ form.description|add_class:"form-field" }}
+                    {% if form.description.errors %}
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i>
+                            {{ form.description.errors }}
+                        </div>
                     {% endif %}
-                </div>
-                
-                <div class="form-group">
-                    <label for="id_status" class="form-label">Status</label>
-                    {{ form.status }}
-                    {% if form.status.errors %}
-                    <div class="error">{{ form.status.errors }}</div>
-                    {% endif %}
-                </div>
-                
-                <div class="form-group">
-                    <label for="id_priority" class="form-label">Priority (1-5)</label>
-                    {{ form.priority }}
-                    {% if form.priority.errors %}
-                    <div class="error">{{ form.priority.errors }}</div>
-                    {% endif %}
-                </div>
-                
-                <div class="form-group">
-                    <label for="id_manager" class="form-label">Project Manager</label>
-                    {{ form.manager }}
-                    {% if form.manager.errors %}
-                    <div class="error">{{ form.manager.errors }}</div>
-                    {% endif %}
-                </div>
-                
-                <div class="form-group">
-                    <label for="id_color" class="form-label">Color</label>
-                    {{ form.color }}
-                    {% if form.color.errors %}
-                    <div class="error">{{ form.color.errors }}</div>
-                    {% endif %}
+                    <div class="help-text">Provide details about the project goals and objectives</div>
                 </div>
             </div>
             
-            <div class="form-actions" style="margin-top: 20px;">
-                <button type="submit" class="btn btn-primary">Save Project</button>
+            <!-- Timeline & Settings Section -->
+            <div class="form-section">
+                <h3 class="section-title">Timeline & Settings</h3>
+                
+                <div class="form-grid">
+                    <div class="modern-form-group">
+                        <label for="id_start_date" class="modern-form-label">
+                            <i class="fas fa-calendar-plus"></i> Start Date
+                        </label>
+                        {{ form.start_date|add_class:"form-field" }}
+                        {% if form.start_date.errors %}
+                            <div class="error-message">
+                                <i class="fas fa-exclamation-circle"></i>
+                                {{ form.start_date.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="modern-form-group">
+                        <label for="id_end_date" class="modern-form-label">
+                            <i class="fas fa-calendar-check"></i> End Date
+                        </label>
+                        {{ form.end_date|add_class:"form-field" }}
+                        {% if form.end_date.errors %}
+                            <div class="error-message">
+                                <i class="fas fa-exclamation-circle"></i>
+                                {{ form.end_date.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="modern-form-group">
+                        <label for="id_status" class="modern-form-label">
+                            <i class="fas fa-tasks"></i> Status
+                        </label>
+                        {{ form.status|add_class:"form-field" }}
+                        {% if form.status.errors %}
+                            <div class="error-message">
+                                <i class="fas fa-exclamation-circle"></i>
+                                {{ form.status.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="modern-form-group">
+                        <label for="id_manager" class="modern-form-label">
+                            <i class="fas fa-user-tie"></i> Project Manager
+                        </label>
+                        {{ form.manager|add_class:"form-field" }}
+                        {% if form.manager.errors %}
+                            <div class="error-message">
+                                <i class="fas fa-exclamation-circle"></i>
+                                {{ form.manager.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
+            
+            <!-- Priority & Color Section -->
+            <div class="form-section">
+                <h3 class="section-title">Priority & Appearance</h3>
+                
+                <div class="form-grid">
+                    <div class="modern-form-group">
+                        <label class="modern-form-label">
+                            <i class="fas fa-exclamation"></i> Priority (1-5)
+                        </label>
+                        <div class="priority-selector">
+                            <div class="priority-option" data-value="1">1</div>
+                            <div class="priority-option" data-value="2">2</div>
+                            <div class="priority-option" data-value="3">3</div>
+                            <div class="priority-option" data-value="4">4</div>
+                            <div class="priority-option" data-value="5">5</div>
+                        </div>
+                        {{ form.priority|add_class:"hidden" }}
+                        {% if form.priority.errors %}
+                            <div class="error-message">
+                                <i class="fas fa-exclamation-circle"></i>
+                                {{ form.priority.errors }}
+                            </div>
+                        {% endif %}
+                        <div class="help-text">1 = Low priority, 5 = High priority</div>
+                    </div>
+                    
+                    <div class="modern-form-group">
+                        <label class="modern-form-label">
+                            <i class="fas fa-palette"></i> Color
+                        </label>
+                        <div class="color-picker">
+                            <div class="color-option" data-color="#3b82f6" style="background-color: #3b82f6;"></div>
+                            <div class="color-option" data-color="#10b981" style="background-color: #10b981;"></div>
+                            <div class="color-option" data-color="#f59e0b" style="background-color: #f59e0b;"></div>
+                            <div class="color-option" data-color="#ef4444" style="background-color: #ef4444;"></div>
+                            <div class="color-option" data-color="#8b5cf6" style="background-color: #8b5cf6;"></div>
+                            <div class="color-option" data-color="#06b6d4" style="background-color: #06b6d4;"></div>
+                            <div class="color-option" data-color="#f97316" style="background-color: #f97316;"></div>
+                            <div class="color-option" data-color="#ec4899" style="background-color: #ec4899;"></div>
+                        </div>
+                        {{ form.color|add_class:"hidden" }}
+                        {% if form.color.errors %}
+                            <div class="error-message">
+                                <i class="fas fa-exclamation-circle"></i>
+                                {{ form.color.errors }}
+                            </div>
+                        {% endif %}
+                        <div class="help-text">Choose a color to identify your project</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modern-form-actions">
+                <a href="{% url 'project_list' %}" class="modern-btn modern-btn-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+                <button type="submit" class="modern-btn modern-btn-primary">
+                    <i class="fas fa-save"></i> Save Project
+                </button>            </div>
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Priority selector functionality
+    const priorityOptions = document.querySelectorAll('.priority-option');
+    const priorityInput = document.getElementById('id_priority');
+    
+    // Set initial priority if form has value
+    if (priorityInput.value) {
+        const currentPriority = priorityInput.value;
+        priorityOptions.forEach(option => {
+            if (option.dataset.value === currentPriority) {
+                option.classList.add('selected');
+            }
+        });
+    } else {
+        // Default to priority 3 if no value set
+        priorityOptions[2].classList.add('selected');
+        priorityInput.value = '3';
+    }
+    
+    priorityOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            // Remove selected class from all options
+            priorityOptions.forEach(opt => opt.classList.remove('selected'));
+            // Add selected class to clicked option
+            this.classList.add('selected');
+            // Update hidden input value
+            priorityInput.value = this.dataset.value;
+        });
+    });
+    
+    // Color picker functionality
+    const colorOptions = document.querySelectorAll('.color-option');
+    const colorInput = document.getElementById('id_color');
+    
+    // Set initial color if form has value
+    if (colorInput.value) {
+        const currentColor = colorInput.value;
+        colorOptions.forEach(option => {
+            if (option.dataset.color === currentColor) {
+                option.classList.add('selected');
+            }
+        });
+    } else {
+        // Default to first color if no value set
+        colorOptions[0].classList.add('selected');
+        colorInput.value = colorOptions[0].dataset.color;
+    }
+    
+    colorOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            // Remove selected class from all options
+            colorOptions.forEach(opt => opt.classList.remove('selected'));
+            // Add selected class to clicked option
+            this.classList.add('selected');
+            // Update hidden input value
+            colorInput.value = this.dataset.color;
+        });
+    });
+    
+    // Form validation
+    const form = document.getElementById('project-form');
+    const nameInput = document.getElementById('id_name');
+    const startDateInput = document.getElementById('id_start_date');
+    const endDateInput = document.getElementById('id_end_date');
+    
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        
+        // Clear previous error styles
+        document.querySelectorAll('.form-field.error').forEach(field => {
+            field.classList.remove('error');
+        });
+        
+        // Validate project name
+        if (!nameInput.value.trim()) {
+            nameInput.classList.add('error');
+            isValid = false;
+        }
+        
+        // Validate dates
+        if (startDateInput.value && endDateInput.value) {
+            const startDate = new Date(startDateInput.value);
+            const endDate = new Date(endDateInput.value);
+            
+            if (endDate < startDate) {
+                startDateInput.classList.add('error');
+                endDateInput.classList.add('error');
+                alert('End date must be after start date');
+                isValid = false;
+            }
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+        }
+    });
+    
+    // Add error styling for form validation
+    const style = document.createElement('style');
+    style.textContent = `
+        .form-field.error {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1) !important;
+        }
+        .hidden {
+            display: none !important;
+        }
+    `;
+    document.head.appendChild(style);
+});
+</script>
 {% endblock %}

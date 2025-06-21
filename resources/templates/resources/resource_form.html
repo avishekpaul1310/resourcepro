@@ -1,115 +1,486 @@
 {% extends 'base.html' %}
+{% load dashboard_tags %}
 
 {% block title %}{{ title }} - ResourcePro{% endblock %}
 
-{% block content %}
-<div class="page-title">
-    <h1 class="title">{{ title }}</h1>    <div class="actions">
-        <a href="{% url 'resources:resource_list' %}" class="btn btn-secondary">Cancel</a>
-    </div>
-</div>
+{% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<style>
+    .modern-form-container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+    }
+    
+    .form-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+    }
+    
+    .form-header h1 {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 700;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .form-header p {
+        margin: 8px 0 0 0;
+        opacity: 0.9;
+        font-size: 1.1rem;
+    }
+    
+    .modern-form-body {
+        padding: 40px;
+    }
+    
+    .form-section {
+        margin-bottom: 32px;
+    }
+    
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 20px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+    
+    .form-field {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .form-field label {
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+    }
+    
+    .form-field input,
+    .form-field select,
+    .form-field textarea {
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+        background-color: #fafafa;
+    }
+    
+    .form-field input:focus,
+    .form-field select:focus,
+    .form-field textarea:focus {
+        outline: none;
+        border-color: #667eea;
+        background-color: white;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .form-field input[type="color"] {
+        width: 60px;
+        height: 50px;
+        padding: 4px;
+        cursor: pointer;
+    }
+    
+    .skill-form-container {
+        background: #f8fafc;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 16px;
+        transition: all 0.2s ease;
+    }
+    
+    .skill-form-container:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    .skill-form-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr auto;
+        gap: 16px;
+        align-items: end;
+    }
+    
+    .btn-modern {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 14px 28px;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+    
+    .btn-modern:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-secondary-modern {
+        background: #6b7280;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+    }
+    
+    .btn-secondary-modern:hover {
+        background: #4b5563;
+        transform: translateY(-1px);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-add-skill {
+        background: #10b981;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .btn-add-skill:hover {
+        background: #059669;
+        transform: translateY(-1px);
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 16px;
+        justify-content: flex-start;
+        padding-top: 24px;
+        border-top: 2px solid #f3f4f6;
+        margin-top: 32px;
+    }
+    
+    .error {
+        color: #dc2626;
+        font-size: 0.875rem;
+        margin-top: 4px;
+    }
+    
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.5);
+        backdrop-filter: blur(4px);
+    }
+    
+    .modal-content {
+        background-color: white;
+        margin: 10% auto;
+        padding: 0;
+        border: none;
+        width: 90%;
+        max-width: 500px;
+        border-radius: 12px;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        overflow: hidden;
+    }
+    
+    .modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .modal-header h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+    
+    .modal-close {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 0;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: background-color 0.2s ease;
+    }
+    
+    .modal-close:hover {
+        background-color: rgba(255,255,255,0.1);
+    }
+    
+    .modal-body {
+        padding: 30px;
+    }
+    
+    .cancel-link {
+        position: absolute;
+        top: 30px;
+        right: 30px;
+        color: white;
+        text-decoration: none;
+        padding: 8px 16px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        background: rgba(255,255,255,0.1);
+    }
+    
+    .cancel-link:hover {
+        background: rgba(255,255,255,0.2);
+        border-color: rgba(255,255,255,0.5);
+        color: white;
+        text-decoration: none;
+        transform: translateY(-1px);
+    }
+    
+    @media (max-width: 768px) {
+        .modern-form-container {
+            margin: 10px;
+            border-radius: 8px;
+        }
+        
+        .modern-form-body {
+            padding: 20px;
+        }
+        
+        .form-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        
+        .skill-form-grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+        
+        .cancel-link {
+            position: static;
+            margin-top: 16px;
+            display: inline-block;
+        }
+        
+        .form-header {
+            padding: 20px;
+            text-align: left;
+        }
+        
+        .form-header h1 {
+            font-size: 1.5rem;
+        }
+    }
+</style>
+{% endblock %}
 
-<div class="card">
-    <div class="card-body">
-        <form method="post">
+{% block content %}
+<div class="modern-form-container">
+    <div class="form-header">
+        <h1><i class="fas fa-user-plus"></i> {{ title }}</h1>
+        <p>Manage team member information and skills</p>
+        <a href="{% url 'resources:resource_list' %}" class="cancel-link">
+            <i class="fas fa-times"></i> Cancel
+        </a>
+    </div>
+    
+    <div class="modern-form-body">        <form method="post">
             {% csrf_token %}
             
-            <div class="form-group">
-                <label for="id_name" class="form-label">Name</label>
-                {{ form.name }}
-                {% if form.name.errors %}
-                <div class="error">{{ form.name.errors }}</div>
-                {% endif %}
-            </div>
-            
-            <div class="form-group">
-                <label for="id_role" class="form-label">Role</label>
-                {{ form.role }}
-                {% if form.role.errors %}
-                <div class="error">{{ form.role.errors }}</div>
-                {% endif %}
-            </div>
-            
-            <div class="form-group">
-                <label for="id_capacity" class="form-label">Capacity (hours/week)</label>
-                {{ form.capacity }}
-                {% if form.capacity.errors %}
-                <div class="error">{{ form.capacity.errors }}</div>
-                {% endif %}
-            </div>
-            
-            <div class="form-group">
-                <label for="id_cost_per_hour" class="form-label">Cost per Hour ($)</label>
-                {{ form.cost_per_hour }}
-                {% if form.cost_per_hour.errors %}
-                <div class="error">{{ form.cost_per_hour.errors }}</div>
-                {% endif %}
-            </div>
-            
-            <div class="form-group">
-                <label for="id_color" class="form-label">Color</label>
-                {{ form.color }}
-                {% if form.color.errors %}
-                <div class="error">{{ form.color.errors }}</div>
-                {% endif %}
-            </div>
-            
-            <h3 style="margin-top: 30px; font-size: 1.25rem;">Skills</h3>
-            <p style="margin-bottom: 15px;">
-                <button type="button" id="add-new-skill" class="btn btn-sm btn-primary">
-                    <i class="fas fa-plus"></i> New Skill
-                </button>
-            </p>
-            
-            {{ formset.management_form }}
-            
-            <div id="skill-forms">
-                {% for skill_form in formset %}
-                <div class="skill-form" style="display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-end;">
-                    <div style="flex: 2;">
-                        <label class="form-label">Skill</label>
-                        {{ skill_form.skill }}
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i class="fas fa-user"></i>
+                    Basic Information
+                </h2>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="id_name">Full Name</label>
+                        {{ form.name|add_class:"form-control" }}
+                        {% if form.name.errors %}
+                        <div class="error">{{ form.name.errors }}</div>
+                        {% endif %}
                     </div>
-                    <div style="flex: 1;">
-                        <label class="form-label">Proficiency (1-10)</label>
-                        {{ skill_form.proficiency }}
+                    
+                    <div class="form-field">
+                        <label for="id_role">Role/Position</label>
+                        {{ form.role|add_class:"form-control" }}
+                        {% if form.role.errors %}
+                        <div class="error">{{ form.role.errors }}</div>
+                        {% endif %}
                     </div>
-                    {% if skill_form.instance.pk %}{{ skill_form.DELETE }}{% endif %}
-                    {{ skill_form.id }}
                 </div>
-                {% endfor %}
             </div>
             
-            <button type="button" id="add-skill" class="btn btn-secondary" style="margin-top: 10px;">Add Skill</button>
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i class="fas fa-cogs"></i>
+                    Work Details
+                </h2>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="id_capacity">Capacity (hours/week)</label>
+                        {{ form.capacity|add_class:"form-control" }}
+                        {% if form.capacity.errors %}
+                        <div class="error">{{ form.capacity.errors }}</div>
+                        {% endif %}
+                        <small style="color: #6b7280; font-size: 0.875rem; margin-top: 4px;">Standard work week is 40 hours</small>
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="id_cost_per_hour">Cost per Hour ($)</label>
+                        {{ form.cost_per_hour|add_class:"form-control" }}
+                        {% if form.cost_per_hour.errors %}
+                        <div class="error">{{ form.cost_per_hour.errors }}</div>
+                        {% endif %}
+                        <small style="color: #6b7280; font-size: 0.875rem; margin-top: 4px;">Used for cost calculations and budgeting</small>
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="id_color">Display Color</label>
+                        {{ form.color|add_class:"form-control" }}
+                        {% if form.color.errors %}
+                        <div class="error">{{ form.color.errors }}</div>
+                        {% endif %}
+                        <small style="color: #6b7280; font-size: 0.875rem; margin-top: 4px;">Used in charts and visual displays</small>
+                    </div>
+                </div>
+            </div>            
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i class="fas fa-star"></i>
+                    Skills & Expertise
+                </h2>
+                <p style="margin-bottom: 20px; color: #6b7280;">
+                    Add the skills and proficiency levels for this resource.
+                    <button type="button" id="add-new-skill" class="btn-add-skill" style="margin-left: 16px;">
+                        <i class="fas fa-plus"></i> New Skill
+                    </button>
+                </p>
+                
+                {{ formset.management_form }}
+                
+                <div id="skill-forms">
+                    {% for skill_form in formset %}
+                    <div class="skill-form-container">
+                        <div class="skill-form-grid">
+                            <div class="form-field">
+                                <label>Skill</label>
+                                {{ skill_form.skill|add_class:"form-control" }}
+                            </div>
+                            <div class="form-field">
+                                <label>Proficiency (1-10)</label>
+                                {{ skill_form.proficiency|add_class:"form-control" }}
+                            </div>
+                            <div>
+                                {% if skill_form.instance.pk %}
+                                <label style="opacity: 0; font-size: 0.8rem;">Remove</label>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    {{ skill_form.DELETE }}
+                                    <label for="{{ skill_form.DELETE.id_for_label }}" style="color: #dc2626; cursor: pointer;">
+                                        <i class="fas fa-trash"></i>
+                                    </label>
+                                </div>
+                                {% endif %}
+                                {{ skill_form.id }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <button type="button" id="add-skill" class="btn-secondary-modern">
+                    <i class="fas fa-plus"></i> Add Another Skill
+                </button>
+            </div>
             
-            <div class="form-actions" style="margin-top: 30px;">
-                <button type="submit" class="btn btn-primary">Save Resource</button>
+            <div class="form-actions">
+                <button type="submit" class="btn-modern">
+                    <i class="fas fa-save"></i> Save Resource
+                </button>
             </div>
         </form>
     </div>
 </div>
 
 <!-- New Skill Modal -->
-<div id="new-skill-modal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
-    <div class="modal-content" style="background-color: white; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 40%; border-radius: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-        <span class="modal-close" style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
-        <h2 style="margin-top: 0;">Add New Skill</h2>
-        
-        <div class="modal-form-group" style="margin-bottom: 15px;">
-            <label for="new-skill-name" style="display: block; margin-bottom: 5px;">Skill Name</label>
-            <input type="text" id="new-skill-name" class="form-control" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+<div id="new-skill-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-star"></i> Add New Skill</h2>
+            <button class="modal-close" type="button">&times;</button>
         </div>
-        
-        <div class="modal-form-group" style="margin-bottom: 15px;">
-            <label for="new-skill-description" style="display: block; margin-bottom: 5px;">Description (Optional)</label>
-            <textarea id="new-skill-description" class="form-control" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></textarea>
-        </div>
-        
-        <div id="skill-error-message" style="color: #d9534f; margin-bottom: 10px; display: none;"></div>
-        
-        <div style="text-align: right;">
-            <button type="button" id="save-skill-btn" class="btn btn-primary">Save Skill</button>
-            <button type="button" id="cancel-skill-btn" class="btn btn-secondary">Cancel</button>
+        <div class="modal-body">
+            <div class="form-field" style="margin-bottom: 20px;">
+                <label for="new-skill-name">Skill Name</label>
+                <input type="text" id="new-skill-name" class="form-control" placeholder="e.g., Python, Project Management, UI/UX Design">
+            </div>
+            
+            <div class="form-field" style="margin-bottom: 20px;">
+                <label for="new-skill-description">Description (Optional)</label>
+                <textarea id="new-skill-description" class="form-control" rows="3" placeholder="Brief description of this skill..."></textarea>
+            </div>
+            
+            <div id="skill-error-message" class="error" style="display: none; margin-bottom: 15px;"></div>
+            
+            <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                <button type="button" id="cancel-skill-btn" class="btn-secondary-modern">Cancel</button>
+                <button type="button" id="save-skill-btn" class="btn-modern">
+                    <i class="fas fa-save"></i> Save Skill
+                </button>
+            </div>
         </div>
     </div>
 </div>

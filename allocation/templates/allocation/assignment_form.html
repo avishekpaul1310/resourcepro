@@ -1,54 +1,197 @@
-{% extends 'core/base.html' %}
+{% extends 'base.html' %}
+{% load dashboard_tags %}
 
 {% block title %}{% if form.instance.pk %}Edit{% else %}Create{% endif %} Assignment - ResourcePro{% endblock %}
 
-{% block content %}
-<div class="page-title">
-    <h1 class="title">{% if form.instance.pk %}Edit{% else %}Create{% endif %} Assignment</h1>
-    <div class="actions">
-        <a href="{% url 'allocation_board' %}" class="btn btn-secondary">Back to Allocation Board</a>
-    </div>
-</div>
+{% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<style>
+    .modern-form-container {
+        max-width: 700px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+    }
+    
+    .form-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+    }
+    
+    .form-header h1 {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 700;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .form-header p {
+        margin: 8px 0 0 0;
+        opacity: 0.9;
+        font-size: 1.1rem;
+    }
+    
+    .modern-form-body {
+        padding: 40px;
+    }
+    
+    .form-field {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 24px;
+    }
+    
+    .form-field label {
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+    }
+    
+    .form-field input,
+    .form-field select,
+    .form-field textarea {
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+        background-color: #fafafa;
+    }
+    
+    .form-field input:focus,
+    .form-field select:focus,
+    .form-field textarea:focus {
+        outline: none;
+        border-color: #667eea;
+        background-color: white;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .form-field textarea {
+        resize: vertical;
+        min-height: 80px;
+    }
+    
+    .btn-modern {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 14px 28px;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+    
+    .btn-modern:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 16px;
+        justify-content: flex-start;
+        padding-top: 24px;
+        border-top: 2px solid #f3f4f6;
+        margin-top: 32px;
+    }
+    
+    .error {
+        color: #dc2626;
+        font-size: 0.875rem;
+        margin-top: 4px;
+    }
+    
+    .cancel-link {
+        position: absolute;
+        top: 30px;
+        right: 30px;
+        color: white;
+        text-decoration: none;
+        padding: 8px 16px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        background: rgba(255,255,255,0.1);
+    }
+    
+    .cancel-link:hover {
+        background: rgba(255,255,255,0.2);
+        border-color: rgba(255,255,255,0.5);
+        color: white;
+        text-decoration: none;
+        transform: translateY(-1px);
+    }
+</style>
+{% endblock %}
 
-<div class="card">
-    <div class="card-body">
+{% block content %}
+<div class="modern-form-container">
+    <div class="form-header">
+        <h1><i class="fas fa-user-cog"></i> {% if form.instance.pk %}Edit{% else %}Create{% endif %} Assignment</h1>
+        <p>Assign resources to project tasks</p>
+        <a href="{% url 'allocation_board' %}" class="cancel-link">
+            <i class="fas fa-arrow-left"></i> Back to Board
+        </a>
+    </div>
+    
+    <div class="modern-form-body">
         <form method="post">
             {% csrf_token %}
-            
-            <div class="form-group">
-                <label for="id_resource" class="form-label">Resource</label>
-                {{ form.resource }}
+              <div class="form-field">
+                <label for="id_resource">Resource</label>
+                {{ form.resource|add_class:"form-control" }}
                 {% if form.resource.errors %}
                 <div class="error">{{ form.resource.errors }}</div>
                 {% endif %}
+                <small style="color: #6b7280; font-size: 0.875rem; margin-top: 4px;">Select the team member to assign</small>
             </div>
             
-            <div class="form-group">
-                <label for="id_task" class="form-label">Task</label>
-                {{ form.task }}
+            <div class="form-field">
+                <label for="id_task">Task</label>
+                {{ form.task|add_class:"form-control" }}
                 {% if form.task.errors %}
                 <div class="error">{{ form.task.errors }}</div>
                 {% endif %}
+                <small style="color: #6b7280; font-size: 0.875rem; margin-top: 4px;">Choose the task to work on</small>
             </div>
             
-            <div class="form-group">
-                <label for="id_allocated_hours" class="form-label">Allocated Hours</label>
-                {{ form.allocated_hours }}
+            <div class="form-field">
+                <label for="id_allocated_hours">Allocated Hours</label>
+                {{ form.allocated_hours|add_class:"form-control" }}
                 {% if form.allocated_hours.errors %}
                 <div class="error">{{ form.allocated_hours.errors }}</div>
                 {% endif %}
+                <small style="color: #6b7280; font-size: 0.875rem; margin-top: 4px;">Number of hours allocated for this assignment</small>
             </div>
             
-            <div class="form-group">
-                <label for="id_notes" class="form-label">Notes</label>
-                {{ form.notes }}
+            <div class="form-field">
+                <label for="id_notes">Notes</label>
+                {{ form.notes|add_class:"form-control" }}
                 {% if form.notes.errors %}
                 <div class="error">{{ form.notes.errors }}</div>
                 {% endif %}
+                <small style="color: #6b7280; font-size: 0.875rem; margin-top: 4px;">Additional instructions or comments</small>
             </div>
             
-            <div class="form-actions" style="margin-top: 20px;">
-                <button type="submit" class="btn btn-primary">Save Assignment</button>
+            <div class="form-actions">
+                <button type="submit" class="btn-modern">
+                    <i class="fas fa-save"></i> {% if form.instance.pk %}Update{% else %}Create{% endif %} Assignment
+                </button>
             </div>
         </form>
     </div>

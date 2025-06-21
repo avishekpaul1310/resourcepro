@@ -1,120 +1,343 @@
 {% extends 'base.html' %}
+{% load dashboard_tags %}
 
 {% block title %}{{ title }} - ResourcePro{% endblock %}
 
-{% block content %}
-<div class="page-title">
-    <h1 class="title">{{ title }}</h1>
-    <div class="actions">
-        <a href="{% if request.GET.project %}{% url 'project_detail' request.GET.project %}{% else %}{% url 'task_list' %}{% endif %}" class="btn btn-secondary">Cancel</a>
-    </div>
-</div>
+{% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<style>
+    .modern-form-container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+    }
+    
+    .form-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+    }
+    
+    .form-header h1 {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 700;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .form-header p {
+        margin: 8px 0 0 0;
+        opacity: 0.9;
+        font-size: 1.1rem;
+    }
+    
+    .modern-form-body {
+        padding: 40px;
+    }
+    
+    .form-section {
+        margin-bottom: 32px;
+    }
+    
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 20px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+    
+    .form-field {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .form-field label {
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+    }
+    
+    .form-field input,
+    .form-field select,
+    .form-field textarea {
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+        background-color: #fafafa;
+    }
+    
+    .form-field input:focus,
+    .form-field select:focus,
+    .form-field textarea:focus {
+        outline: none;
+        border-color: #667eea;
+        background-color: white;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .form-field textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+    
+    .btn-modern {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 14px 28px;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+    
+    .btn-modern:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 16px;
+        justify-content: flex-start;
+        padding-top: 24px;
+        border-top: 2px solid #f3f4f6;
+        margin-top: 32px;
+    }
+    
+    .error {
+        color: #dc2626;
+        font-size: 0.875rem;
+        margin-top: 4px;
+    }
+    
+    .cancel-link {
+        position: absolute;
+        top: 30px;
+        right: 30px;
+        color: white;
+        text-decoration: none;
+        padding: 8px 16px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        background: rgba(255,255,255,0.1);
+    }
+    
+    .cancel-link:hover {
+        background: rgba(255,255,255,0.2);
+        border-color: rgba(255,255,255,0.5);
+        color: white;
+        text-decoration: none;
+        transform: translateY(-1px);
+    }
+    
+    .status-select {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+        background-position: right 12px center;
+        background-repeat: no-repeat;
+        background-size: 16px;
+        padding-right: 40px;
+    }
+    
+    @media (max-width: 768px) {
+        .modern-form-container {
+            margin: 10px;
+            border-radius: 8px;
+        }
+        
+        .modern-form-body {
+            padding: 20px;
+        }
+        
+        .form-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        
+        .cancel-link {
+            position: static;
+            margin-top: 16px;
+            display: inline-block;
+        }
+        
+        .form-header {
+            padding: 20px;
+            text-align: left;
+        }
+        
+        .form-header h1 {
+            font-size: 1.5rem;
+        }
+    }
+</style>
+{% endblock %}
 
-<div class="card">
-    <div class="card-body">
-        <form method="post">
+{% block content %}
+<div class="modern-form-container">
+    <div class="form-header">
+        <h1><i class="fas fa-tasks"></i> {{ title }}</h1>
+        <p>Create and manage project tasks</p>
+        <a href="{% if request.GET.project %}{% url 'project_detail' request.GET.project %}{% else %}{% url 'task_list' %}{% endif %}" class="cancel-link">
+            <i class="fas fa-times"></i> Cancel
+        </a>
+    </div>
+    
+    <div class="modern-form-body">        <form method="post">
             {% csrf_token %}
             
-            <div class="form-group">
-                <label for="id_project" class="form-label">Project</label>
-                {{ form.project }}
-                {% if form.project.errors %}
-                <div class="error">{{ form.project.errors }}</div>
-                {% endif %}
-            </div>
-            
-            <div class="form-group">
-                <label for="id_name" class="form-label">Task Name</label>
-                {{ form.name }}
-                {% if form.name.errors %}
-                <div class="error">{{ form.name.errors }}</div>
-                {% endif %}
-            </div>
-            
-            <div class="form-group">
-                <label for="id_description" class="form-label">Description</label>
-                {{ form.description }}
-                {% if form.description.errors %}
-                <div class="error">{{ form.description.errors }}</div>
-                {% endif %}
-            </div>
-            
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
-                <div class="form-group">
-                    <label for="id_start_date" class="form-label">Start Date</label>
-                    {{ form.start_date }}
-                    {% if form.start_date.errors %}
-                    <div class="error">{{ form.start_date.errors }}</div>
-                    {% endif %}
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i class="fas fa-info-circle"></i>
+                    Task Information
+                </h2>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="id_project">Project</label>
+                        {{ form.project|add_class:"form-control" }}
+                        {% if form.project.errors %}
+                        <div class="error">{{ form.project.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="id_name">Task Name</label>
+                        {{ form.name|add_class:"form-control" }}
+                        {% if form.name.errors %}
+                        <div class="error">{{ form.name.errors }}</div>
+                        {% endif %}
+                    </div>
                 </div>
                 
-                <div class="form-group">
-                    <label for="id_end_date" class="form-label">End Date</label>
-                    {{ form.end_date }}
-                    {% if form.end_date.errors %}
-                    <div class="error">{{ form.end_date.errors }}</div>
+                <div class="form-field">
+                    <label for="id_description">Description</label>
+                    {{ form.description|add_class:"form-control" }}
+                    {% if form.description.errors %}
+                    <div class="error">{{ form.description.errors }}</div>
                     {% endif %}
-                </div>
-                
-                <div class="form-group">
-                    <label for="id_estimated_hours" class="form-label">Estimated Hours</label>
-                    {{ form.estimated_hours }}
-                    {% if form.estimated_hours.errors %}
-                    <div class="error">{{ form.estimated_hours.errors }}</div>
-                    {% endif %}
-                </div>
-                
-                <div class="form-group">
-                    <label for="id_status" class="form-label">Status</label>
-                    {{ form.status }}
-                    {% if form.status.errors %}
-                    <div class="error">{{ form.status.errors }}</div>
-                    {% endif %}
-                </div>
-                
-                <div class="form-group">
-                    <label for="id_priority" class="form-label">Priority (1-5)</label>
-                    {{ form.priority }}
-                    {% if form.priority.errors %}
-                    <div class="error">{{ form.priority.errors }}</div>
-                    {% endif %}
+                    <small style="color: #6b7280; font-size: 0.875rem; margin-top: 4px;">Provide a detailed description of what needs to be accomplished</small>
                 </div>
             </div>
             
-            <div class="form-group">
-                <label for="id_completion_percentage" class="form-label">Completion Percentage</label>
-                <div class="slider-container" style="display: flex; align-items: center; gap: 15px;">
-                    {{ form.completion_percentage }}
-                    <input type="range" id="completion_slider" min="0" max="100" value="{{ form.completion_percentage.value|default:0 }}" 
-                           style="flex-grow: 1;">
-                    <span id="completion_display">{{ form.completion_percentage.value|default:0 }}%</span>
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i class="fas fa-calendar-alt"></i>
+                    Timeline & Status
+                </h2>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="id_start_date">Start Date</label>
+                        {{ form.start_date|add_class:"form-control" }}
+                        {% if form.start_date.errors %}
+                        <div class="error">{{ form.start_date.errors }}</div>
+                        {% endif %}
+                    </div>                    
+                    <div class="form-field">
+                        <label for="id_end_date">End Date</label>
+                        {{ form.end_date|add_class:"form-control" }}
+                        {% if form.end_date.errors %}
+                        <div class="error">{{ form.end_date.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="id_estimated_hours">Estimated Hours</label>
+                        {{ form.estimated_hours|add_class:"form-control" }}
+                        {% if form.estimated_hours.errors %}
+                        <div class="error">{{ form.estimated_hours.errors }}</div>
+                        {% endif %}
+                        <small style="color: #6b7280; font-size: 0.875rem; margin-top: 4px;">Expected time to complete this task</small>
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="id_status">Status</label>
+                        {{ form.status|add_class:"form-control status-select" }}
+                        {% if form.status.errors %}
+                        <div class="error">{{ form.status.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="id_priority">Priority (1-5)</label>
+                        {{ form.priority|add_class:"form-control" }}
+                        {% if form.priority.errors %}
+                        <div class="error">{{ form.priority.errors }}</div>
+                        {% endif %}
+                        <small style="color: #6b7280; font-size: 0.875rem; margin-top: 4px;">1 = Low, 5 = Critical</small>
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="id_completion_percentage">Completion Percentage</label>
+                        <div class="slider-container" style="display: flex; align-items: center; gap: 15px;">
+                            {{ form.completion_percentage|add_class:"form-control" }}
+                            <input type="range" id="completion_slider" min="0" max="100" value="{{ form.completion_percentage.value|default:0 }}" 
+                                   style="flex-grow: 1; height: 8px; border-radius: 4px; background: #e5e7eb; outline: none;">
+                            <span id="completion_display" style="font-weight: 600; color: #374151; min-width: 40px;">{{ form.completion_percentage.value|default:0 }}%</span>
+                        </div>
+                        {% if form.completion_percentage.errors %}
+                        <div class="error">{{ form.completion_percentage.errors }}</div>
+                        {% endif %}
+                    </div>
                 </div>
-                {% if form.completion_percentage.errors %}
-                <div class="error">{{ form.completion_percentage.errors }}</div>
-                {% endif %}
             </div>
             
-            <div class="form-group">
-                <label for="id_skills_required" class="form-label">Required Skills</label>
-                {{ form.skills_required }}
-                {% if form.skills_required.errors %}
-                <div class="error">{{ form.skills_required.errors }}</div>
-                {% endif %}
-            </div>
-            
-            <div class="form-group">
-                <label for="id_dependencies" class="form-label">Dependencies</label>
-                {{ form.dependencies }}
-                {% if form.dependencies.errors %}
-                <div class="error">{{ form.dependencies.errors }}</div>
-                {% endif %}
-                <div class="help-text" style="font-size: 0.875rem; color: #718096; margin-top: 4px;">
-                    Tasks that must be completed before this task can be started.
+            <div class="form-section">
+                <h2 class="section-title">
+                    <i class="fas fa-cogs"></i>
+                    Requirements & Dependencies
+                </h2>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="id_skills_required">Required Skills</label>
+                        {{ form.skills_required|add_class:"form-control" }}
+                        {% if form.skills_required.errors %}
+                        <div class="error">{{ form.skills_required.errors }}</div>
+                        {% endif %}
+                        <small style="color: #6b7280; font-size: 0.875rem; margin-top: 4px;">Select skills needed to complete this task</small>
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="id_dependencies">Dependencies</label>
+                        {{ form.dependencies|add_class:"form-control" }}
+                        {% if form.dependencies.errors %}
+                        <div class="error">{{ form.dependencies.errors }}</div>
+                        {% endif %}
+                        <small style="color: #6b7280; font-size: 0.875rem; margin-top: 4px;">Tasks that must be completed before this task can start</small>
+                    </div>
                 </div>
             </div>
             
-            <div class="form-actions" style="margin-top: 20px;">
-                <button type="submit" class="btn btn-primary">Save Task</button>
+            <div class="form-actions">
+                <button type="submit" class="btn-modern">
+                    <i class="fas fa-save"></i> Save Task
+                </button>
             </div>
         </form>
     </div>

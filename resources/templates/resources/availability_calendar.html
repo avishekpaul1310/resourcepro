@@ -194,10 +194,13 @@
     <!-- Resource Filter -->
     <div class="resource-filter">
         <select id="resourceFilter" onchange="filterByResource()">
-            <option value="">All Resources</option>
-            {% for resource in resources %}
+            <option value="">All Resources</option>            {% for resource in resources %}
                 <option value="{{ resource.id }}" {% if selected_resource == resource.id %}selected{% endif %}>
-                    {{ resource.user.first_name }} {{ resource.user.last_name }} - {{ resource.role }}
+                    {% if resource.user %}
+                        {{ resource.user.first_name }} {{ resource.user.last_name }} - {{ resource.role }}
+                    {% else %}
+                        {{ resource.name }} - {{ resource.role }}
+                    {% endif %}
                 </option>
             {% endfor %}
         </select>
@@ -236,10 +239,16 @@
     <div class="upcoming-events">
         <h3>Upcoming Availability Events</h3>
         <ul class="event-list">
-            {% for event in upcoming_events %}
-                <li class="event-item">
+            {% for event in upcoming_events %}                <li class="event-item">
                     <div class="event-date">{{ event.start_date|date:"M d, Y" }} - {{ event.end_date|date:"M d, Y" }}</div>
-                    <div>{{ event.resource.user.first_name }} {{ event.resource.user.last_name }} - {{ event.get_availability_type_display }}</div>
+                    <div>
+                        {% if event.resource.user %}
+                            {{ event.resource.user.first_name }} {{ event.resource.user.last_name }}
+                        {% else %}
+                            {{ event.resource.name }}
+                        {% endif %}
+                        - {{ event.get_availability_type_display }}
+                    </div>
                     {% if event.notes %}
                         <div class="event-resource">{{ event.notes }}</div>
                     {% endif %}
@@ -313,9 +322,8 @@ document.addEventListener('DOMContentLoaded', function() {
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,listWeek'
         },        events: [
-            {% for event in calendar_events %}
-            {
-                title: '{{ event.resource.user.first_name|escapejs }} {{ event.resource.user.last_name|escapejs }} - {{ event.get_availability_type_display|escapejs }}',
+            {% for event in calendar_events %}            {
+                title: '{% if event.resource.user %}{{ event.resource.user.first_name|escapejs }} {{ event.resource.user.last_name|escapejs }}{% else %}{{ event.resource.name|escapejs }}{% endif %} - {{ event.get_availability_type_display|escapejs }}',
                 start: '{{ event.start_date|date:"Y-m-d" }}',
                 end: '{{ event.end_date|date:"Y-m-d" }}',
                 backgroundColor: getEventColor('{{ event.availability_type|escapejs }}'),
