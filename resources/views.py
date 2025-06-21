@@ -51,7 +51,7 @@ def resource_create(request):
             formset.instance = resource
             formset.save()
             messages.success(request, 'Resource created successfully.')
-            return redirect('resource_detail', pk=resource.pk)
+            return redirect('resources:resource_detail', pk=resource.pk)
     else:
         form = ResourceForm()
         formset = ResourceSkillFormSet()
@@ -75,7 +75,7 @@ def resource_edit(request, pk):
             form.save()
             formset.save()
             messages.success(request, 'Resource updated successfully.')
-            return redirect('resource_detail', pk=resource.pk)
+            return redirect('resources:resource_detail', pk=resource.pk)
     else:
         form = ResourceForm(instance=resource)
         formset = ResourceSkillFormSet(instance=resource)

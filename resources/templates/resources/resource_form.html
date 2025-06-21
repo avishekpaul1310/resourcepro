@@ -436,9 +436,25 @@
                                 {% endif %}
                                 {{ skill_form.id }}
                             </div>
+                        </div>                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Hidden template for new skill forms -->
+                <div id="skill-form-template" class="skill-form-container" style="display: none;">
+                    <div class="skill-form-grid">
+                        <div class="form-field">
+                            <label>Skill</label>
+                            {{ formset.empty_form.skill|add_class:"form-control" }}
+                        </div>
+                        <div class="form-field">
+                            <label>Proficiency (1-10)</label>
+                            {{ formset.empty_form.proficiency|add_class:"form-control" }}
+                        </div>
+                        <div>
+                            {{ formset.empty_form.id }}
                         </div>
                     </div>
-                    {% endfor %}
                 </div>
                 
                 <button type="button" id="add-skill" class="btn-secondary-modern">
@@ -492,18 +508,21 @@
         // Handle dynamic formset for skills
         const addSkillBtn = document.getElementById('add-skill');
         const skillForms = document.getElementById('skill-forms');
-        const totalForms = document.getElementById('id_resource_skills-TOTAL_FORMS');
-        
-        addSkillBtn.addEventListener('click', function() {
+        const totalForms = document.getElementById('id_resource_skills-TOTAL_FORMS');        addSkillBtn.addEventListener('click', function() {
             const formCount = parseInt(totalForms.value);
             
-            // Clone the first empty form
-            const newForm = document.querySelector('.skill-form').cloneNode(true);
+            // Clone the template form
+            const template = document.getElementById('skill-form-template');
+            const newForm = template.cloneNode(true);
             
-            // Update form index
-            newForm.innerHTML = newForm.innerHTML.replace(/resource_skills-\d+-/g, `resource_skills-${formCount}-`);
+            // Make it visible and remove the template id
+            newForm.style.display = 'block';
+            newForm.removeAttribute('id');
             
-            // Clear values
+            // Update form index (replace __prefix__ with actual form count)
+            newForm.innerHTML = newForm.innerHTML.replace(/__prefix__/g, formCount);
+            
+            // Clear values for non-id fields
             newForm.querySelectorAll('input, select').forEach(input => {
                 if (input.type !== 'hidden' || !input.name.includes('id')) {
                     input.value = '';
