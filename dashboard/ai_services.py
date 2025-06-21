@@ -482,8 +482,11 @@ class NaturalLanguageInterfaceService:
             # Analyze query intent
             intent_data = self._analyze_query_intent(query_text)
             
-            # Generate response based on intent
-            response = self._generate_query_response(query_text, intent_data)
+            # Check if this is a simple query or needs AI processing
+            if self._is_complex_query(query_text, intent_data):
+                response = self._process_ai_query(query_text, user)
+            else:
+                response = self._generate_query_response(query_text, intent_data)
             
             execution_time = time.time() - start_time
             
@@ -526,10 +529,12 @@ class NaturalLanguageInterfaceService:
             intent = "deadline_query"
         elif any(word in query_lower for word in ["skill", "expertise", "ability"]):
             intent = "skill_query"
-        elif any(word in query_lower for word in ["project", "status", "progress"]):
+        elif any(word in query_lower for word in ["project", "status", "progress"]) and not any(word in query_lower for word in ["active", "most active"]):
             intent = "project_query"
         elif any(word in query_lower for word in ["risk", "problem", "issue"]):
             intent = "risk_query"
+        elif any(word in query_lower for word in ["active", "most active", "activity", "productive", "engaged"]):
+            intent = "activity_query"
         
         return {"intent": intent, "entities": entities}
     
@@ -549,6 +554,8 @@ class NaturalLanguageInterfaceService:
             return self._handle_project_query(query_text)
         elif intent == "risk_query":
             return self._handle_risk_query(query_text)
+        elif intent == "activity_query":
+            return self._handle_activity_query(query_text)
         else:
             return self._handle_general_query(query_text)
     
@@ -643,65 +650,59 @@ class NaturalLanguageInterfaceService:
         # This is a simplified implementation
         # In a real system, you'd use NLP to extract specific skills from the query
         return {
-            "text": "Skill analysis feature is being enhanced. Please use the Skills Analytics page for detailed skill insights.",
-            "data": {},
+            "text": "Skill analysis feature is being enhanced. Please use the Skills Analytics page for detailed skill insights.",            "data": {},
             "type": "skill_info"
         }
     
-    def _handle_project_query(self, query_text: str) -> Dict[str, Any]:
-        """Handle project-related queries"""
-        active_projects = Project.objects.filter(status='active')
-        project_data = []
+    def _handle_activity_query(self, query_text: str) -> Dict[str, Any]:
+        """Handle activity-related queries like 'most active resource'"""
+        from allocation.models import Assignment
         
-        for project in active_projects:
-            completion = project.get_completion_percentage()
-            project_data.append({
-                "name": project.name,
-                "completion": completion,
-                "status": project.status,
-                "deadline": project.end_date.isoformat() if project.end_date else None
+        # Get all resources and calculate their activity level
+        resources = Resource.objects.all()
+        resource_activity = []
+        
+        for resource in resources:
+            # Calculate activity based on current assignments and utilization
+            active_assignments = Assignment.objects.filter(
+                resource=resource
+            ).count()
+            
+            utilization = resource.current_utilization()
+            
+            # Activity score combines number of assignments and utilization
+            activity_score = (active_assignments * 20) + utilization
+            
+            resource_activity.append({
+                "name": resource.name,
+                "role": resource.role,
+                "department": resource.department,
+                "active_assignments": active_assignments,
+                "utilization": utilization,
+                "activity_score": activity_score
             })
         
-        if project_data:
-            text = f"Found {len(project_data)} active projects:\n"
-            for project in project_data:
-                text += f"• {project['name']} - {project['completion']:.1f}% complete\n"
+        # Sort by activity score (highest first)
+        resource_activity.sort(key=lambda x: x['activity_score'], reverse=True)
+        
+        if resource_activity:
+            most_active = resource_activity[0]
+            text = f"The most active resource is {most_active['name']} ({most_active['role']}):\n"
+            text += f"• Current utilization: {most_active['utilization']:.1f}%\n"
+            text += f"• Active assignments: {most_active['active_assignments']}\n"
+            text += f"• Department: {most_active['department']}\n\n"
+            
+            if len(resource_activity) > 1:
+                text += "Top 5 most active resources:\n"
+                for i, resource in enumerate(resource_activity[:5], 1):
+                    text += f"{i}. {resource['name']} - {resource['utilization']:.1f}% utilization, {resource['active_assignments']} assignments\n"
         else:
-            text = "No active projects found."
+            text = "No resource activity data found."
         
         return {
             "text": text,
-            "data": project_data,
-            "type": "project_list"
-        }
-    
-    def _handle_risk_query(self, query_text: str) -> Dict[str, Any]:
-        """Handle risk-related queries"""
-        active_insights = AIInsight.objects.filter(
-            is_active=True,
-            is_resolved=False
-        ).order_by('-severity', '-created_at')[:10]
-        
-        risk_data = []
-        for insight in active_insights:
-            risk_data.append({
-                "title": insight.title,
-                "severity": insight.severity,
-                "type": insight.insight_type,
-                "description": insight.description
-            })
-        
-        if risk_data:
-            text = f"Found {len(risk_data)} active risks:\n"
-            for risk in risk_data:
-                text += f"• {risk['title']} ({risk['severity']})\n"
-        else:
-            text = "No active risks identified."
-        
-        return {
-            "text": text,
-            "data": risk_data,
-            "type": "risk_list"
+            "data": resource_activity[:10],  # Return top 10
+            "type": "activity_list"
         }
     
     def _handle_general_query(self, query_text: str) -> Dict[str, Any]:
@@ -711,7 +712,202 @@ class NaturalLanguageInterfaceService:
             "data": {},
             "type": "help"
         }
+    
+    def _is_complex_query(self, query_text: str, intent_data: Dict[str, Any]) -> bool:
+        """Determine if query needs AI processing or can use simple matching"""
+        query_lower = query_text.lower()
+        
+        # Complex query indicators
+        complex_indicators = [
+            # Comparisons
+            "compare", "better", "worse", "vs", "versus", "between",
+            # Calculations  
+            "calculate", "total", "sum", "average", "cost", "budget", "forecast",
+            # Analysis
+            "analyze", "trend", "pattern", "correlation", "insight",
+            # Superlatives that need data analysis
+            "most experienced", "best", "worst", "highest", "lowest",
+            # Time-based analysis
+            "last month", "this quarter", "trend", "over time", "historically",
+            # Multi-factor questions
+            "and", "with", "having", "where",
+            # Complex relationships
+            "which project has", "what percentage", "how much", "how many",
+        ]
+        
+        # If it's a general intent but has complex indicators, use AI
+        if intent_data.get('intent') == 'general' and any(indicator in query_lower for indicator in complex_indicators):
+            return True
+            
+        # If query is long and descriptive, likely complex
+        if len(query_text.split()) > 8:
+            return True
+            
+        # If it contains question words with multiple conditions
+        question_words = ["which", "what", "how", "when", "where", "why"]
+        if any(qw in query_lower for qw in question_words) and any(ci in query_lower for ci in complex_indicators):
+            return True
+            
+        return False
+    
+    def _process_ai_query(self, query_text: str, user: Optional[User] = None) -> Dict[str, Any]:
+        """Process complex queries using AI"""
+        if not gemini_service.is_available():
+            return {
+                "text": "AI service is not available. I can only answer simple questions about availability, utilization, deadlines, and basic project information.",
+                "data": {},
+                "type": "error"
+            }
+        
+        try:
+            # Gather comprehensive data context
+            context_data = self._gather_comprehensive_context()
+            
+            # Create AI prompt
+            prompt = self._create_ai_query_prompt(query_text, context_data)
+            
+            # Get AI response
+            ai_response = gemini_service.generate_json_response(prompt, temperature=0.3)
+            
+            if not ai_response:
+                return {
+                    "text": "I couldn't process that question. Please try asking something simpler or more specific.",
+                    "data": {},
+                    "type": "error"
+                }
+            
+            return {
+                "text": ai_response.get('answer', 'No answer provided'),
+                "data": ai_response.get('data', {}),
+                "calculations": ai_response.get('calculations', {}),
+                "confidence": ai_response.get('confidence', 0),
+                "type": "ai_response"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in AI query processing: {e}")
+            return {
+                "text": f"I encountered an error processing your question: {str(e)}. Please try asking something simpler.",
+                "data": {},
+                "type": "error"
+            }
+    
+    def _gather_comprehensive_context(self) -> Dict[str, Any]:
+        """Gather comprehensive data context for AI processing"""
+        from allocation.models import Assignment
+        
+        context = {
+            "current_date": timezone.now().date().isoformat(),
+            "resources": [],
+            "projects": [],
+            "tasks": [],
+            "assignments": []
+        }
+          # Get all resources with details
+        resources = Resource.objects.all()
+        for resource in resources:
+            assignments_count = Assignment.objects.filter(resource=resource).count()
+            context["resources"].append({
+                "id": resource.id,
+                "name": resource.name,
+                "role": resource.role,
+                "department": resource.department,
+                "hourly_rate": float(resource.hourly_rate) if hasattr(resource, 'hourly_rate') and resource.hourly_rate else 0.0,
+                "utilization": resource.current_utilization(),
+                "skills": [skill.name for skill in resource.skills.all()],
+                "assignments_count": assignments_count,
+                "email": getattr(resource, 'email', '')
+            })
+          # Get all projects with details
+        projects = Project.objects.all()
+        for project in projects:
+            task_count = project.tasks.count()
+            completion = project.get_completion_percentage()
+            context["projects"].append({
+                "id": project.id,
+                "name": project.name,
+                "description": project.description,
+                "status": project.status,
+                "start_date": project.start_date.isoformat(),
+                "end_date": project.end_date.isoformat() if project.end_date else None,
+                "budget": float(getattr(project, 'budget', 0)) if getattr(project, 'budget', None) else 0.0,
+                "completion_percentage": completion,
+                "task_count": task_count,
+                "priority": getattr(project, 'priority', 'medium')
+            })
+        
+        # Get all tasks with details
+        tasks = Task.objects.all()
+        for task in tasks:
+            assigned_resources = [a.resource.name for a in task.assignments.all()]
+            context["tasks"].append({
+                "id": task.id,
+                "name": task.name,
+                "description": task.description,
+                "project": task.project.name,
+                "status": task.status,
+                "priority": task.priority,
+                "start_date": task.start_date.isoformat() if task.start_date else None,
+                "end_date": task.end_date.isoformat() if task.end_date else None,
+                "estimated_hours": task.estimated_hours,
+                "assigned_resources": assigned_resources,
+                "required_skills": [skill.name for skill in task.skills_required.all()]
+            })
+        
+        # Get assignment details
+        assignments = Assignment.objects.all()
+        for assignment in assignments:
+            context["assignments"].append({
+                "id": assignment.id,
+                "resource": assignment.resource.name,
+                "task": assignment.task.name,
+                "project": assignment.task.project.name,
+                "allocated_hours": assignment.allocated_hours,
+                "created_at": assignment.created_at.isoformat()
+            })
+        
+        return context
+    
+    def _create_ai_query_prompt(self, query_text: str, context_data: Dict[str, Any]) -> str:
+        """Create AI prompt for complex query processing"""
+        return f"""
+You are an expert resource management analyst with access to comprehensive project data. 
+Answer the user's question based on the provided data with accuracy and detail.
 
+DATA CONTEXT:
+Resources: {len(context_data['resources'])} total
+Projects: {len(context_data['projects'])} total  
+Tasks: {len(context_data['tasks'])} total
+Assignments: {len(context_data['assignments'])} total
+
+DETAILED DATA:
+{json.dumps(context_data, indent=2)}
+
+USER QUESTION: "{query_text}"
+
+INSTRUCTIONS:
+1. Analyze the data thoroughly to answer the question
+2. Perform any necessary calculations
+3. Provide specific, actionable insights
+4. If the question cannot be answered with available data, say so clearly
+5. Be conversational but professional
+
+Respond in this JSON format:
+{{
+    "answer": "Clear, detailed response to the user's question",
+    "data": {{
+        "key_findings": ["list of key insights"],
+        "relevant_items": ["specific resources/projects/tasks mentioned"],
+        "numbers": {{"metric": "value"}}
+    }},
+    "calculations": {{
+        "methodology": "How calculations were performed",
+        "results": {{"calculation_name": "result"}}
+    }},
+    "confidence": 85,
+    "recommendations": ["actionable suggestions based on analysis"]
+}}
+"""
 # Create service instances
 dashboard_ai_service = DashboardAIService()
 intervention_simulator_service = InterventionSimulatorService()
