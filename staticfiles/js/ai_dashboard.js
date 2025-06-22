@@ -206,10 +206,21 @@ function updateConfidenceDisplay(confidence) {
 /**
  * Intervention Simulator Functions
  */
+let interventionSimulatorInitialized = false;
+
 function initializeInterventionSimulator() {
+    // Prevent duplicate initialization
+    if (interventionSimulatorInitialized) {
+        console.log('Intervention simulator already initialized, skipping...');
+        return;
+    }
+    
+    console.log('Initializing intervention simulator...');
+    
     // Add event listeners for scenario cards
     document.addEventListener('click', function(e) {
         if (e.target.closest('.scenario-card')) {
+            console.log('Scenario card clicked:', e.target.closest('.scenario-card').dataset.scenario);
             selectScenario(e.target.closest('.scenario-card'));
         }
     });
@@ -227,11 +238,14 @@ function initializeInterventionSimulator() {
                     console.log('Calling window.runSimulation instead');
                     window.runSimulation();
                 } else {
-                    console.error('window.runSimulation also not available');
-                }
+                    console.error('window.runSimulation also not available');                }
             }
         }
     });
+    
+    // Mark as initialized
+    interventionSimulatorInitialized = true;
+    console.log('Intervention simulator initialized successfully');
 }
 
 function openInterventionSimulator(riskTitle = '', riskData = null) {
@@ -330,6 +344,8 @@ function validateProblemForm() {
 }
 
 function selectScenario(card) {
+    console.log('selectScenario called with card:', card, 'scenario:', card.dataset.scenario);
+    
     // Remove previous selection
     document.querySelectorAll('.scenario-card').forEach(c => {
         c.classList.remove('selected');
@@ -339,10 +355,15 @@ function selectScenario(card) {
     card.classList.add('selected');
     selectedScenario = card.dataset.scenario;
     
+    console.log('Selected scenario:', selectedScenario);
+    
     // Enable next button
     const nextBtn = document.getElementById('nextToConfig');
     if (nextBtn) {
         nextBtn.disabled = false;
+        console.log('Next button enabled');
+    } else {
+        console.log('Next button not found');
     }
 }
 

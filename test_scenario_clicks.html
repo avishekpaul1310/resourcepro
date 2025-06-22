@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Intervention Scenarios</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .btn { padding: 10px 20px; margin: 5px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .btn:hover { background-color: #0056b3; }
+        iframe { width: 100%; height: 600px; border: 1px solid #ccc; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Intervention Scenario Click Test</h1>
+    
+    <div id="test-results"></div>
+    
+    <h2>Test Actions</h2>
+    <button class="btn" onclick="openDashboard()">Open Dashboard in Frame</button>
+    <button class="btn" onclick="testDirectly()">Test Scenario Clicks Directly</button>
+    <button class="btn" onclick="checkConsole()">Check Console Messages</button>
+    
+    <h2>Dashboard (Login: admin / admin123)</h2>
+    <iframe id="dashboard-frame" src="http://127.0.0.1:8000/dashboard/"></iframe>
+    
+    <script>
+        function addTestResult(message, type = 'success') {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${type}`;
+            resultDiv.textContent = message;
+            document.getElementById('test-results').appendChild(resultDiv);
+        }
+        
+        function openDashboard() {
+            addTestResult('Loading dashboard in iframe...', 'warning');
+            const iframe = document.getElementById('dashboard-frame');
+            iframe.src = 'http://127.0.0.1:8000/dashboard/';
+            
+            iframe.onload = function() {
+                addTestResult('✅ Dashboard loaded');
+                
+                // Wait a bit then test
+                setTimeout(() => {
+                    testScenarioClicks(iframe);
+                }, 2000);
+            };
+        }
+        
+        function testScenarioClicks(iframe) {
+            try {
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                
+                // Check if intervention modal exists
+                const modal = iframeDoc.getElementById('interventionModal');
+                if (modal) {
+                    addTestResult('✅ Found intervention modal');
+                    
+                    // Check for scenario cards
+                    const scenarioCards = iframeDoc.querySelectorAll('.scenario-card');
+                    addTestResult(`✅ Found ${scenarioCards.length} scenario cards`);
+                    
+                    // Check if buttons exist
+                    const simulateButtons = iframeDoc.querySelectorAll('.btn-simulate');
+                    addTestResult(`✅ Found ${simulateButtons.length} simulate buttons`);
+                    
+                    if (simulateButtons.length > 0) {
+                        addTestResult('🎯 Try clicking a "Simulate Solutions" button to open the modal');
+                    }
+                } else {
+                    addTestResult('❌ Intervention modal not found', 'error');
+                }
+                
+                // Check for JavaScript functions
+                const iframeWindow = iframe.contentWindow;
+                if (typeof iframeWindow.selectScenario === 'function') {
+                    addTestResult('✅ selectScenario function available');
+                } else {
+                    addTestResult('❌ selectScenario function not found', 'error');
+                }
+                
+                if (typeof iframeWindow.openInterventionSimulator === 'function') {
+                    addTestResult('✅ openInterventionSimulator function available');
+                } else {
+                    addTestResult('❌ openInterventionSimulator function not found', 'error');
+                }
+                
+            } catch (error) {
+                addTestResult(`❌ Cannot access iframe content: ${error.message}`, 'error');
+                addTestResult('This might be due to CORS restrictions. Try testing directly in the dashboard.', 'warning');
+            }
+        }
+        
+        function testDirectly() {
+            addTestResult('📋 Manual Testing Steps:', 'warning');
+            addTestResult('1. Open http://127.0.0.1:8000/dashboard/ in a new tab');
+            addTestResult('2. Login with admin / admin123');
+            addTestResult('3. Open Developer Tools (F12) → Console tab');
+            addTestResult('4. Look for "AI Features initialized successfully"');
+            addTestResult('5. Click a "Simulate Solutions" button');
+            addTestResult('6. Look for "Intervention simulator initialized successfully"');
+            addTestResult('7. Click any scenario card (e.g., Task Reassignment)');
+            addTestResult('8. Look for "Scenario card clicked: [scenario-name]"');
+            addTestResult('9. The card should get a blue border when selected');
+        }
+        
+        function checkConsole() {
+            addTestResult('🔍 Expected Console Messages:', 'warning');
+            addTestResult('✅ "=== DOM Content Loaded ==="');
+            addTestResult('✅ "AI Features initialized successfully"');
+            addTestResult('✅ "Initializing intervention simulator..."');
+            addTestResult('✅ "Intervention simulator initialized successfully"');
+            addTestResult('✅ "Scenario card clicked: [scenario-name]"');
+            addTestResult('✅ "Selected scenario: [scenario-name]"');
+            addTestResult('✅ "Next button enabled" or "Next button not found"');
+        }
+        
+        // Auto-run some basic tests
+        window.onload = function() {
+            addTestResult('🚀 Test page loaded');
+            addTestResult('Ready to test intervention scenario clicks');
+            
+            // Auto-load dashboard
+            setTimeout(() => {
+                openDashboard();
+            }, 1000);
+        };
+    </script>
+</body>
+</html>
