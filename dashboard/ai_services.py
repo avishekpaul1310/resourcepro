@@ -497,10 +497,9 @@ class NaturalLanguageInterfaceService:
         
         intent = "general"
         entities = {}
-        
-        if any(word in query_lower for word in ["available", "free", "capacity"]):
+        if any(word in query_lower for word in ["available", "free", "capacity", "least utilized", "underutilized", "not busy"]):
             intent = "availability_query"
-        elif any(word in query_lower for word in ["overallocated", "busy", "workload"]):
+        elif any(word in query_lower for word in ["overallocated", "busy", "workload", "utilized", "utilization"]):
             intent = "utilization_query"
         elif any(word in query_lower for word in ["deadline", "due", "urgent"]):
             intent = "deadline_query"
@@ -541,25 +540,41 @@ class NaturalLanguageInterfaceService:
         resources = Resource.objects.all()
         available_resources = []
         
+        # Check if user is asking for least utilized specifically
+        query_lower = query_text.lower()
+        looking_for_least = any(word in query_lower for word in ["least", "lowest", "underutilized", "not busy"])
+        
         for resource in resources:
             utilization = resource.current_utilization()
-            if utilization < 80:  # Consider <80% as available
-                available_resources.append({
-                    "name": resource.name,
-                    "role": resource.role,
-                    "availability": 100 - utilization
-                })
+            available_resources.append({
+                "name": resource.name,
+                "role": resource.role,
+                "utilization": utilization,
+                "availability": 100 - utilization
+            })
         
-        if available_resources:
-            text = f"Found {len(available_resources)} available resources:\n"
-            for resource in available_resources[:5]:  # Show top 5
-                text += f"• {resource['name']} ({resource['role']}) - {resource['availability']:.1f}% available\n"
+        if looking_for_least:
+            # Sort by utilization (lowest first) for "least utilized" queries
+            available_resources.sort(key=lambda x: x['utilization'])
+            if available_resources:
+                least_resource = available_resources[0]
+                text = f"{least_resource['name']} ({least_resource['role']}) is least utilized with {least_resource['utilization']:.1f}% current utilization."
+            else:
+                text = "No resource utilization data found."
         else:
-            text = "No resources with significant availability found."
+            # Filter for available resources (<80% utilization) and sort by availability (highest first)
+            available_resources = [r for r in available_resources if r['utilization'] < 80]
+            available_resources.sort(key=lambda x: x['availability'], reverse=True)
+            
+            if available_resources:
+                top_resource = available_resources[0]
+                text = f"{top_resource['name']} ({top_resource['role']}) is most available with {top_resource['availability']:.1f}% capacity."
+            else:
+                text = "No resources available for new projects."
         
         return {
             "text": text,
-            "data": available_resources,
+            "data": available_resources[:10],  # Limit data
             "type": "availability_list"
         }
     
@@ -682,211 +697,388 @@ class NaturalLanguageInterfaceService:
             "type": "activity_list"
         }
     
+    def _handle_project_query(self, query_text: str) -> Dict[str, Any]:
+        """Handle project-related queries"""
+        projects = Project.objects.all()
+        project_data = []
+        
+        for project in projects:
+            completion = project.get_completion_percentage()
+            project_data.append({
+                "name": project.name,
+                "status": project.status,
+                "completion": completion,
+                "start_date": project.start_date.isoformat(),
+                "end_date": project.end_date.isoformat() if project.end_date else None
+            })
+        
+        if project_data:
+            active_projects = [p for p in project_data if p['status'] == 'active']
+            text = f"Found {len(project_data)} total projects, {len(active_projects)} active."
+        else:
+            text = "No projects found."
+        
+        return {
+            "text": text,
+            "data": project_data[:10],  # Limit to 10 projects
+            "type": "project_list"
+        }
+    
+    def _handle_risk_query(self, query_text: str) -> Dict[str, Any]:
+        """Handle risk-related queries"""
+        return {
+            "text": "Risk analysis feature is available. Use the Risk Analysis page for detailed risk insights.",
+            "data": {},
+            "type": "risk_info"
+        }
+
     def _handle_general_query(self, query_text: str) -> Dict[str, Any]:
         """Handle general queries"""
         return {
             "text": "I can help you with questions about resource availability, utilization, deadlines, skills, projects, and risks. Try asking something like 'Who is available for a new project?' or 'What are the upcoming deadlines?'",
-            "data": {},
-            "type": "help"
+            "data": {},            "type": "help"
         }
     
     def _is_complex_query(self, query_text: str, intent_data: Dict[str, Any]) -> bool:
-        """Determine if query needs AI processing or can use simple matching"""
-        query_lower = query_text.lower()
-        
-        # Complex query indicators
-        complex_indicators = [
-            # Comparisons
-            "compare", "better", "worse", "vs", "versus", "between",
-            # Calculations  
-            "calculate", "total", "sum", "average", "cost", "budget", "forecast",
-            # Analysis
-            "analyze", "trend", "pattern", "correlation", "insight",
-            # Superlatives that need data analysis
-            "most experienced", "best", "worst", "highest", "lowest",
-            # Time-based analysis
-            "last month", "this quarter", "trend", "over time", "historically",
-            # Multi-factor questions
-            "and", "with", "having", "where",
-            # Complex relationships
-            "which project has", "what percentage", "how much", "how many",
+        """Treat all project/resource-related queries as LLM queries for intelligent answers."""
+        # Always use LLM for any query related to resources, projects, tasks, deadlines, skills, risks, etc.
+        # Only treat as 'simple' if it's a help/about/general question.
+        project_keywords = [
+            "resource", "project", "task", "deadline", "utilization", "skill", "risk", "conflict", "assignment", "availability", "overallocated", "workload", "progress", "status", "capacity", "team", "department", "analytics", "calendar"
         ]
-        
-        # If it's a general intent but has complex indicators, use AI
-        if intent_data.get('intent') == 'general' and any(indicator in query_lower for indicator in complex_indicators):
-            return True
-            
-        # If query is long and descriptive, likely complex
-        if len(query_text.split()) > 8:
-            return True
-            
-        # If it contains question words with multiple conditions
-        question_words = ["which", "what", "how", "when", "where", "why"]
-        if any(qw in query_lower for qw in question_words) and any(ci in query_lower for ci in complex_indicators):
-            return True
-            
-        return False
-    
+        query_lower = query_text.lower()
+        if any(word in query_lower for word in project_keywords):
+            return True  # Route to LLM
+        # Fallback: treat as simple only if intent is general
+        return intent_data.get('intent', 'general') == 'general'
+
     def _process_ai_query(self, query_text: str, user: Optional[User] = None) -> Dict[str, Any]:
-        """Process complex queries using AI"""
-        if not gemini_service.is_available():
-            return {
-                "text": "AI service is not available. I can only answer simple questions about availability, utilization, deadlines, and basic project information.",
-                "data": {},
-                "type": "error"
-            }
-        
+        """Send the user's query and full DB context to Gemini, restricting answer to context only."""
         try:
-            # Gather comprehensive data context
+            # Gather all relevant context
             context_data = self._gather_comprehensive_context()
+            context_data['current_date'] = str(timezone.now().date())
             
-            # Create AI prompt
-            prompt = self._create_ai_query_prompt(query_text, context_data)
+            # Check if we have any data
+            if not context_data.get('resources') and not context_data.get('projects') and not context_data.get('tasks'):
+                return {"answer": "I don't have access to any project data in the system yet. Please ensure resources, projects, and tasks are created in the system."}
             
-            # Get AI response
-            ai_response = gemini_service.generate_json_response(prompt, temperature=0.3)
-            
-            if not ai_response:
-                return {
-                    "text": "I couldn't process that question. Please try asking something simpler or more specific.",
-                    "data": {},
-                    "type": "error"
-                }
-            
-            return {
-                "text": ai_response.get('answer', 'No answer provided'),
-                "data": ai_response.get('data', {}),
-                "calculations": ai_response.get('calculations', {}),
-                "confidence": ai_response.get('confidence', 0),
-                "type": "ai_response"
-            }
-            
-        except Exception as e:
-            logger.error(f"Error in AI query processing: {e}")
-            return {
-                "text": f"I encountered an error processing your question: {str(e)}. Please try asking something simpler.",
-                "data": {},
-                "type": "error"
-            }
-    
-    def _gather_comprehensive_context(self) -> Dict[str, Any]:
-        """Gather comprehensive data context for AI processing"""
-        from allocation.models import Assignment
-        
-        context = {
-            "current_date": timezone.now().date().isoformat(),
-            "resources": [],
-            "projects": [],
-            "tasks": [],
-            "assignments": []
-        }
-          # Get all resources with details
-        resources = Resource.objects.all()
-        for resource in resources:
-            assignments_count = Assignment.objects.filter(resource=resource).count()
-            context["resources"].append({
-                "id": resource.id,
-                "name": resource.name,
-                "role": resource.role,
-                "department": resource.department,
-                "hourly_rate": float(resource.hourly_rate) if hasattr(resource, 'hourly_rate') and resource.hourly_rate else 0.0,
-                "utilization": resource.current_utilization(),
-                "skills": [skill.name for skill in resource.skills.all()],
-                "assignments_count": assignments_count,
-                "email": getattr(resource, 'email', '')
-            })
-          # Get all projects with details
-        projects = Project.objects.all()
-        for project in projects:
-            task_count = project.tasks.count()
-            completion = project.get_completion_percentage()
-            context["projects"].append({
-                "id": project.id,
-                "name": project.name,
-                "description": project.description,
-                "status": project.status,
-                "start_date": project.start_date.isoformat(),
-                "end_date": project.end_date.isoformat() if project.end_date else None,
-                "budget": float(getattr(project, 'budget', 0)) if getattr(project, 'budget', None) else 0.0,
-                "completion_percentage": completion,
-                "task_count": task_count,
-                "priority": getattr(project, 'priority', 'medium')
-            })
-        
-        # Get all tasks with details
-        tasks = Task.objects.all()
-        for task in tasks:
-            assigned_resources = [a.resource.name for a in task.assignments.all()]
-            context["tasks"].append({
-                "id": task.id,
-                "name": task.name,
-                "description": task.description,
-                "project": task.project.name,
-                "status": task.status,
-                "priority": task.priority,
-                "start_date": task.start_date.isoformat() if task.start_date else None,
-                "end_date": task.end_date.isoformat() if task.end_date else None,
-                "estimated_hours": task.estimated_hours,
-                "assigned_resources": assigned_resources,
-                "required_skills": [skill.name for skill in task.skills_required.all()]
-            })
-        
-        # Get assignment details
-        assignments = Assignment.objects.all()
-        for assignment in assignments:
-            context["assignments"].append({
-                "id": assignment.id,
-                "resource": assignment.resource.name,
-                "task": assignment.task.name,
-                "project": assignment.task.project.name,
-                "allocated_hours": assignment.allocated_hours,
-                "created_at": assignment.created_at.isoformat()
-            })
-        
-        return context
-    
-    def _create_ai_query_prompt(self, query_text: str, context_data: Dict[str, Any]) -> str:
-        """Create AI prompt for complex query processing"""
-        return f"""
-You are an expert resource management analyst with access to comprehensive project data. 
-Answer the user's question based on the provided data with accuracy and detail.
+            # Create a more focused prompt for conflict detection
+            prompt = f"""
+You are an intelligent project management assistant. Answer the user's question using ONLY the provided data below.
 
-DATA CONTEXT:
-Resources: {len(context_data['resources'])} total
-Projects: {len(context_data['projects'])} total  
-Tasks: {len(context_data['tasks'])} total
-Assignments: {len(context_data['assignments'])} total
-
-DETAILED DATA:
+SYSTEM DATA:
 {json.dumps(context_data, indent=2)}
 
 USER QUESTION: "{query_text}"
 
-INSTRUCTIONS:
-1. Analyze the data thoroughly to answer the question
-2. Perform any necessary calculations
-3. Provide specific, actionable insights
-4. If the question cannot be answered with available data, say so clearly
-5. Be conversational but professional
+ANALYSIS INSTRUCTIONS:
+1. For CONFLICT questions:
+   - Check for overallocated resources (utilization > 100%)
+   - Look for resources assigned to multiple tasks with overlapping dates
+   - Identify deadline conflicts where multiple urgent tasks need the same resources
+   - Check for skill mismatches (required skills not available)
 
-Respond in this JSON format:
-{{
-    "answer": "Clear, detailed response to the user's question",
-    "data": {{
-        "key_findings": ["list of key insights"],
-        "relevant_items": ["specific resources/projects/tasks mentioned"],
-        "numbers": {{"metric": "value"}}
-    }},
-    "calculations": {{
-        "methodology": "How calculations were performed",
-        "results": {{"calculation_name": "result"}}
-    }},
-    "confidence": 85,
-    "recommendations": ["actionable suggestions based on analysis"]
-}}
+2. For AVAILABILITY questions:
+   - Show resources with utilization < 80%
+   - List their current assignments and availability periods
+
+3. For STATUS questions:
+   - Provide project completion percentages and timeline status
+   - Highlight overdue or at-risk tasks
+
+4. For BILLABLE HOURS questions:
+   - Look at the billable_hours field for each resource
+   - Compare billable_hours across resources to find highest/lowest
+   - Use total_hours and billable_percentage for additional insights
+   - Reference assignment data for detailed billable hours breakdown
+
+5. For UTILIZATION questions:
+   - Use the utilization field (percentage of capacity)
+   - Identify overallocated resources (>100%)
+   - Show available capacity for underutilized resources
+
+6. If no specific data matches the query, say "I don't have enough data to answer that specific question" and suggest what data you do have.
+
+7. Always be specific with names, percentages, and dates from the actual data.
+
+8. IMPORTANT: Respond with ONLY a valid JSON object. Do not wrap your response in ```json blocks or any other formatting. Your entire response should be valid JSON that starts with {{ and ends with }}.
+
+Respond in JSON format: {{"answer": "detailed response", "found_conflicts": true/false, "data_summary": "what data was analyzed"}}
 """
+            
+            # Call Gemini API with error handling
+            logger.info(f"Sending query to Gemini: {query_text}")
+            ai_response = gemini_service.generate_json_response(prompt, temperature=0.3)
+            
+            if not ai_response:
+                logger.warning("Gemini returned no response")
+                return {"answer": "The AI service is currently unavailable. Please try again later."}
+              # Log the response for debugging
+            logger.info(f"Gemini response type: {type(ai_response)}")
+            logger.info(f"Gemini response: {ai_response}")
+            
+            # Enhanced response handling
+            if isinstance(ai_response, dict):
+                if 'answer' in ai_response:
+                    return ai_response
+                else:
+                    # If it's a dict but no 'answer' field, convert the whole thing to answer
+                    return {"answer": json.dumps(ai_response, indent=2)}
+            elif isinstance(ai_response, str):
+                # Try to parse as JSON if it looks like JSON
+                try:
+                    parsed_response = json.loads(ai_response)
+                    if isinstance(parsed_response, dict) and 'answer' in parsed_response:
+                        return parsed_response
+                    else:
+                        return {"answer": ai_response}
+                except json.JSONDecodeError:
+                    return {"answer": ai_response}
+            else:
+                return {"answer": str(ai_response)}
+                
+        except Exception as e:
+            logger.error(f"Error in _process_ai_query: {e}")
+            return {"answer": f"Sorry, I encountered an error while processing your question: {str(e)}. Please try again."}
 
-# Enhanced AI services for comprehensive risk management
+    def _gather_comprehensive_context(self) -> Dict[str, Any]:
+        """Gather all relevant DB data for LLM context (resources, projects, tasks, assignments, deadlines, skills, risks)."""
+        try:
+            today = timezone.now().date()
+            resources = Resource.objects.all()
+            projects = Project.objects.all()
+            tasks = Task.objects.all()
+            assignments = Assignment.objects.all()
+              # Build context with error handling
+            resource_data = []
+            for r in resources:
+                try:
+                    utilization = r.current_utilization()
+                    
+                    # Try to get billable hours data
+                    billable_hours = 0
+                    total_hours = 0
+                    try:
+                        # Check if resource has billable hours tracking
+                        if hasattr(r, 'get_billable_hours'):
+                            billable_hours = r.get_billable_hours()
+                        elif hasattr(r, 'billable_hours'):
+                            billable_hours = r.billable_hours
+                        
+                        # Try to get total working hours
+                        if hasattr(r, 'get_total_hours'):
+                            total_hours = r.get_total_hours()
+                        elif hasattr(r, 'total_hours'):
+                            total_hours = r.total_hours
+                          # Calculate from time entries for more accurate data
+                        if billable_hours == 0 or total_hours == 0:
+                            # Get actual time entries
+                            try:
+                                time_entries = r.time_entries.all()
+                                for entry in time_entries:
+                                    total_hours += float(entry.hours)
+                                    if entry.is_billable:
+                                        billable_hours += float(entry.hours)
+                            except Exception as te_error:
+                                logger.debug(f"Could not get time entries for resource {r.id}: {te_error}")
+                                
+                                # Fallback to assignments if time entries not available
+                                resource_assignments = assignments.filter(resource=r)
+                                for assignment in resource_assignments:
+                                    # Try to get hours from assignment
+                                    hours = getattr(assignment, 'hours', 0) or getattr(assignment, 'allocated_hours', 0)
+                                    total_hours += hours
+                                    
+                                    # Check if assignment/task is billable
+                                    is_billable = False
+                                    if hasattr(assignment, 'is_billable'):
+                                        is_billable = assignment.is_billable
+                                    elif hasattr(assignment, 'task') and hasattr(assignment.task, 'is_billable'):
+                                        is_billable = assignment.task.is_billable
+                                    elif hasattr(assignment, 'task') and hasattr(assignment.task.project, 'is_billable'):
+                                        is_billable = assignment.task.project.is_billable
+                                    
+                                    if is_billable:
+                                        billable_hours += hours
+                    except Exception as hours_error:
+                        logger.debug(f"Could not get billable hours for resource {r.id}: {hours_error}")
+                    
+                    resource_data.append({
+                        "id": r.id,
+                        "name": r.name,
+                        "role": getattr(r, 'role', 'Unknown'),
+                        "department": getattr(r, 'department', 'Unknown'),
+                        "utilization": utilization,
+                        "is_overallocated": utilization > 100,
+                        "skills": [s.name for s in r.skills.all()] if hasattr(r, 'skills') else [],
+                        "assignments_count": assignments.filter(resource=r).count(),
+                        "billable_hours": billable_hours,
+                        "total_hours": total_hours,
+                        "billable_percentage": (billable_hours / total_hours * 100) if total_hours > 0 else 0                    })
+                except Exception as e:
+                    logger.error(f"Error processing resource {r.id}: {e}")
+                    continue
+            
+            project_data = []
+            for p in projects:
+                try:
+                    completion = getattr(p, 'get_completion_percentage', lambda: 0)()
+                    
+                    # Get budget information
+                    budget = getattr(p, 'budget', None)
+                    estimated_cost = 0
+                    actual_cost = 0
+                    budget_variance = None
+                    
+                    try:
+                        if hasattr(p, 'get_estimated_cost'):
+                            estimated_cost = float(p.get_estimated_cost())
+                        if hasattr(p, 'get_actual_cost'):
+                            actual_cost = float(p.get_actual_cost())
+                        if hasattr(p, 'get_budget_variance'):
+                            budget_variance = p.get_budget_variance()
+                            if budget_variance is not None:
+                                budget_variance = float(budget_variance)
+                    except Exception as budget_error:
+                        logger.debug(f"Could not get budget info for project {p.id}: {budget_error}")
+                    
+                    project_data.append({
+                        "id": p.id,
+                        "name": p.name,
+                        "status": p.status,
+                        "completion": completion,
+                        "start_date": p.start_date.isoformat() if p.start_date else None,
+                        "end_date": p.end_date.isoformat() if p.end_date else None,
+                        "days_until_deadline": (p.end_date - today).days if p.end_date else None,
+                        "task_count": tasks.filter(project=p).count(),
+                        "budget": float(budget) if budget else None,
+                        "estimated_cost": estimated_cost,
+                        "actual_cost": actual_cost,
+                        "budget_variance": budget_variance,
+                        "is_over_budget": budget_variance < 0 if budget_variance is not None else False
+                    })
+                except Exception as e:
+                    logger.error(f"Error processing project {p.id}: {e}")
+                    continue
+            
+            task_data = []
+            for t in tasks:
+                try:
+                    assigned_resources = [a.resource.name for a in t.assignments.all()]
+                    task_data.append({
+                        "id": t.id,
+                        "name": t.name,
+                        "project": t.project.name if t.project else None,
+                        "status": t.status,
+                        "priority": getattr(t, 'priority', 'medium'),
+                        "start_date": t.start_date.isoformat() if t.start_date else None,
+                        "end_date": t.end_date.isoformat() if t.end_date else None,
+                        "days_until_deadline": (t.end_date - today).days if t.end_date else None,                        "assigned_resources": assigned_resources,
+                        "skills_required": [s.name for s in t.skills_required.all()] if hasattr(t, 'skills_required') else []
+                    })
+                except Exception as e:
+                    logger.error(f"Error processing task {t.id}: {e}")
+                    continue
+            
+            assignment_data = []
+            for a in assignments:
+                try:
+                    # Try to get hours and billable information
+                    hours = getattr(a, 'hours', 0) or getattr(a, 'allocated_hours', 0)
+                    is_billable = False
+                    
+                    # Check if assignment is billable
+                    if hasattr(a, 'is_billable'):
+                        is_billable = a.is_billable
+                    elif hasattr(a, 'task') and hasattr(a.task, 'is_billable'):
+                        is_billable = a.task.is_billable
+                    elif hasattr(a, 'task') and a.task and hasattr(a.task.project, 'is_billable'):
+                        is_billable = a.task.project.is_billable
+                    
+                    assignment_data.append({
+                        "id": a.id,
+                        "resource": a.resource.name,
+                        "resource_id": a.resource.id,
+                        "task": a.task.name if hasattr(a, 'task') and a.task else None,
+                        "task_id": a.task.id if hasattr(a, 'task') and a.task else None,
+                        "project": a.task.project.name if hasattr(a, 'task') and a.task and a.task.project else None,
+                        "start_date": a.start_date.isoformat() if hasattr(a, 'start_date') and a.start_date else None,
+                        "end_date": a.end_date.isoformat() if hasattr(a, 'end_date') and a.end_date else None,
+                        "allocation_percentage": getattr(a, 'allocation_percentage', 100),
+                        "hours": hours,
+                        "is_billable": is_billable,
+                        "billable_hours": hours if is_billable else 0
+                    })
+                except Exception as e:
+                    logger.error(f"Error processing assignment {a.id}: {e}")
+                    continue            # Calculate summary metrics
+            overallocated_resources = [r for r in resource_data if r.get('is_overallocated', False)]
+            active_projects = [p for p in project_data if p.get('status') == 'active']
+            urgent_tasks = [t for t in task_data if t.get('days_until_deadline', 999) <= 7]
+            overdue_tasks = [t for t in task_data if t.get('days_until_deadline', 0) < 0]
+            over_budget_projects = [p for p in project_data if p.get('is_over_budget', False)]
+            unassigned_tasks = [t for t in task_data if not t.get('assigned_resources')]
+            
+            # Calculate billable hours summary
+            total_billable_hours = sum(r.get('billable_hours', 0) for r in resource_data)
+            total_working_hours = sum(r.get('total_hours', 0) for r in resource_data)
+            highest_billable_resource = max(resource_data, key=lambda r: r.get('billable_hours', 0)) if resource_data else None
+            
+            # Calculate budget summary
+            total_budget = sum(p.get('budget', 0) for p in project_data if p.get('budget'))
+            total_estimated_cost = sum(p.get('estimated_cost', 0) for p in project_data)
+            total_actual_cost = sum(p.get('actual_cost', 0) for p in project_data)
+            
+            context = {
+                "summary": {
+                    "total_resources": len(resource_data),
+                    "total_projects": len(project_data),
+                    "total_tasks": len(task_data),
+                    "total_assignments": len(assignment_data),
+                    "overallocated_resources": len(overallocated_resources),
+                    "active_projects": len(active_projects),
+                    "urgent_tasks": len(urgent_tasks),
+                    "overdue_tasks": len(overdue_tasks),
+                    "over_budget_projects": len(over_budget_projects),
+                    "unassigned_tasks": len(unassigned_tasks),
+                    "total_billable_hours": total_billable_hours,
+                    "total_working_hours": total_working_hours,
+                    "total_budget": total_budget,
+                    "total_estimated_cost": total_estimated_cost,
+                    "total_actual_cost": total_actual_cost,
+                    "budget_utilization_percentage": (total_actual_cost / total_budget * 100) if total_budget > 0 else 0,
+                    "highest_billable_resource": highest_billable_resource.get('name') if highest_billable_resource else None,
+                    "highest_billable_hours": highest_billable_resource.get('billable_hours', 0) if highest_billable_resource else 0
+                },
+                "resources": resource_data,
+                "projects": project_data,
+                "tasks": task_data,
+                "assignments": assignment_data,
+                "conflicts": {
+                    "overallocated_resources": overallocated_resources,
+                    "urgent_tasks": urgent_tasks,
+                    "overdue_tasks": overdue_tasks,
+                    "over_budget_projects": over_budget_projects,
+                    "unassigned_tasks": unassigned_tasks
+                }
+            }
+            
+            logger.info(f"Gathered context: {len(resource_data)} resources, {len(project_data)} projects, {len(task_data)} tasks, {len(assignment_data)} assignments")
+            return context
+            
+        except Exception as e:
+            logger.error(f"Error gathering comprehensive context: {e}")
+            return {
+                "summary": {"error": "Failed to gather data"},
+                "resources": [],
+                "projects": [],
+                "tasks": [],
+                "assignments": [],
+                "conflicts": {}
+            }
+        
+        # Enhanced AI services for comprehensive risk management
 
 class EnhancedRiskAnalysisService:
     """Advanced AI-powered risk analysis for diverse project scenarios"""
@@ -1501,7 +1693,224 @@ Respond with valid JSON in this exact format:
         else:
             return f"Portfolio analysis identified {total_risks} risks with manageable impact levels."
     
-# Create instances for import
+    def analyze_conflicts(self, user: Optional[User] = None) -> Dict[str, Any]:
+        """
+        Specialized method to analyze various types of conflicts in the project
+        This provides a comprehensive conflict analysis that can be triggered
+        by queries about conflicts among resources, projects, deadlines, etc.
+        """
+        try:
+            conflicts = {
+                "resource_conflicts": self._detect_resource_conflicts(),
+                "deadline_conflicts": self._detect_deadline_conflicts(),
+                "skill_conflicts": self._detect_skill_conflicts(),
+                "project_conflicts": self._detect_project_conflicts()
+            }
+            
+            # Create a comprehensive conflict report using AI
+            if gemini_service.is_available():
+                context_data = self._gather_comprehensive_context()
+                prompt = self._create_conflict_analysis_prompt(conflicts, context_data)
+                ai_response = gemini_service.generate_json_response(prompt, temperature=0.3)
+                
+                if ai_response:
+                    return {
+                        "summary": ai_response.get('summary', 'Conflict analysis completed'),
+                        "conflicts": conflicts,
+                        "ai_insights": ai_response.get('insights', []),
+                        "recommendations": ai_response.get('recommendations', []),
+                        "priority_actions": ai_response.get('priority_actions', []),
+                        "confidence": ai_response.get('confidence', 0),
+                        "type": "conflict_analysis"
+                    }
+            
+            # Fallback to basic conflict report
+            total_conflicts = sum(len(conflicts[key]) for key in conflicts)
+            return {
+                "summary": f"Found {total_conflicts} conflicts requiring attention",
+                "conflicts": conflicts,
+                "type": "conflict_analysis"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in conflict analysis: {e}")
+            return {"error": f"Failed to analyze conflicts: {str(e)}"}
+    
+    def _detect_resource_conflicts(self) -> List[Dict[str, Any]]:
+        """Detect resource allocation conflicts"""
+        conflicts = []
+        resources = Resource.objects.all()
+        
+        for resource in resources:
+            utilization = resource.current_utilization()
+            if utilization > 100:
+                # Get assignments for this overallocated resource
+                assignments = Assignment.objects.filter(resource=resource)
+                assignment_details = [
+                    {
+                        "task": assignment.task.name,
+                        "project": assignment.task.project.name,
+                        "hours": assignment.allocated_hours
+                    }
+                    for assignment in assignments
+                ]
+                
+                conflicts.append({
+                    "type": "resource_overallocation",
+                    "resource": resource.name,
+                    "role": resource.role,
+                    "department": resource.department,
+                    "utilization": utilization,
+                    "assignments": assignment_details,
+                    "severity": "critical" if utilization > 150 else "high"
+                })
+        
+        return conflicts
+    
+    def _detect_deadline_conflicts(self) -> List[Dict[str, Any]]:
+        """Detect deadline conflicts and overlapping critical tasks"""
+        conflicts = []
+        today = timezone.now().date()
+        
+        # Find tasks with overlapping deadlines for same resources
+        critical_tasks = Task.objects.filter(
+            end_date__lte=today + timedelta(days=7),
+            status__in=['not_started', 'in_progress', 'blocked']
+        )
+        
+        resource_deadlines = {}
+        for task in critical_tasks:
+            for assignment in task.assignments.all():
+                resource_name = assignment.resource.name
+                if resource_name not in resource_deadlines:
+                    resource_deadlines[resource_name] = []
+                
+                resource_deadlines[resource_name].append({
+                    "task": task.name,
+                    "project": task.project.name,
+                    "deadline": task.end_date,
+                    "status": task.status,
+                    "priority": task.priority
+                })
+        
+        # Check for resources with multiple critical deadlines
+        for resource_name, deadlines in resource_deadlines.items():
+            if len(deadlines) > 1:
+                conflicts.append({
+                    "type": "deadline_conflict",
+                    "resource": resource_name,
+                    "conflicting_deadlines": deadlines,
+                    "severity": "high" if len(deadlines) > 2 else "medium"
+                })
+        
+        return conflicts
+    
+    def _detect_skill_conflicts(self) -> List[Dict[str, Any]]:
+        """Detect skill mismatches and gaps"""
+        conflicts = []
+        
+        # Find tasks with unmet skill requirements
+        tasks = Task.objects.filter(status__in=['not_started', 'in_progress'])
+        
+        for task in tasks:
+            required_skills = set(skill.name for skill in task.skills_required.all())
+            if required_skills:
+                # Get skills of assigned resources
+                assigned_skills = set()
+                for assignment in task.assignments.all():
+                    resource_skills = set(skill.name for skill in assignment.resource.skills.all())
+                    assigned_skills.update(resource_skills)
+                
+                missing_skills = required_skills - assigned_skills
+                if missing_skills:
+                    conflicts.append({
+                        "type": "skill_gap",
+                        "task": task.name,
+                        "project": task.project.name,
+                        "required_skills": list(required_skills),
+                        "missing_skills": list(missing_skills),
+                        "assigned_resources": [a.resource.name for a in task.assignments.all()],
+                        "severity": "high" if len(missing_skills) > len(required_skills) / 2 else "medium"
+                    })
+        
+        return conflicts
+    
+    def _detect_project_conflicts(self) -> List[Dict[str, Any]]:
+        """Detect project-level conflicts and resource competition"""
+        conflicts = []
+        
+        # Find projects competing for the same resources
+        active_projects = Project.objects.filter(status='active')
+        resource_projects = {}
+        
+        for project in active_projects:
+            for task in project.tasks.all():
+                for assignment in task.assignments.all():
+                    resource_name = assignment.resource.name
+                    if resource_name not in resource_projects:
+                        resource_projects[resource_name] = []
+                    
+                    resource_projects[resource_name].append({
+                        "project": project.name,
+                        "task": task.name,
+                        "priority": getattr(project, 'priority', 'medium'),
+                        "end_date": project.end_date
+                    })
+        
+        # Check for resources assigned to multiple high-priority projects
+        for resource_name, projects in resource_projects.items():
+            if len(projects) > 1:
+                high_priority_projects = [p for p in projects if p['priority'] == 'high']
+                if len(high_priority_projects) > 1:
+                    conflicts.append({
+                        "type": "project_competition",
+                        "resource": resource_name,
+                        "competing_projects": high_priority_projects,
+                        "total_projects": len(projects),
+                        "severity": "high"
+                    })
+        
+        return conflicts
+    
+    def _create_conflict_analysis_prompt(self, conflicts: Dict[str, Any], context_data: Dict[str, Any]) -> str:
+        """Create AI prompt for conflict analysis"""
+        return f"""
+You are an expert project management consultant analyzing conflicts in a resource management system.
+
+DETECTED CONFLICTS:
+{json.dumps(conflicts, indent=2, default=str)}
+
+FULL PROJECT CONTEXT:
+{json.dumps(context_data, indent=2, default=str)}
+
+ANALYSIS REQUIREMENTS:
+1. Analyze the severity and impact of each conflict
+2. Identify root causes and patterns
+3. Prioritize conflicts by business impact
+4. Provide specific, actionable solutions
+5. Suggest preventive measures
+
+Respond in this JSON format:
+{{
+    "summary": "Executive summary of the conflict situation",
+    "insights": [
+        "Key insights about the conflicts and their implications",
+        "Patterns or systemic issues identified",
+        "Risk assessment for project delivery"
+    ],
+    "recommendations": [
+        "Specific actions to resolve conflicts",
+        "Resource reallocation suggestions",
+        "Process improvements to prevent future conflicts"
+    ],
+    "priority_actions": [
+        "Most critical actions needed within 24-48 hours",
+        "Medium-term actions for the next week",
+        "Long-term strategic changes"
+    ],
+    "confidence": 90
+}}
+"""# Create instances for import
 dashboard_ai_service = DashboardAIService()
 nli_service = NaturalLanguageInterfaceService()
 enhanced_risk_service = EnhancedRiskAnalysisService()

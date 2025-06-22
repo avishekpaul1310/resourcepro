@@ -512,16 +512,49 @@ function restorePageScroll() {
  * Natural Language Interface Functions
  */
 function initializeNLISearch() {
-    const nliInput = document.getElementById('nli-input');
-    if (!nliInput) return;
+    const searchInput = document.getElementById('nliSearchInput');
+    const clearBtn = document.getElementById('clearBtn');
+    const voiceBtn = document.getElementById('voiceBtn');
     
-    nliInput.addEventListener('input', handleNLIInput);
-    nliInput.addEventListener('keydown', handleNLIKeydown);
+    if (searchInput) {
+        searchInput.addEventListener('input', handleNLIInput);
+        searchInput.addEventListener('keydown', handleNLIKeydown);
+        searchInput.addEventListener('focus', showQuickSuggestions);
+        searchInput.addEventListener('blur', hideQuickSuggestionsDelayed);
+    }
+    
+    if (clearBtn) {
+        clearBtn.addEventListener('click', clearNLISearch);
+    }
+    
+    if (voiceBtn) {
+        voiceBtn.addEventListener('click', toggleVoiceSearch);
+    }
+    
+    // Add click handlers for quick suggestions
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.suggestion-item')) {
+            const suggestion = e.target.closest('.suggestion-item');
+            const query = suggestion.dataset.query;
+            if (query && searchInput) {
+                searchInput.value = query;
+                processNLIQuery(query);
+            }
+        }
+        
+        // Close results when clicking outside
+        if (!e.target.closest('.nli-search-container')) {
+            closeNLIResults();
+        }
+    });
 }
 
 function handleNLIInput(e) {
     const query = e.target.value.trim();
     currentQuery = query;
+    
+    // Update clear button visibility
+    updateClearButtonVisibility();
     
     // Clear existing timeout
     if (nliTimeout) {
@@ -535,6 +568,13 @@ function handleNLIInput(e) {
         }, 800);
     } else {
         hideNLIResults();
+    }
+}
+
+function hideNLIResults() {
+    const resultsContainer = document.getElementById('nliResults');
+    if (resultsContainer) {
+        resultsContainer.style.display = 'none';
     }
 }
 
@@ -572,7 +612,7 @@ function processNLIQuery(query) {
 }
 
 function showNLILoading() {
-    const resultsContainer = document.getElementById('nli-results');
+    const resultsContainer = document.getElementById('nliResults');
     if (resultsContainer) {
         resultsContainer.style.display = 'block';
         resultsContainer.innerHTML = '<div class="nli-loading"><i class="fas fa-spinner fa-spin"></i> Processing...</div>';
@@ -580,23 +620,384 @@ function showNLILoading() {
 }
 
 function displayNLIResults(data) {
-    const resultsContainer = document.getElementById('nli-results');
+    const resultsContainer = document.getElementById('nliResults');
     if (!resultsContainer) return;
     
     if (data.error) {
-        resultsContainer.innerHTML = `<div class="nli-error">Error: ${data.error}</div>`;
+        resultsContainer.innerHTML = `
+            <div class="results-header">
+                <h4>AI Assistant Response</h4>
+                <button class="btn-close-results" onclick="closeNLIResults()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="nli-error">
+                <i class="fas fa-exclamation-circle"></i>
+                Error: ${data.error}
+            </div>
+        `;
+        resultsContainer.style.display = 'block';
         return;
     }
     
+    const response = data.response || {};
+    const responseText = response.text || response.answer || 'No response available';
+    
     resultsContainer.style.display = 'block';
     resultsContainer.innerHTML = `
+        <div class="results-header">
+            <h4><i class="fas fa-robot"></i> AI Assistant Response</h4>
+            <button class="btn-close-results" onclick="closeNLIResults()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
         <div class="nli-response">
-            <div class="nli-answer">${data.response_text || 'No response available'}</div>
-            ${data.response_data ? `
-                <div class="nli-data">
-                    <pre>${JSON.stringify(data.response_data, null, 2)}</pre>
-                </div>
-            ` : ''}
+            <div class="nli-answer">
+                <div class="answer-text">${formatResponseText(responseText)}</div>
+                ${response.confidence ? `
+                    <div class="nli-confidence">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Confidence: ${response.confidence}%</span>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: ${response.confidence}%"></div>
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+            ${formatStructuredData(response.data, response.type)}
+        </div>
+    `;
+}
+
+/**
+ * Format response text with proper line breaks and styling
+ */
+function formatResponseText(text) {
+    if (!text) return 'No response available';
+    
+    // Convert newlines to proper HTML breaks
+    return text
+        .replace(/\n/g, '<br>')
+        .replace(/•/g, '<i class="fas fa-circle bullet-point"></i>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); // Bold text
+}
+
+/**
+ * Format structured data based on type
+ */
+function formatStructuredData(data, type) {
+    if (!data || !Array.isArray(data) || data.length === 0) {
+        return '';
+    }
+    
+    // Filter out any null/undefined items
+    const validData = data.filter(item => item && typeof item === 'object');
+    
+    if (validData.length === 0) {
+        return '';
+    }
+    
+    switch (type) {
+        case 'availability_list':
+            return formatAvailabilityData(validData);
+        case 'deadline_list':
+            return formatDeadlineData(validData);
+        case 'utilization_list':
+            return formatUtilizationData(validData);
+        case 'project_list':
+            return formatProjectData(validData);
+        case 'task_list':
+            return formatTaskData(validData);
+        case 'activity_list':
+            return formatActivityData(validData);
+        case 'resource_list':
+            return formatResourceData(validData);
+        default:
+            return formatGenericData(validData);
+    }
+}
+
+/**
+ * Format availability data
+ */
+function formatAvailabilityData(data) {
+    const items = data.slice(0, 10); // Show max 10 items
+    
+    return `
+        <div class="structured-data">
+            <h5><i class="fas fa-users"></i> Available Resources</h5>
+            <div class="data-grid">
+                ${items.map(item => `
+                    <div class="data-card availability-card">
+                        <div class="card-header">
+                            <h6>${item.name || 'Unknown'}</h6>
+                            <span class="role-badge">${item.role || 'N/A'}</span>
+                        </div>
+                        <div class="availability-bar">
+                            <div class="availability-fill" style="width: ${item.availability || 0}%"></div>
+                            <span class="availability-text">${(item.availability || 0).toFixed(1)}% Available</span>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            ${data.length > 10 ? `<p class="show-more">... and ${data.length - 10} more resources</p>` : ''}
+        </div>
+    `;
+}
+
+/**
+ * Format deadline data
+ */
+function formatDeadlineData(data) {
+    const items = data.slice(0, 10);
+    
+    return `
+        <div class="structured-data">
+            <h5><i class="fas fa-calendar-alt"></i> Upcoming Deadlines</h5>
+            <div class="data-list">
+                ${items.map(item => {
+                    const urgencyClass = item.days_until <= 1 ? 'urgent' : item.days_until <= 3 ? 'warning' : 'normal';
+                    const urgencyIcon = item.days_until <= 1 ? 'fas fa-exclamation-triangle' : 'fas fa-clock';
+                    
+                    return `
+                        <div class="data-item deadline-item ${urgencyClass}">
+                            <div class="item-icon">
+                                <i class="${urgencyIcon}"></i>
+                            </div>
+                            <div class="item-content">
+                                <h6>${item.task || 'Unknown Task'}</h6>
+                                <p class="project-name">${item.project || 'Unknown Project'}</p>
+                                <div class="deadline-info">
+                                    <span class="days-until">${item.days_until} day${item.days_until !== 1 ? 's' : ''}</span>
+                                    <span class="status-badge ${item.status}">${item.status || 'unknown'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+            ${data.length > 10 ? `<p class="show-more">... and ${data.length - 10} more deadlines</p>` : ''}
+        </div>
+    `;
+}
+
+/**
+ * Format utilization data
+ */
+function formatUtilizationData(data) {
+    const items = data.slice(0, 10);
+    
+    return `
+        <div class="structured-data">
+            <h5><i class="fas fa-chart-pie"></i> Resource Utilization</h5>
+            <div class="data-list">
+                ${items.map(item => {
+                    const utilizationClass = item.utilization >= 100 ? 'overallocated' : item.utilization >= 80 ? 'high' : 'normal';
+                    
+                    return `
+                        <div class="data-item utilization-item ${utilizationClass}">
+                            <div class="item-content">
+                                <h6>${item.name || 'Unknown'}</h6>
+                                <p class="role-name">${item.role || 'Unknown Role'}</p>
+                                <div class="utilization-info">
+                                    <div class="utilization-bar">
+                                        <div class="utilization-fill" style="width: ${Math.min(item.utilization || 0, 100)}%"></div>
+                                    </div>
+                                    <span class="utilization-text">${(item.utilization || 0).toFixed(1)}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+            ${data.length > 10 ? `<p class="show-more">... and ${data.length - 10} more resources</p>` : ''}
+        </div>
+    `;
+}
+
+/**
+ * Format project data
+ */
+function formatProjectData(data) {
+    const items = data.slice(0, 8);
+    
+    return `
+        <div class="structured-data">
+            <h5><i class="fas fa-project-diagram"></i> Projects</h5>
+            <div class="data-grid">
+                ${items.map(item => `
+                    <div class="data-card project-card">
+                        <div class="card-header">
+                            <h6>${item.name || 'Unknown Project'}</h6>
+                            <span class="status-badge ${item.status}">${item.status || 'unknown'}</span>
+                        </div>
+                        <div class="project-details">
+                            ${item.completion !== undefined ? `
+                                <div class="completion-info">
+                                    <span>Progress: ${item.completion}%</span>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: ${item.completion}%"></div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            ${item.deadline ? `<p class="deadline">Due: ${item.deadline}</p>` : ''}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            ${data.length > 8 ? `<p class="show-more">... and ${data.length - 8} more projects</p>` : ''}
+        </div>
+    `;
+}
+
+/**
+ * Format task data
+ */
+function formatTaskData(data) {
+    const items = data.slice(0, 10);
+    
+    return `
+        <div class="structured-data">
+            <h5><i class="fas fa-tasks"></i> Tasks</h5>
+            <div class="data-list">
+                ${items.map(item => `
+                    <div class="data-item task-item">
+                        <div class="item-content">
+                            <h6>${item.name || 'Unknown Task'}</h6>
+                            <p class="project-name">${item.project || 'Unknown Project'}</p>
+                            <div class="task-info">
+                                <span class="status-badge ${item.status}">${item.status || 'unknown'}</span>
+                                ${item.assignee ? `<span class="assignee">Assigned to: ${item.assignee}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            ${data.length > 10 ? `<p class="show-more">... and ${data.length - 10} more tasks</p>` : ''}
+        </div>
+    `;
+}
+
+/**
+ * Format activity data
+ */
+function formatActivityData(data) {
+    const items = data.slice(0, 10);
+    
+    return `
+        <div class="structured-data">
+            <h5><i class="fas fa-chart-line"></i> Resource Activity</h5>
+            <div class="data-list">
+                ${items.map(item => {
+                    const activityLevel = item.activity_score >= 80 ? 'high' : item.activity_score >= 50 ? 'medium' : 'low';
+                    
+                    return `
+                        <div class="data-item activity-item ${activityLevel}">
+                            <div class="item-content">
+                                <h6>${item.name || 'Unknown'}</h6>
+                                <p class="role-name">${item.role || 'Unknown Role'} ${item.department ? `• ${item.department}` : ''}</p>
+                                <div class="activity-info">
+                                    <div class="activity-stats">
+                                        <span class="stat-item">
+                                            <i class="fas fa-percentage"></i>
+                                            Utilization: ${(item.utilization || 0).toFixed(1)}%
+                                        </span>
+                                        <span class="stat-item">
+                                            <i class="fas fa-tasks"></i>
+                                            Active: ${item.active_assignments || 0}
+                                        </span>
+                                        ${item.activity_score ? `
+                                            <span class="stat-item">
+                                                <i class="fas fa-fire"></i>
+                                                Activity: ${item.activity_score.toFixed(1)}
+                                            </span>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+            ${data.length > 10 ? `<p class="show-more">... and ${data.length - 10} more resources</p>` : ''}
+        </div>
+    `;
+}
+
+/**
+ * Format resource data
+ */
+function formatResourceData(data) {
+    const items = data.slice(0, 10);
+    
+    return `
+        <div class="structured-data">
+            <h5><i class="fas fa-users"></i> Resources</h5>
+            <div class="data-grid">
+                ${items.map(item => {
+                    const statusClass = item.utilization >= 90 ? 'busy' : item.utilization >= 70 ? 'active' : 'available';
+                    
+                    return `
+                        <div class="data-card resource-card ${statusClass}">
+                            <div class="card-header">
+                                <h6>${item.name || 'Unknown'}</h6>
+                                <span class="role-badge">${item.role || 'N/A'}</span>
+                            </div>
+                            <div class="resource-details">
+                                ${item.department ? `<p class="department">${item.department}</p>` : ''}
+                                ${item.utilization !== undefined ? `
+                                    <div class="utilization-info">
+                                        <span>Utilization: ${item.utilization.toFixed(1)}%</span>
+                                        <div class="utilization-bar">
+                                            <div class="utilization-fill" style="width: ${Math.min(item.utilization, 100)}%"></div>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                ${item.skills ? `
+                                    <div class="skills-list">
+                                        <small>Skills: ${Array.isArray(item.skills) ? item.skills.join(', ') : item.skills}</small>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+            ${data.length > 10 ? `<p class="show-more">... and ${data.length - 10} more resources</p>` : ''}
+        </div>
+    `;
+}
+
+/**
+ * Format generic data when type is unknown
+ */
+function formatGenericData(data) {
+    const items = data.slice(0, 5);
+    
+    return `
+        <div class="structured-data">
+            <h5><i class="fas fa-info-circle"></i> Additional Information</h5>
+            <div class="data-list">
+                ${items.map(item => {
+                    // Try to extract meaningful information from the object
+                    const mainField = item.name || item.title || item.task || item.resource || Object.values(item)[0];
+                    const subFields = Object.entries(item)
+                        .filter(([key, value]) => key !== 'name' && key !== 'title' && key !== 'task' && key !== 'resource')
+                        .slice(0, 3);
+                    
+                    return `
+                        <div class="data-item generic-item">
+                            <div class="item-content">
+                                <h6>${mainField || 'Item'}</h6>
+                                ${subFields.map(([key, value]) => `
+                                    <p class="item-detail"><strong>${key}:</strong> ${value}</p>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+            ${data.length > 5 ? `<p class="show-more">... and ${data.length - 5} more items</p>` : ''}
         </div>
     `;
 }
@@ -685,4 +1086,175 @@ function updateRisksInTemplate(risks) {
         `;
         risksContainer.appendChild(riskElement);
     });
+}
+
+/**
+ * Voice Search Functions
+ */
+function toggleVoiceSearch() {
+    const voiceBtn = document.getElementById('voiceBtn');
+    
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+        
+        recognition.onstart = function() {
+            if (voiceBtn) {
+                voiceBtn.classList.add('recording');
+                voiceBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+            }
+        };
+        
+        recognition.onresult = function(event) {
+            const transcript = event.results[0][0].transcript;
+            const searchInput = document.getElementById('nliSearchInput');
+            if (searchInput) {
+                searchInput.value = transcript;
+                processNLIQuery(transcript);
+            }
+        };
+        
+        recognition.onend = function() {
+            if (voiceBtn) {
+                voiceBtn.classList.remove('recording');
+                voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+            }
+        };
+        
+        recognition.onerror = function(event) {
+            console.error('Speech recognition error:', event.error);
+            showNotification('error', 'Voice recognition failed. Please try again.');
+            if (voiceBtn) {
+                voiceBtn.classList.remove('recording');
+                voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+            }
+        };
+        
+        recognition.start();
+    } else {
+        showNotification('error', 'Voice recognition not supported in this browser');
+    }
+}
+
+/**
+ * Quick Suggestions Functions
+ */
+function showQuickSuggestions() {
+    const suggestions = document.getElementById('quickSuggestions');
+    if (suggestions) {
+        suggestions.style.display = 'block';
+    }
+}
+
+function hideQuickSuggestionsDelayed() {
+    setTimeout(() => {
+        const suggestions = document.getElementById('quickSuggestions');
+        if (suggestions) {
+            suggestions.style.display = 'none';
+        }
+    }, 200);
+}
+
+/**
+ * Clear NLI Search
+ */
+function clearNLISearch() {
+    const searchInput = document.getElementById('nliSearchInput');
+    const clearBtn = document.getElementById('clearBtn');
+    const results = document.getElementById('nliResults');
+    
+    if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+    }
+    
+    if (clearBtn) {
+        clearBtn.style.display = 'none';
+    }
+    
+    if (results) {
+        results.style.display = 'none';
+    }
+    
+    currentQuery = '';
+}
+
+/**
+ * Close NLI Results
+ */
+function closeNLIResults() {
+    const results = document.getElementById('nliResults');
+    if (results) {
+        results.style.display = 'none';
+    }
+}
+
+/**
+ * Show notification to user
+ */
+function showNotification(type, message) {
+    // Create notification element if it doesn't exist
+    let notification = document.getElementById('notification');
+    if (!notification) {
+        notification = document.createElement('div');
+        notification.id = 'notification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 6px;
+            color: white;
+            font-weight: 500;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+        `;
+        document.body.appendChild(notification);
+    }
+    
+    // Set notification style based on type
+    if (type === 'error') {
+        notification.style.background = '#ef4444';
+    } else if (type === 'success') {
+        notification.style.background = '#10b981';
+    } else {
+        notification.style.background = '#3b82f6';
+    }
+    
+    notification.textContent = message;
+    
+    // Show notification
+    setTimeout(() => {
+        notification.style.opacity = '1';
+        notification.style.transform = 'translateX(0)';
+    }, 10);
+    
+    // Hide notification after 4 seconds
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+    }, 4000);
+}
+
+/**
+ * Update clear button visibility
+ */
+function updateClearButtonVisibility() {
+    const searchInput = document.getElementById('nliSearchInput');
+    const clearBtn = document.getElementById('clearBtn');
+    
+    if (searchInput && clearBtn) {
+        if (searchInput.value.trim().length > 0) {
+            clearBtn.style.display = 'flex';
+        } else {
+            clearBtn.style.display = 'none';
+        }
+    }
 }

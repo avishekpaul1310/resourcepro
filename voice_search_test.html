@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Search Test - ResourcePro</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Voice Search Test - ResourcePro</h1>
+    
+    <div class="test-section">
+        <h2>1. Browser Compatibility Check</h2>
+        <div id="browserCheck"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Voice Recognition Test</h2>
+        <button onclick="testVoiceRecognition()">Test Voice Recognition</button>
+        <div id="voiceStatus"></div>
+        <div id="voiceResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Manual Speech API Test</h2>
+        <button onclick="manualSpeechTest()">Start Manual Speech Test</button>
+        <div id="manualStatus"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Microphone Permissions</h2>
+        <button onclick="checkMicrophonePermissions()">Check Microphone Permissions</button>
+        <div id="micStatus"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. Test Results Log</h2>
+        <pre id="testLog"></pre>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <script>
+        let testLog = [];
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}`;
+            testLog.push(logMessage);
+            document.getElementById('testLog').textContent = testLog.join('\n');
+            console.log(logMessage);
+        }
+
+        function showStatus(elementId, message, type = 'info') {
+            document.getElementById(elementId).innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function clearLog() {
+            testLog = [];
+            document.getElementById('testLog').textContent = '';
+        }
+
+        // Browser Compatibility Check
+        function checkBrowserCompatibility() {
+            log('Starting browser compatibility check...');
+            
+            const checks = [
+                {
+                    name: 'Speech Recognition API',
+                    test: () => 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window,
+                    importance: 'critical'
+                },
+                {
+                    name: 'getUserMedia API',
+                    test: () => navigator.mediaDevices && navigator.mediaDevices.getUserMedia,
+                    importance: 'important'
+                },
+                {
+                    name: 'HTTPS or localhost',
+                    test: () => location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1',
+                    importance: 'critical'
+                }
+            ];
+
+            let html = '';
+            let allCriticalPassed = true;
+
+            checks.forEach(check => {
+                const passed = check.test();
+                const status = passed ? 'success' : (check.importance === 'critical' ? 'error' : 'warning');
+                
+                if (!passed && check.importance === 'critical') {
+                    allCriticalPassed = false;
+                }
+
+                html += `<div class="status ${status}">
+                    ${check.name}: ${passed ? '✅ Supported' : '❌ Not supported'}
+                    ${check.importance === 'critical' ? ' (Critical)' : ''}
+                </div>`;
+                
+                log(`${check.name}: ${passed ? 'PASS' : 'FAIL'}`);
+            });
+
+            document.getElementById('browserCheck').innerHTML = html;
+            
+            if (!allCriticalPassed) {
+                log('⚠️ Critical compatibility issues detected');
+            } else {
+                log('✅ All critical compatibility checks passed');
+            }
+        }
+
+        // Voice Recognition Test
+        function testVoiceRecognition() {
+            log('Starting voice recognition test...');
+            
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                showStatus('voiceStatus', 'Speech Recognition not supported in this browser', 'error');
+                log('❌ Speech Recognition API not available');
+                return;
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            showStatus('voiceStatus', 'Click the button above and speak when prompted...', 'info');
+            log('🎤 Speech recognition started - please speak');
+
+            recognition.onstart = function() {
+                showStatus('voiceStatus', '🎤 Listening... Please speak now', 'info');
+                log('📡 Speech recognition started');
+            };
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                const confidence = event.results[0][0].confidence;
+                
+                showStatus('voiceResult', `
+                    <strong>Recognized Speech:</strong> "${transcript}"<br>
+                    <strong>Confidence:</strong> ${(confidence * 100).toFixed(1)}%
+                `, 'success');
+                
+                log(`✅ Speech recognized: "${transcript}" (confidence: ${(confidence * 100).toFixed(1)}%)`);
+            };
+
+            recognition.onerror = function(event) {
+                showStatus('voiceStatus', `Error: ${event.error}`, 'error');
+                log(`❌ Speech recognition error: ${event.error}`);
+                
+                if (event.error === 'not-allowed') {
+                    showStatus('voiceStatus', 'Microphone access denied. Please allow microphone access and try again.', 'error');
+                }
+            };
+
+            recognition.onend = function() {
+                showStatus('voiceStatus', 'Speech recognition ended', 'info');
+                log('🛑 Speech recognition ended');
+            };
+
+            try {
+                recognition.start();
+            } catch (error) {
+                showStatus('voiceStatus', `Failed to start: ${error.message}`, 'error');
+                log(`❌ Failed to start speech recognition: ${error.message}`);
+            }
+        }
+
+        // Manual Speech API Test
+        function manualSpeechTest() {
+            log('Starting manual speech API test...');
+            
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                showStatus('manualStatus', 'Speech Recognition API not available', 'error');
+                return;
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            try {
+                const recognition = new SpeechRecognition();
+                showStatus('manualStatus', 'Speech Recognition object created successfully', 'success');
+                log('✅ SpeechRecognition constructor works');
+                
+                // Test setting properties
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'en-US';
+                
+                showStatus('manualStatus', 'Speech Recognition configured successfully', 'success');
+                log('✅ SpeechRecognition properties set successfully');
+                
+            } catch (error) {
+                showStatus('manualStatus', `Error creating Speech Recognition: ${error.message}`, 'error');
+                log(`❌ SpeechRecognition constructor failed: ${error.message}`);
+            }
+        }
+
+        // Check Microphone Permissions
+        function checkMicrophonePermissions() {
+            log('Checking microphone permissions...');
+            
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showStatus('micStatus', 'getUserMedia not supported', 'error');
+                log('❌ getUserMedia API not available');
+                return;
+            }
+
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(function(stream) {
+                    showStatus('micStatus', 'Microphone access granted ✅', 'success');
+                    log('✅ Microphone permissions granted');
+                    
+                    // Stop the stream
+                    stream.getTracks().forEach(track => track.stop());
+                })
+                .catch(function(error) {
+                    showStatus('micStatus', `Microphone access denied: ${error.message}`, 'error');
+                    log(`❌ Microphone permission error: ${error.message}`);
+                });
+        }
+
+        // Initialize checks on page load
+        window.onload = function() {
+            log('Voice Search Test Page loaded');
+            checkBrowserCompatibility();
+        };
+    </script>
+</body>
+</html>
