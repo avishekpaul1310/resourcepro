@@ -173,3 +173,79 @@ def resolve_insight(request, insight_id):
         return JsonResponse({"error": "Insight not found"}, status=404)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+@login_required
+@require_http_methods(["GET"])
+def get_project_resources(request):
+    """
+    API endpoint to get resources assigned to a specific project
+    """
+    project_id = request.GET.get('project_id')
+    
+    if not project_id:
+        # If no project specified, return all available resources
+        resources = Resource.objects.all()
+    else:
+        try:
+            project = Project.objects.get(id=project_id)
+            # Get resources assigned to tasks in this project
+            assigned_resource_ids = Assignment.objects.filter(
+                task__project=project
+            ).values_list('resource_id', flat=True).distinct()            
+            # For simulation, we want to show all resources, not just assigned ones
+            # as we may want to reassign tasks to different resources
+            resources = Resource.objects.all()
+        except Project.DoesNotExist:
+            return JsonResponse({"error": "Project not found"}, status=404)
+    
+    resources_data = []
+    for resource in resources:
+        resources_data.append({
+            'id': resource.id,
+            'name': resource.name,
+            'role': resource.role,
+            'current_utilization': resource.current_utilization(),
+            'hourly_rate': float(resource.hourly_rate) if hasattr(resource, 'hourly_rate') and resource.hourly_rate else 50.0,
+            'skills': [skill.name for skill in resource.skills.all()] if hasattr(resource, 'skills') else []
+        })
+    
+    return JsonResponse({
+        'success': True,
+        'resources': resources_data
+    })
+
+@login_required
+@require_http_methods(["GET"])
+def get_project_tasks(request):
+    """
+    API endpoint to get tasks for a specific project
+    """
+    project_id = request.GET.get('project_id')
+    if not project_id:
+        return JsonResponse({"error": "Project ID is required"}, status=400)
+    
+    try:
+        project = Project.objects.get(id=project_id)
+        tasks = Task.objects.filter(project=project)
+        
+        task_data = []
+        for task in tasks:
+            task_data.append({
+                'id': task.id,
+                'name': task.name,
+                'status': task.status,
+                'priority': getattr(task, 'priority', 3),
+                'estimated_hours': float(task.estimated_hours) if task.estimated_hours else 0,
+                'completion_percentage': task.completion_percentage,
+                'assigned_resources': [assignment.resource.name for assignment in task.assignments.all()]
+            })
+        
+        return JsonResponse({
+            "success": True,
+            "tasks": task_data,
+            "project_name": project.name
+        })
+    except Project.DoesNotExist:
+        return JsonResponse({"error": "Project not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

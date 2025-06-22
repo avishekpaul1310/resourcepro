@@ -45,6 +45,37 @@
                         </div>
                     </div>
                 </div>
+                {% if resource.timezone or resource.location %}
+                <div class="resource-detail-item">
+                    <div class="resource-detail-label">Location & Time</div>
+                    <div class="resource-detail-value">
+                        {% if resource.location %}
+                            <div style="margin-bottom: 4px;">
+                                <i class="fas fa-map-marker-alt" style="color: #6b7280; margin-right: 6px;"></i>
+                                {{ resource.location }}
+                            </div>
+                        {% endif %}
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-clock" style="color: #6b7280;"></i>
+                            <span class="{% if resource.is_business_hours %}text-green-600{% else %}text-red-600{% endif %}" style="font-weight: 500;">
+                                {{ resource.get_formatted_local_time }}
+                            </span>
+                            <span style="color: #6b7280; font-size: 0.875rem;">({{ resource.timezone }})</span>
+                        </div>
+                        {% if resource.is_business_hours %}
+                            <div style="font-size: 0.75rem; color: #059669; margin-top: 2px;">
+                                <i class="fas fa-check-circle" style="margin-right: 4px;"></i>
+                                Available during business hours
+                            </div>
+                        {% else %}
+                            <div style="font-size: 0.75rem; color: #dc2626; margin-top: 2px;">
+                                <i class="fas fa-moon" style="margin-right: 4px;"></i>
+                                Outside business hours
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
             
             <div class="resource-skills">

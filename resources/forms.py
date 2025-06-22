@@ -1,15 +1,41 @@
 from django import forms
 from django.forms import inlineformset_factory
 from django.utils import timezone
+import pytz
 from .models import Resource, Skill, ResourceSkill, ResourceAvailability, TimeEntry
 from projects.models import Task
 
+# Common timezone choices for the dropdown
+TIMEZONE_CHOICES = [
+    ('UTC', 'UTC'),
+    ('US/Eastern', 'US/Eastern (New York)'),
+    ('US/Central', 'US/Central (Chicago)'),
+    ('US/Mountain', 'US/Mountain (Denver)'),
+    ('US/Pacific', 'US/Pacific (Los Angeles)'),
+    ('Europe/London', 'Europe/London (UK)'),
+    ('Europe/Paris', 'Europe/Paris (France)'),
+    ('Europe/Berlin', 'Europe/Berlin (Germany)'),
+    ('Asia/Tokyo', 'Asia/Tokyo (Japan)'),
+    ('Asia/Shanghai', 'Asia/Shanghai (China)'),
+    ('Asia/Kolkata', 'Asia/Kolkata (India)'),
+    ('Australia/Sydney', 'Australia/Sydney'),
+    ('America/Toronto', 'America/Toronto (Canada)'),
+    ('America/Sao_Paulo', 'America/Sao_Paulo (Brazil)'),
+]
+
 class ResourceForm(forms.ModelForm):
+    timezone = forms.ChoiceField(
+        choices=TIMEZONE_CHOICES,
+        initial='UTC',
+        help_text="Select the timezone where this resource is located"
+    )
+    
     class Meta:
         model = Resource
-        fields = ['name', 'role', 'capacity', 'cost_per_hour', 'color']
+        fields = ['name', 'role', 'capacity', 'cost_per_hour', 'color', 'timezone', 'location']
         widgets = {
             'color': forms.TextInput(attrs={'type': 'color'}),
+            'location': forms.TextInput(attrs={'placeholder': 'e.g., New York, USA or Remote'}),
         }
 
 class ResourceSkillForm(forms.ModelForm):

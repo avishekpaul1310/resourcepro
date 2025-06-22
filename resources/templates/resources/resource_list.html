@@ -17,13 +17,16 @@
             .table-cell { padding: 12px 15px; }
             .th-cell { text-align: left; }
             .resource-info { display: flex; align-items: center; gap: 10px; }
-            .resource-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
-            .skill-tag { display: inline-block; background-color: #ebf4ff; color: #4c51bf; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; margin-right: 5px; }
+            .resource-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }            .skill-tag { display: inline-block; background-color: #ebf4ff; color: #4c51bf; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; margin-right: 5px; }
+            .timezone-info { font-size: 0.75rem; color: #6b7280; margin-top: 2px; display: flex; align-items: center; gap: 4px; }
+            .business-hours { color: #059669; font-weight: 500; }
+            .after-hours { color: #dc2626; font-weight: 500; }
+            .location-tag { display: inline-block; background-color: #f3f4f6; color: #374151; padding: 2px 6px; border-radius: 8px; font-size: 0.7rem; }
         </style>
         <table class="table resource-table">
             <thead>
                 <tr class="table-row">
-                    <th class="table-cell th-cell">Name</th>
+                    <th class="table-cell th-cell">Name & Location</th>
                     <th class="table-cell th-cell">Role</th>
                     <th class="table-cell th-cell">Capacity</th>
                     <th class="table-cell th-cell">Skills</th>
@@ -34,11 +37,22 @@
             <tbody>
                 {% for resource in resources %}
                 <tr class="table-row">
-                    <td class="table-cell">                        <div class="resource-info">
+                    <td class="table-cell">
+                        <div class="resource-info">
                             <div class="resource-avatar" data-color="{{ resource.color }}">
                                 {{ resource.name|first|upper }}
                             </div>
-                            <a href="{% url 'resources:resource_detail' resource.id %}">{{ resource.name }}</a>
+                            <div>
+                                <a href="{% url 'resources:resource_detail' resource.id %}">{{ resource.name }}</a>
+                                <div class="timezone-info">
+                                    <span class="{% if resource.is_business_hours %}business-hours{% else %}after-hours{% endif %}">
+                                        {{ resource.get_formatted_local_time }}
+                                    </span>
+                                    {% if resource.location %}
+                                    <span class="location-tag">{{ resource.location }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
                     </td>
                     <td class="table-cell">{{ resource.role }}</td>

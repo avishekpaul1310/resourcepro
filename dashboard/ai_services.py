@@ -321,14 +321,15 @@ class InterventionSimulatorService:
         except Exception as e:
             logger.error(f"Error simulating intervention: {e}")
             return {"error": f"Simulation failed: {str(e)}"}
-    
     def _gather_intervention_context(self, scenario_data: Dict[str, Any]) -> Dict[str, Any]:
         """Gather context data for intervention simulation"""
         context = {
             "current_time": timezone.now().isoformat(),
             "resources": [],
             "projects": [],
-            "tasks": []
+            "tasks": [],
+            "project_tasks": [],
+            "project_resources": []
         }
         
         # Get relevant resources
@@ -339,7 +340,8 @@ class InterventionSimulatorService:
                     "name": resource.name,
                     "role": resource.role,
                     "current_utilization": resource.current_utilization(),
-                    "skills": [skill.name for skill in resource.skills.all()]
+                    "skills": [skill.name for skill in resource.skills.all()],
+                    "hourly_rate": float(resource.hourly_rate) if hasattr(resource, 'hourly_rate') and resource.hourly_rate else 50.0
                 }
             except Resource.DoesNotExist:
                 pass
@@ -352,21 +354,60 @@ class InterventionSimulatorService:
                     "name": project.name,
                     "status": project.status,
                     "completion": project.get_completion_percentage(),
-                    "deadline": project.end_date.isoformat() if project.end_date else None
+                    "deadline": project.end_date.isoformat() if project.end_date else None,
+                    "total_budget": float(project.budget) if hasattr(project, 'budget') and project.budget else None
                 }
+                
+                # Get project tasks for scope reduction scenarios
+                project_tasks = Task.objects.filter(project=project)
+                for task in project_tasks:
+                    context["project_tasks"].append({                        "name": task.name,
+                        "status": task.status,
+                        "priority": getattr(task, 'priority', 'medium'),
+                        "estimated_hours": float(task.estimated_hours) if task.estimated_hours else 0,
+                        "completion": task.completion_percentage,
+                        "assigned_resources": [a.resource.name for a in task.assignments.all()]
+                    })
+                
+                # Get project resources for overtime scenarios
+                assigned_resource_ids = Assignment.objects.filter(
+                    task__project=project
+                ).values_list('resource_id', flat=True).distinct()
+                
+                for resource_id in assigned_resource_ids:
+                    try:
+                        resource = Resource.objects.get(id=resource_id)
+                        context["project_resources"].append({
+                            "id": resource.id,
+                            "name": resource.name,
+                            "role": resource.role,
+                            "utilization": resource.current_utilization(),
+                            "availability": 100 - resource.current_utilization(),
+                            "hourly_rate": float(resource.hourly_rate) if hasattr(resource, 'hourly_rate') and resource.hourly_rate else 50.0
+                        })
+                    except Resource.DoesNotExist:
+                        pass
+                        
             except Project.DoesNotExist:
                 pass
         
-        # Get available resources for reassignment scenarios
-        if scenario_data.get('scenario_type') == 'reassignment':
+        # Get all available resources for reassignment and additional resource scenarios
+        if scenario_data.get('scenario_type') in ['reassignment', 'overtime', 'resource_addition']:
             available_resources = Resource.objects.all()
             for resource in available_resources:
-                context["resources"].append({
+                resource_data = {
+                    "id": resource.id,
                     "name": resource.name,
                     "role": resource.role,
                     "utilization": resource.current_utilization(),
-                    "availability": 100 - resource.current_utilization()
-                })
+                    "availability": 100 - resource.current_utilization(),
+                    "skills": [skill.name for skill in resource.skills.all()],
+                    "hourly_rate": float(resource.hourly_rate) if hasattr(resource, 'hourly_rate') and resource.hourly_rate else 50.0
+                }
+                
+                # Only add to general resources if not already in project_resources
+                if not any(pr['id'] == resource.id for pr in context["project_resources"]):
+                    context["resources"].append(resource_data)
         
         return context
     

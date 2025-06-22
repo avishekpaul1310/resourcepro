@@ -1,0 +1,219 @@
+{% load timezone_tags %}
+<div class="timezone-overlap-widget">
+    <h4>
+        <i class="fas fa-clock"></i>
+        Team Overlapping Hours
+        {% if overlap_count > 0 %}
+            <span class="overlap-badge">{{ overlap_count }} hour{{ overlap_count|pluralize }}</span>
+        {% else %}
+            <span class="no-overlap-badge">No overlap</span>
+        {% endif %}
+    </h4>
+    
+    {% if resources|length >= 2 %}
+        <div class="timezone-grid">
+            <!-- Time slots header -->
+            <div class="time-slots">
+                {% for hour in "000000000000000000000000"|make_list %}
+                    {% with hour_num=forloop.counter0 %}
+                        <div class="time-slot {% if hour_num in overlap_hours %}overlap{% endif %}">
+                            {{ hour_num|stringformat:"02d" }}:00
+                        </div>
+                    {% endwith %}
+                {% endfor %}
+            </div>
+            
+            <!-- Resource timezones -->
+            {% for resource in resources %}
+                {% if resource.timezone %}
+                    <div class="resource-timezone-row">
+                        <div class="resource-info">
+                            <strong>{{ resource.name }}</strong>
+                            <span class="location">
+                                {% if resource.location %}{{ resource.location }}{% else %}{{ resource.timezone }}{% endif %}
+                            </span>
+                            <span class="current-time {% if resource.is_business_hours %}text-green{% else %}text-red{% endif %}">
+                                {{ resource.get_formatted_local_time }}
+                            </span>
+                        </div>
+                        <div class="time-slots">
+                            {% for hour in "000000000000000000000000"|make_list %}
+                                {% with hour_num=forloop.counter0 %}
+                                    {% format_utc_hour_for_resource hour_num resource as local_time %}
+                                    <div class="time-slot {% if hour_num in overlap_hours %}overlap{% endif %}">
+                                        {{ local_time }}
+                                    </div>
+                                {% endwith %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        
+        {% if overlap_hours %}
+            <div class="overlap-summary">
+                <i class="fas fa-users"></i>
+                <strong>Best meeting times:</strong>
+                {% for hour in overlap_hours %}
+                    <span class="time-chip">{{ hour|stringformat:"02d" }}:00-{{ hour|add:1|stringformat:"02d" }}:00 UTC</span>
+                    {% if not forloop.last %}, {% endif %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="no-overlap-message">
+                <i class="fas fa-exclamation-triangle"></i>
+                No overlapping business hours found. Consider asynchronous communication or flexible meeting times.
+            </div>
+        {% endif %}
+    {% else %}
+        <p>Add more team members to see timezone overlaps.</p>
+    {% endif %}
+</div>
+
+<style>
+.timezone-overlap-widget {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.timezone-overlap-widget h4 {
+    margin: 0 0 16px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #2d3748;
+}
+
+.overlap-badge {
+    background: #48bb78;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.no-overlap-badge {
+    background: #e53e3e;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.timezone-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.resource-timezone-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.resource-info {
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.location {
+    font-size: 0.8rem;
+    color: #6b7280;
+}
+
+.current-time {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.text-green { color: #059669; }
+.text-red { color: #dc2626; }
+
+.time-slots {
+    display: flex;
+    gap: 2px;
+    overflow-x: auto;
+    padding: 4px 0;
+}
+
+.time-slot {
+    min-width: 50px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    border-radius: 4px;
+    background: #f7fafc;
+    color: #4a5568;
+    border: 1px solid #e2e8f0;
+}
+
+.time-slot.overlap {
+    background: #c6f6d5;
+    color: #2f855a;
+    border-color: #68d391;
+    font-weight: 500;
+}
+
+.overlap-summary {
+    margin-top: 16px;
+    padding: 12px;
+    background: #f0fff4;
+    border-radius: 6px;
+    border: 1px solid #c6f6d5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.time-chip {
+    background: #48bb78;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.no-overlap-message {
+    margin-top: 16px;
+    padding: 12px;
+    background: #fef2f2;
+    border-radius: 6px;
+    border: 1px solid #fca5a5;
+    color: #991b1b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+@media (max-width: 768px) {
+    .resource-timezone-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .resource-info {
+        min-width: auto;
+        width: 100%;
+    }
+    
+    .time-slots {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+</style>

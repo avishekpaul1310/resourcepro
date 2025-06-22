@@ -65,7 +65,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 plugins: {
                     legend: {
                         position: 'right',
-                        align: 'center',                        labels: {
+                        align: 'center',
+                        labels: {
                             boxWidth: 16,
                             padding: 20,
                             usePointStyle: true,
@@ -80,7 +81,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             label: function(context) {
                                 const label = context.label || '';
                                 const value = context.parsed || 0;
-                                return label + ': ' + value.toFixed(1) + '%';                            }
+                                return label + ': ' + value.toFixed(1) + '%';
+                            }
                         }
                     }
                 },

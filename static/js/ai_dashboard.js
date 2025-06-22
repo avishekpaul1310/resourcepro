@@ -22,6 +22,15 @@ function initializeAIFeatures() {
     initializeInterventionSimulator();
     initializeAIAnalyst();
     
+    // Set up event delegation for simulate buttons
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.btn-simulate')) {
+            e.preventDefault();
+            const button = e.target.closest('.btn-simulate');
+            openInterventionSimulatorFromButton(button);
+        }
+    });
+    
     // Auto-refresh AI analysis every 30 minutes
     setInterval(function() {
         refreshAIAnalysis(false); // Don't force refresh
@@ -357,20 +366,29 @@ function generateConfigurationForm() {
                 </div>
             `;
             break;
-            
-        case 'resource_addition':
+              case 'resource_addition':
             formHTML = `
                 <div class="form-group">
                     <label for="newResourceRole">Required Role</label>
-                    <input type="text" id="newResourceRole" class="form-control" placeholder="e.g., Frontend Developer">
+                    <select id="newResourceRole" class="form-control" required>
+                        <option value="">Select role...</option>
+                        <!-- Roles will be populated dynamically -->
+                    </select>
                 </div>
                 <div class="form-group">
                     <label for="newResourceSkills">Required Skills</label>
-                    <input type="text" id="newResourceSkills" class="form-control" placeholder="e.g., React, JavaScript, CSS">
+                    <select id="newResourceSkills" class="form-control" multiple>
+                        <!-- Skills will be populated dynamically -->
+                    </select>
+                    <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple skills</small>
                 </div>
                 <div class="form-group">
                     <label for="newResourceCost">Estimated Cost (per month)</label>
                     <input type="number" id="newResourceCost" class="form-control" min="0" placeholder="8000">
+                </div>
+                <div class="form-group">
+                    <label for="newResourceStartDate">Expected Start Date</label>
+                    <input type="date" id="newResourceStartDate" class="form-control">
                 </div>
             `;
             break;
@@ -387,35 +405,117 @@ function generateConfigurationForm() {
                 </div>
             `;
             break;
-            
-        case 'scope_reduction':
+              case 'scope_reduction':
             formHTML = `
                 <div class="form-group">
                     <label for="scopeReduction">Scope Reduction (%)</label>
-                    <input type="number" id="scopeReduction" class="form-control" min="5" max="50" value="20">
+                    <input type="range" id="scopeReduction" class="form-control" min="5" max="50" value="20" 
+                           oninput="updateScopeValue(this.value)">
+                    <div class="d-flex justify-content-between">
+                        <small>5%</small>
+                        <span id="scopeValue">20%</span>
+                        <small>50%</small>
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label for="reducedFeatures">Features to Remove/Defer</label>
-                    <textarea id="reducedFeatures" class="form-control" rows="3" placeholder="List features that can be removed or deferred..."></textarea>
+                    <label for="tasksToDefer">Tasks/Features to Remove or Defer</label>
+                    <select id="tasksToDefer" class="form-control" multiple>
+                        <!-- Tasks will be populated dynamically -->
+                    </select>
+                    <small class="form-text text-muted">Select tasks that can be removed or deferred</small>
+                </div>
+                <div class="form-group">
+                    <label for="reducedFeatures">Custom Features Description</label>
+                    <textarea id="reducedFeatures" class="form-control" rows="3" placeholder="Describe any additional features or requirements to remove..."></textarea>
                 </div>
             `;
-            break;
-    }
+            break;    }
     
     configForm.innerHTML = formHTML;
     
     // Populate resource dropdowns if needed
     populateResourceDropdowns();
+    
+    // Add event listener for project change to reload resources
+    const projectSelect = document.getElementById('affectedProject');
+    if (projectSelect) {
+        projectSelect.addEventListener('change', function() {
+            // Reload resources when project changes
+            populateResourceDropdowns();
+        });
+    }
 }
 
 function populateResourceDropdowns() {
-    // This would typically fetch from an API
-    // For now, we'll use placeholder data
+    // Get the selected project ID from the form
+    const projectSelect = document.getElementById('affectedProject');
+    const projectId = projectSelect ? projectSelect.value : '';
+    
+    // Find all resource dropdowns
+    const resourceSelects = document.querySelectorAll('select[id*="Resource"]');
+    
+    if (resourceSelects.length === 0 && !document.getElementById('newResourceRole') && !document.getElementById('tasksToDefer')) {
+        return;
+    }
+    
+    // Fetch resources from the API
+    const url = `/dashboard/api/project-resources/${projectId ? `?project_id=${projectId}` : ''}`;
+    
+    fetch(url, {
+        method: 'GET',
+        headers: {
+            'X-CSRFToken': getCsrfToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Populate resource dropdowns
+            resourceSelects.forEach(select => {
+                // Clear existing options except the first (placeholder)
+                while (select.options.length > 1) {
+                    select.remove(1);
+                }
+                
+                // Add real resources
+                data.resources.forEach(resource => {
+                    const option = document.createElement('option');
+                    option.value = resource.id;
+                    option.textContent = `${resource.name} (${resource.role}) - ${resource.current_utilization.toFixed(1)}% utilized`;
+                    select.appendChild(option);
+                });
+            });
+            
+            // Populate role dropdown for additional resource scenario
+            populateRoleDropdown(data.resources);
+            
+            // Populate skills dropdown for additional resource scenario
+            populateSkillsDropdown(data.resources);
+            
+        } else {
+            console.error('Failed to fetch resources:', data.error);
+            // Fallback to sample data if API fails
+            populateResourceDropdownsWithSampleData();
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching resources:', error);
+        // Fallback to sample data if API fails
+        populateResourceDropdownsWithSampleData();
+    });
+    
+    // Fetch and populate project tasks for scope reduction scenario
+    if (projectId && document.getElementById('tasksToDefer')) {
+        fetchProjectTasks(projectId);
+    }
+}
+
+function populateResourceDropdownsWithSampleData() {
+    // Fallback function with sample data
     const resourceSelects = document.querySelectorAll('select[id*="Resource"]');
     
     resourceSelects.forEach(select => {
         if (select.options.length <= 1) { // Only has placeholder option
-            // Add some sample resources (in real implementation, fetch from API)
             const sampleResources = [
                 { id: 1, name: 'John Doe', role: 'Frontend Developer' },
                 { id: 2, name: 'Jane Smith', role: 'Backend Developer' },
@@ -1020,5 +1120,108 @@ function showNotification(type, message) {
             }
         `;
         document.head.appendChild(styles);
+    }
+}
+
+function openInterventionSimulatorFromButton(button) {
+    try {
+        const riskTitle = button.dataset.riskTitle || '';
+        let riskDataStr = button.dataset.riskData;
+        let riskData = null;
+        
+        if (riskDataStr) {
+            // Decode HTML entities if they exist
+            const textArea = document.createElement('textarea');
+            textArea.innerHTML = riskDataStr;
+            riskDataStr = textArea.value;
+            
+            riskData = JSON.parse(riskDataStr);
+        }
+        
+        openInterventionSimulator(riskTitle, riskData);
+    } catch (error) {
+        console.error('Error opening intervention simulator:', error);
+        showNotification('error', 'Failed to open intervention simulator');
+    }
+}
+
+// Make function globally available
+window.openInterventionSimulatorFromButton = openInterventionSimulatorFromButton;
+
+// Helper function to populate role dropdown for additional resource scenario
+function populateRoleDropdown(resources) {
+    const roleSelect = document.getElementById('newResourceRole');
+    if (!roleSelect) return;
+    
+    // Extract unique roles from resources
+    const roles = [...new Set(resources.map(r => r.role))];
+    
+    roles.forEach(role => {
+        const option = document.createElement('option');
+        option.value = role;
+        option.textContent = role;
+        roleSelect.appendChild(option);
+    });
+}
+
+// Helper function to populate skills dropdown for additional resource scenario
+function populateSkillsDropdown(resources) {
+    const skillsSelect = document.getElementById('newResourceSkills');
+    if (!skillsSelect) return;
+    
+    // Extract unique skills from all resources
+    const allSkills = new Set();
+    resources.forEach(resource => {
+        if (resource.skills) {
+            resource.skills.forEach(skill => allSkills.add(skill));
+        }
+    });
+    
+    [...allSkills].sort().forEach(skill => {
+        const option = document.createElement('option');
+        option.value = skill;
+        option.textContent = skill;
+        skillsSelect.appendChild(option);
+    });
+}
+
+// Function to fetch project tasks for scope reduction scenario
+function fetchProjectTasks(projectId) {
+    const tasksSelect = document.getElementById('tasksToDefer');
+    if (!tasksSelect) return;
+    
+    fetch(`/dashboard/api/project-tasks/?project_id=${projectId}`, {
+        method: 'GET',
+        headers: {
+            'X-CSRFToken': getCsrfToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Clear existing options
+            tasksSelect.innerHTML = '';
+            
+            // Add tasks as options
+            data.tasks.forEach(task => {
+                const option = document.createElement('option');
+                option.value = task.id;
+                option.textContent = `${task.name} (${task.status}, ${task.completion_percentage}% complete)`;
+                tasksSelect.appendChild(option);
+            });
+        } else {
+            console.error('Failed to fetch project tasks:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching project tasks:', error);
+    });
+}
+
+// Function to update scope reduction percentage display
+function updateScopeValue(value) {
+    const scopeValueElement = document.getElementById('scopeValue');
+    if (scopeValueElement) {
+        scopeValueElement.textContent = value + '%';
     }
 }

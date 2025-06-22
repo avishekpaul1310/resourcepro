@@ -400,6 +400,32 @@
             </div>            
             <div class="form-section">
                 <h2 class="section-title">
+                    <i class="fas fa-globe"></i>
+                    Remote Work Information
+                </h2>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="id_timezone">Timezone</label>
+                        {{ form.timezone|add_class:"form-control" }}
+                        {% if form.timezone.errors %}
+                        <div class="error">{{ form.timezone.errors }}</div>
+                        {% endif %}
+                        <small style="color: #6b7280; font-size: 0.875rem; margin-top: 4px;">{{ form.timezone.help_text }}</small>
+                    </div>
+                    
+                    <div class="form-field">
+                        <label for="id_location">Location</label>
+                        {{ form.location|add_class:"form-control" }}
+                        {% if form.location.errors %}
+                        <div class="error">{{ form.location.errors }}</div>
+                        {% endif %}
+                        <small style="color: #6b7280; font-size: 0.875rem; margin-top: 4px;">Current location or 'Remote' if fully remote</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h2 class="section-title">
                     <i class="fas fa-star"></i>
                     Skills & Expertise
                 </h2>

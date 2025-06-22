@@ -54,9 +54,10 @@
                         <div class="risk-affected">
                             <small>Affects: {{ risk.affected_items|join:", " }}</small>
                         </div>
-                        {% endif %}
-                        <div class="risk-actions">
-                            <button class="btn-simulate" onclick="openInterventionSimulator('{{ risk.title }}', {{ risk|jsonify }})">
+                        {% endif %}                        <div class="risk-actions">
+                            <button class="btn-simulate" 
+                                    data-risk-title="{{ risk.title|escapejs }}" 
+                                    data-risk-data="{{ risk|jsonify|force_escape }}">
                                 <i class="fas fa-cogs"></i> Simulate Solutions
                             </button>
                         </div>

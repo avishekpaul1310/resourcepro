@@ -329,9 +329,8 @@
 </div>
 
 <!-- AI-Powered Dashboard Features -->
-{% if has_ai_service %}
-    {% include 'dashboard/ai_widgets.html' %}
-{% endif %}
+<!-- Temporarily always include AI widgets for testing -->
+{% include 'dashboard/ai_widgets.html' %}
 
 <!-- Dashboard Metrics -->
 <div class="dashboard-metrics">
@@ -468,7 +467,6 @@
 
 {% block extra_js %}
 {% load static %}
-<script src="{% static 'js/ai_dashboard.js' %}"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>    document.addEventListener('DOMContentLoaded', function() {
         // Add click animation to metric cards
@@ -648,8 +646,7 @@
 </script>
 
 <!-- AI Features Scripts and Modals -->
-{% if has_ai_service %}
-    {% include 'dashboard/intervention_modal.html' %}
-    <script src="{% static 'js/ai_dashboard.js' %}"></script>
-{% endif %}
+<!-- Temporarily always include AI features for testing -->
+{% include 'dashboard/intervention_modal.html' %}
+<script src="{% static 'js/ai_dashboard.js' %}"></script>
 {% endblock %}

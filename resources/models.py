@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import timedelta
+import pytz
 
 class Skill(models.Model):
     name = models.CharField(max_length=100)
@@ -22,11 +23,107 @@ class Resource(models.Model):
     capacity = models.IntegerField(default=40)  # Hours per week
     cost_per_hour = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     color = models.CharField(max_length=7, default="#4F46E5")  # For UI display
+    
+    # Remote worker fields
+    timezone = models.CharField(
+        max_length=100, 
+        default='UTC',
+        help_text="Resource's timezone (e.g., 'America/New_York', 'Europe/London', 'Asia/Tokyo')"
+    )
+    location = models.CharField(
+        max_length=200, 
+        blank=True, 
+        null=True,
+        help_text="Location (e.g., 'New York, USA', 'London, UK', 'Remote')"
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     def __str__(self):
         return self.name
+    
+    def get_local_time(self):
+        """Get current local time for this resource"""
+        try:
+            tz = pytz.timezone(self.timezone)
+            return timezone.now().astimezone(tz)
+        except pytz.exceptions.UnknownTimeZoneError:
+            return timezone.now()
+    
+    def get_formatted_local_time(self):
+        """Get formatted local time string"""
+        local_time = self.get_local_time()
+        return local_time.strftime("%I:%M %p")
+    
+    def get_local_date(self):
+        """Get current local date for this resource"""
+        local_time = self.get_local_time()
+        return local_time.date()
+    
+    def is_business_hours(self, start_hour=9, end_hour=17):
+        """Check if it's currently business hours for this resource"""
+        local_time = self.get_local_time()
+        hour = local_time.hour
+        # Check if it's a weekday (Monday=0, Sunday=6)
+        is_weekday = local_time.weekday() < 5
+        return is_weekday and start_hour <= hour < end_hour
+    
+    def get_work_hours_overlap(self, other_resource, start_hour=9, end_hour=17):
+        """Calculate overlapping work hours with another resource"""
+        if not other_resource:
+            return None
+            
+        # Get both resources' local times
+        my_time = self.get_local_time()
+        other_time = other_resource.get_local_time()
+        
+        # Convert to UTC hours for comparison
+        my_start_utc = (my_time.replace(hour=start_hour, minute=0, second=0, microsecond=0)).astimezone(pytz.UTC).hour
+        my_end_utc = (my_time.replace(hour=end_hour, minute=0, second=0, microsecond=0)).astimezone(pytz.UTC).hour
+        
+        other_start_utc = (other_time.replace(hour=start_hour, minute=0, second=0, microsecond=0)).astimezone(pytz.UTC).hour
+        other_end_utc = (other_time.replace(hour=end_hour, minute=0, second=0, microsecond=0)).astimezone(pytz.UTC).hour
+        
+        # Calculate overlap
+        overlap_start = max(my_start_utc, other_start_utc)
+        overlap_end = min(my_end_utc, other_end_utc)
+        
+        if overlap_start < overlap_end:
+            return overlap_end - overlap_start
+        return 0
+    
+    @staticmethod
+    def get_team_overlap_hours(resources, start_hour=9, end_hour=17):
+        """Calculate overlapping work hours for a team of resources"""
+        if not resources or len(resources) < 2:
+            return None
+            
+        # Find the common overlap for all resources
+        overlap_hours = []
+        for i in range(24):  # Check each hour of the day in UTC
+            hour_overlap = True
+            for resource in resources:
+                local_time = resource.get_local_time()
+                # Convert UTC hour to resource's local time
+                utc_time = timezone.now().replace(hour=i, minute=0, second=0, microsecond=0)
+                resource_local_hour = utc_time.astimezone(pytz.timezone(resource.timezone)).hour
+                
+                # Check if this hour falls within the resource's work hours
+                if not (start_hour <= resource_local_hour < end_hour):
+                    hour_overlap = False
+                    break
+                    
+                # Check if it's a weekday for the resource
+                resource_weekday = utc_time.astimezone(pytz.timezone(resource.timezone)).weekday()
+                if resource_weekday >= 5:  # Weekend
+                    hour_overlap = False
+                    break
+                    
+            if hour_overlap:
+                overlap_hours.append(i)
+                
+        return overlap_hours
     
     def current_utilization(self, start_date=None, end_date=None):
         """

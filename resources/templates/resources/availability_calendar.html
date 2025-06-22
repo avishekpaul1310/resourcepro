@@ -238,16 +238,27 @@
     <!-- Upcoming Events -->
     <div class="upcoming-events">
         <h3>Upcoming Availability Events</h3>
-        <ul class="event-list">
-            {% for event in upcoming_events %}                <li class="event-item">
+        <ul class="event-list">            {% for event in upcoming_events %}                <li class="event-item">
                     <div class="event-date">{{ event.start_date|date:"M d, Y" }} - {{ event.end_date|date:"M d, Y" }}</div>
-                    <div>
-                        {% if event.resource.user %}
-                            {{ event.resource.user.first_name }} {{ event.resource.user.last_name }}
-                        {% else %}
-                            {{ event.resource.name }}
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            {% if event.resource.user %}
+                                {{ event.resource.user.first_name }} {{ event.resource.user.last_name }}
+                            {% else %}
+                                {{ event.resource.name }}
+                            {% endif %}
+                            - {{ event.get_availability_type_display }}
+                        </div>
+                        {% if event.resource.timezone or event.resource.location %}
+                        <div style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #6b7280;">
+                            {% if event.resource.location %}
+                                <span style="background: #f3f4f6; padding: 2px 6px; border-radius: 8px;">{{ event.resource.location }}</span>
+                            {% endif %}
+                            <span class="{% if event.resource.is_business_hours %}text-green-600{% else %}text-red-600{% endif %}">
+                                {{ event.resource.get_formatted_local_time }}
+                            </span>
+                        </div>
                         {% endif %}
-                        - {{ event.get_availability_type_display }}
                     </div>
                     {% if event.notes %}
                         <div class="event-resource">{{ event.notes }}</div>
@@ -323,7 +334,7 @@ document.addEventListener('DOMContentLoaded', function() {
             right: 'dayGridMonth,timeGridWeek,listWeek'
         },        events: [
             {% for event in calendar_events %}            {
-                title: '{% if event.resource.user %}{{ event.resource.user.first_name|escapejs }} {{ event.resource.user.last_name|escapejs }}{% else %}{{ event.resource.name|escapejs }}{% endif %} - {{ event.get_availability_type_display|escapejs }}',
+                title: '{% if event.resource.user %}{{ event.resource.user.first_name|escapejs }} {{ event.resource.user.last_name|escapejs }}{% else %}{{ event.resource.name|escapejs }}{% endif %} - {{ event.get_availability_type_display|escapejs }}{% if event.resource.location %} ({{ event.resource.location|escapejs }}){% endif %}',
                 start: '{{ event.start_date|date:"Y-m-d" }}',
                 end: '{{ event.end_date|date:"Y-m-d" }}',
                 backgroundColor: getEventColor('{{ event.availability_type|escapejs }}'),
@@ -331,13 +342,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 extendedProps: {
                     resourceId: {{ event.resource.id }},
                     type: '{{ event.availability_type|escapejs }}',
-                    notes: '{{ event.notes|default:""|escapejs }}'
+                    notes: '{{ event.notes|default:""|escapejs }}',
+                    resourceLocation: '{{ event.resource.location|default:""|escapejs }}',
+                    resourceTimezone: '{{ event.resource.timezone|escapejs }}',
+                    currentLocalTime: '{{ event.resource.get_formatted_local_time|escapejs }}'
                 }
             }{% if not forloop.last %},{% endif %}
             {% endfor %}
         ],
         eventClick: function(info) {
-            alert('Event: ' + info.event.title + '\nNotes: ' + info.event.extendedProps.notes);
+            let eventDetails = 'Event: ' + info.event.title + '\n';
+            if (info.event.extendedProps.notes) {
+                eventDetails += 'Notes: ' + info.event.extendedProps.notes + '\n';
+            }
+            if (info.event.extendedProps.resourceLocation) {
+                eventDetails += 'Location: ' + info.event.extendedProps.resourceLocation + '\n';
+            }
+            if (info.event.extendedProps.currentLocalTime && info.event.extendedProps.resourceTimezone) {
+                eventDetails += 'Current Time: ' + info.event.extendedProps.currentLocalTime + ' (' + info.event.extendedProps.resourceTimezone + ')';
+            }
+            alert(eventDetails);
         }
     });
     
