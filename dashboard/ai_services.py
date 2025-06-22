@@ -1361,47 +1361,48 @@ For each identified risk, provide:
                         "project": None,
                         "resources": []
                     }
-                    risk_title = f"Risk {risk_id}"
-              # Create AI prompt for recommendations
+                    risk_title = f"Risk {risk_id}"              # Create AI prompt for recommendations - SIMPLIFIED VERSION
             prompt = f"""
-You are an expert project management consultant. Generate 2-3 practical, actionable recommendations for the following risk:
+You are an expert project management consultant. Generate ONE simple, actionable recommendation for the following risk:
 
-Risk Context:
-{json.dumps(context, indent=2)}
+Risk Title: {context['risk']['title']}
+Risk Description: {context['risk']['description']}
+Risk Severity: {context['risk']['severity']}
 
-Provide recommendations that are:
-1. Specific and actionable
-2. Realistic based on the context
-3. Include a success probability percentage (0-100)
+Provide ONE practical recommendation that is:
+1. Simple and clear
+2. Actionable immediately
+3. Realistic to implement
 
 Respond with valid JSON in this exact format:
 {{
-    "recommendations": [
-        {{
-            "title": "Brief recommendation title",
-            "description": "Detailed actionable description",
-            "success_probability": 85,
-            "implementation_effort": "Low|Medium|High",
-            "timeframe": "Immediate|Short-term|Medium-term"
-        }}
-    ]
+    "recommendation": {{
+        "title": "Brief recommendation title",
+        "description": "Simple actionable description in 1-2 sentences"
+    }}
 }}
 """
             
             # Get AI recommendations
             ai_response = gemini_service.generate_json_response(prompt, temperature=0.3)
             
-            if not ai_response or 'recommendations' not in ai_response:
-                return {"error": "Failed to generate recommendations"}
+            if not ai_response or 'recommendation' not in ai_response:
+                return {"error": "Failed to generate recommendation"}
             
+            # Convert single recommendation to array format for compatibility
+            single_rec = ai_response['recommendation']
+            recommendations_array = [{
+                "title": single_rec.get('title', 'Risk Mitigation'),
+                "description": single_rec.get('description', 'No specific recommendation available.')
+            }]            
             # Store recommendations in database if we have a risk object
             if risk_obj:
-                self._store_risk_recommendations(risk_obj, ai_response['recommendations'])
+                self._store_risk_recommendations(risk_obj, recommendations_array)
             
             return {
                 "success": True,
                 "risk_title": risk_title,
-                "recommendations": ai_response['recommendations']
+                "recommendations": recommendations_array
             }
             
         except Exception as e:

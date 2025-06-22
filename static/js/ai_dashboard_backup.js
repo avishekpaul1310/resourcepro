@@ -7,9 +7,6 @@
 let currentQuery = '';
 let nliTimeout = null;
 
-// EMERGENCY SAFETY: Prevent page freezing from AI recommendations
-let modalCreationInProgress = false;
-
 // Initialize AI features when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     console.log('=== DOM Content Loaded ===');
@@ -185,8 +182,7 @@ function createRiskElement(risk) {
             <span class="risk-title">${risk.title}</span>
             <span class="risk-priority priority-${risk.priority}">${risk.priority}</span>
         </div>
-        <p class="risk-description">${risk.description}</p>
-        ${risk.affected_items ? `
+        <p class="risk-description">${risk.description}</p>        ${risk.affected_items ? `
         <div class="risk-affected">
             <small>Affects: ${risk.affected_items.join(', ')}</small>
         </div>
@@ -320,28 +316,22 @@ function getRiskRecommendations(riskId, riskTitle) {
  * Show recommendations modal
  */
 function showRecommendationsModal(riskTitle, state, errorMessage = null, recommendations = null) {
-    // Use setTimeout to ensure this doesn't block the UI thread
-    setTimeout(() => {
-        try {
-            console.log(`Showing recommendations modal: ${state} for ${riskTitle}`);
-            
-            // Remove existing modal first
-            const existingModal = document.getElementById('recommendationsModal');
-            if (existingModal) {
-                existingModal.remove();
-                restorePageScroll(); // Ensure scroll is restored
-            }
-
-            // Create modal
-            const modal = document.createElement('div');
-            modal.id = 'recommendationsModal';
-            modal.className = 'modal-overlay';
-            modal.style.display = 'flex';
-            modal._createdAt = Date.now(); // Add timestamp for monitoring
-
-            let modalContent = '';
-
-            if (state === 'loading') {
+    // Remove existing modal first
+    const existingModal = document.getElementById('recommendationsModal');
+    if (existingModal) {
+        existingModal.remove();
+        restorePageScroll(); // Ensure scroll is restored
+    }
+    
+    // Create modal
+    const modal = document.createElement('div');
+    modal.id = 'recommendationsModal';
+    modal.className = 'modal-overlay';
+    modal.style.display = 'flex';
+    
+    let modalContent = '';
+    
+    if (state === 'loading') {
         modalContent = `
             <div class="modal-container">
                 <div class="modal-header">
@@ -390,37 +380,29 @@ function showRecommendationsModal(riskTitle, state, errorMessage = null, recomme
                     </div>
                 </div>
             </div>
-        `;    } else if (state === 'success' && recommendations) {
-        // SIMPLIFIED: Just show the first recommendation with basic formatting
-        let recommendationContent = '';
-        try {
-            console.log('Processing simplified recommendations:', recommendations);
-            
-            if (Array.isArray(recommendations) && recommendations.length > 0) {
-                const rec = recommendations[0]; // Just take the first one
-                const title = rec.title || 'Recommendation';
-                const description = rec.description || 'No description available';
-                
-                recommendationContent = `
-                    <div class="recommendation-simple">
-                        <h4>${title}</h4>
-                        <p>${description}</p>
+        `;
+    } else if (state === 'success' && recommendations) {
+        const recommendationsList = recommendations.map((rec, index) => `
+            <div class="recommendation-card">
+                <div class="recommendation-header">
+                    <h4>${rec.title || 'Recommendation ' + (index + 1)}</h4>
+                    <div class="success-score">
+                        <span class="score-label">Success Rate:</span>
+                        <span class="score-value">${rec.success_probability || 'N/A'}%</span>
                     </div>
-                `;
-            } else {
-                recommendationContent = '<p>No recommendations available.</p>';
-            }
-            
-            console.log('Successfully processed simple recommendation');
-            
-        } catch (error) {
-            console.error('Error processing recommendation:', error);
-            recommendationContent = '<p>Error loading recommendation. Please try again.</p>';
-        }
-          modalContent = `
+                </div>
+                <p class="recommendation-description">${rec.description || 'No description available'}</p>
+                <div class="recommendation-meta">
+                    <span class="effort-level">Effort: ${rec.implementation_effort || 'Medium'}</span>
+                    <span class="timeframe">Timeline: ${rec.timeframe || 'Short-term'}</span>
+                </div>
+            </div>
+        `).join('');
+        
+        modalContent = `
             <div class="modal-container">
                 <div class="modal-header">
-                    <h3><i class="fas fa-lightbulb"></i> AI Recommendation</h3>
+                    <h3><i class="fas fa-lightbulb"></i> AI Recommendations</h3>
                     <button class="modal-close" onclick="closeRecommendationsModal()">
                         <i class="fas fa-times"></i>
                     </button>
@@ -429,10 +411,10 @@ function showRecommendationsModal(riskTitle, state, errorMessage = null, recomme
                     <div class="recommendations-content">
                         <div class="risk-context">
                             <h4>Risk: ${riskTitle}</h4>
-                            <p>Here is an AI-generated recommendation to address this risk:</p>
+                            <p>Here are AI-generated recommendations to address this risk:</p>
                         </div>
-                        <div class="recommendation-simple">
-                            ${recommendationContent}
+                        <div class="recommendations-list">
+                            ${recommendationsList}
                         </div>
                         <div class="modal-actions">
                             <button class="btn btn-primary" onclick="closeRecommendationsModal()">Close</button>
@@ -460,17 +442,10 @@ function showRecommendationsModal(riskTitle, state, errorMessage = null, recomme
     const escapeHandler = function(e) {
         if (e.key === 'Escape') {
             closeRecommendationsModal();
-            document.removeEventListener('keydown', escapeHandler);        }
+            document.removeEventListener('keydown', escapeHandler);
+        }
     };
     document.addEventListener('keydown', escapeHandler);
-    
-        } catch (error) {
-            console.error('Error showing recommendations modal:', error);
-            // Fallback: show simple alert
-            alert(`Error showing recommendations: ${error.message}`);
-            restorePageScroll();
-        }
-    }, 10); // Small delay to ensure UI thread doesn't block
 }
 
 /**
@@ -682,6 +657,9 @@ function updateRisksInTemplate(risks) {
             </div>
             <p class="risk-description">${risk.description || ''}</p>
             ${risk.affected_items ? `<small class="risk-affects">Affects: ${risk.affected_items.join(', ')}</small>` : ''}
+            <button class="btn-recommendations" data-risk-id="${risk.id || 'unknown'}" data-risk-title="${risk.title}">
+                <i class="fas fa-lightbulb"></i> Get AI Recommendations
+            </button>
         `;
         risksContainer.appendChild(riskElement);
     });

@@ -155,11 +155,7 @@ function createRiskElement(risk) {
         <div class="risk-affected">
             <small>Affects: ${risk.affected_items.join(', ')}</small>
         </div>
-        ` : ''}        <div class="risk-actions">
-            <button class="btn-recommendations" data-risk-id="${risk.id || ''}" data-risk-title="${risk.title}">
-                <i class="fas fa-lightbulb"></i> Get AI Recommendations
-            </button>
-        </div>
+        ` : ''}
     `;
     
     return div;

@@ -7,6 +7,9 @@
 let currentQuery = '';
 let nliTimeout = null;
 
+// EMERGENCY SAFETY: Prevent page freezing from AI recommendations
+let modalCreationInProgress = false;
+
 // Initialize AI features when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     console.log('=== DOM Content Loaded ===');
@@ -22,6 +25,9 @@ document.addEventListener('DOMContentLoaded', function() {
  * Initialize all AI features
  */
 function initializeAIFeatures() {
+    // Safety check: ensure page scroll is enabled on initialization
+    restorePageScroll();
+    
     initializeAIAnalyst();
     initializeNLISearch();
     
@@ -33,16 +39,40 @@ function initializeAIFeatures() {
             const riskId = button.dataset.riskId;
             const riskTitle = button.dataset.riskTitle;
             
-            if (riskId) {
+            if (riskId && riskId !== '' && riskId !== 'None') {
                 getRiskRecommendations(riskId, riskTitle);
             } else {
-                console.error('No risk ID found for recommendations');
+                console.error('No valid risk ID found for recommendations');
+                showRecommendationsModal(riskTitle || 'Unknown Risk', 'error', 'Invalid risk ID. Please try refreshing the page.');
             }
         }
     });
-      // Auto-refresh AI analysis every 30 minutes (but only if user explicitly wants it)
+    
+    // Auto-refresh AI analysis every 30 minutes (but only if user explicitly wants it)
     // Removed auto-refresh to prevent constant layout changes
     console.log('AI Dashboard initialized - auto-refresh disabled to maintain stable layout');
+      // Add safety interval to check for stuck modals/scroll issues
+    setInterval(function() {
+        const modal = document.getElementById('recommendationsModal');
+        const bodyOverflow = document.body.style.overflow;
+        
+        // Check for stuck scroll without modal
+        if (!modal && bodyOverflow === 'hidden') {
+            console.warn('🚨 Detected stuck scroll state, restoring...');
+            restorePageScroll();
+        }
+        
+        // Check for modals that have been open too long
+        if (modal) {
+            const modalAge = Date.now() - (modal._createdAt || Date.now());
+            if (modalAge > 30000) { // 30 seconds
+                console.warn('🚨 Detected stuck modal, auto-closing...');
+                closeRecommendationsModal();
+            } else if (!modal._createdAt) {
+                modal._createdAt = Date.now();
+            }
+        }
+    }, 2000); // Check every 2 seconds
 }
 
 /**
@@ -122,12 +152,8 @@ function updateAIAnalysisWidget(data) {
                     <div class="recommendations-container"></div>
                 </div>
             </div>
-            
-            <div class="analysis-meta">
+              <div class="analysis-meta">
                 <small>Last updated: ${new Date(data.created_at).toLocaleString()}</small>
-                <button class="btn-refresh" onclick="refreshAIAnalysis(true)">
-                    <i class="fas fa-sync-alt"></i> Refresh
-                </button>
             </div>
         </div>
     `;
@@ -165,11 +191,6 @@ function createRiskElement(risk) {
             <small>Affects: ${risk.affected_items.join(', ')}</small>
         </div>
         ` : ''}
-        <div class="risk-actions">
-            <button class="btn-recommendations" data-risk-id="${risk.id || ''}" data-risk-title="${risk.title}">
-                <i class="fas fa-lightbulb"></i> Get AI Recommendations
-            </button>
-        </div>
     `;
     
     return div;
@@ -226,8 +247,24 @@ function updateConfidenceDisplay(confidence) {
 function getRiskRecommendations(riskId, riskTitle) {
     console.log(`Getting recommendations for risk: ${riskTitle} (ID: ${riskId})`);
     
+    // Validate inputs
+    if (!riskId || riskId === '' || riskId === 'None') {
+        console.error('Invalid risk ID:', riskId);
+        showRecommendationsModal(riskTitle, 'error', 'Invalid risk ID. Please try refreshing the page.');
+        return;
+    }
+    
     // Show loading state
     showRecommendationsModal(riskTitle, 'loading');
+    
+    // Set a timeout for the request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+        controller.abort();
+        console.error('Request timed out');
+        showRecommendationsModal(riskTitle, 'error', 'Request timed out. Please try again.');
+        restorePageScroll();
+    }, 15000); // 15 second timeout
     
     fetch('/dashboard/api/get-risk-recommendations/', {
         method: 'POST',
@@ -237,19 +274,45 @@ function getRiskRecommendations(riskId, riskTitle) {
         },
         body: JSON.stringify({
             risk_id: riskId
-        })
+        }),
+        signal: controller.signal
     })
-    .then(response => response.json())
+    .then(response => {
+        clearTimeout(timeoutId);
+        console.log('API Response status:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
+        console.log('API Response data:', data);
+        
         if (data.error) {
             showRecommendationsModal(riskTitle, 'error', data.error);
-        } else {
+        } else if (data.recommendations && Array.isArray(data.recommendations)) {
             showRecommendationsModal(riskTitle, 'success', null, data.recommendations);
+        } else {
+            // Handle unexpected response format
+            console.warn('Unexpected response format:', data);
+            showRecommendationsModal(riskTitle, 'error', 'Received unexpected response format. Please try again.');
         }
     })
     .catch(error => {
+        clearTimeout(timeoutId);
         console.error('Error getting recommendations:', error);
-        showRecommendationsModal(riskTitle, 'error', 'Failed to get recommendations');
+        
+        if (error.name === 'AbortError') {
+            showRecommendationsModal(riskTitle, 'error', 'Request was cancelled due to timeout.');
+        } else {
+            showRecommendationsModal(riskTitle, 'error', `Failed to get recommendations: ${error.message}`);
+        }
+        
+        // Ensure scroll is restored in case of error
+        setTimeout(() => {
+            restorePageScroll();
+        }, 100);
     });
 }
 
@@ -257,21 +320,28 @@ function getRiskRecommendations(riskId, riskTitle) {
  * Show recommendations modal
  */
 function showRecommendationsModal(riskTitle, state, errorMessage = null, recommendations = null) {
-    // Remove existing modal
-    const existingModal = document.getElementById('recommendationsModal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-    
-    // Create modal
-    const modal = document.createElement('div');
-    modal.id = 'recommendationsModal';
-    modal.className = 'modal-overlay';
-    modal.style.display = 'flex';
-    
-    let modalContent = '';
-    
-    if (state === 'loading') {
+    // Use setTimeout to ensure this doesn't block the UI thread
+    setTimeout(() => {
+        try {
+            console.log(`Showing recommendations modal: ${state} for ${riskTitle}`);
+            
+            // Remove existing modal first
+            const existingModal = document.getElementById('recommendationsModal');
+            if (existingModal) {
+                existingModal.remove();
+                restorePageScroll(); // Ensure scroll is restored
+            }
+
+            // Create modal
+            const modal = document.createElement('div');
+            modal.id = 'recommendationsModal';
+            modal.className = 'modal-overlay';
+            modal.style.display = 'flex';
+            modal._createdAt = Date.now(); // Add timestamp for monitoring
+
+            let modalContent = '';
+
+            if (state === 'loading') {
         modalContent = `
             <div class="modal-container">
                 <div class="modal-header">
@@ -284,10 +354,22 @@ function showRecommendationsModal(riskTitle, state, errorMessage = null, recomme
                     <div class="loading-spinner">
                         <i class="fas fa-spinner fa-spin"></i>
                         <p>Generating AI recommendations for: <strong>${riskTitle}</strong></p>
+                        <p><small>This may take a few seconds...</small></p>
                     </div>
                 </div>
             </div>
         `;
+        
+        // Auto-close loading modal after 20 seconds as a safety net
+        setTimeout(() => {
+            const loadingModal = document.getElementById('recommendationsModal');
+            if (loadingModal && loadingModal.innerHTML.includes('loading-spinner')) {
+                console.warn('Auto-closing stuck loading modal');
+                closeRecommendationsModal();
+                showRecommendationsModal(riskTitle, 'error', 'Request took too long. Please try again.');
+            }
+        }, 20000);
+        
     } else if (state === 'error') {
         modalContent = `
             <div class="modal-container">
@@ -301,33 +383,44 @@ function showRecommendationsModal(riskTitle, state, errorMessage = null, recomme
                     <div class="error-message">
                         <p><strong>Failed to generate recommendations</strong></p>
                         <p>${errorMessage}</p>
-                        <button class="btn btn-secondary" onclick="closeRecommendationsModal()">Close</button>
+                        <div style="margin-top: 15px;">
+                            <button class="btn btn-secondary" onclick="closeRecommendationsModal()">Close</button>
+                            <button class="btn btn-primary" onclick="closeRecommendationsModal(); setTimeout(() => getRiskRecommendations('${riskTitle.replace(/'/g, '\\\'').replace(/"/g, '\\"')}', '${riskTitle.replace(/'/g, '\\\'').replace(/"/g, '\\"')}'), 500);" style="margin-left: 10px;">Try Again</button>
+                        </div>
                     </div>
                 </div>
             </div>
-        `;
-    } else if (state === 'success' && recommendations) {
-        const recommendationsList = recommendations.map((rec, index) => `
-            <div class="recommendation-card">
-                <div class="recommendation-header">
-                    <h4>${rec.title}</h4>
-                    <div class="success-score">
-                        <span class="score-label">Success Rate:</span>
-                        <span class="score-value">${rec.success_probability}%</span>
+        `;    } else if (state === 'success' && recommendations) {
+        // SIMPLIFIED: Just show the first recommendation with basic formatting
+        let recommendationContent = '';
+        try {
+            console.log('Processing simplified recommendations:', recommendations);
+            
+            if (Array.isArray(recommendations) && recommendations.length > 0) {
+                const rec = recommendations[0]; // Just take the first one
+                const title = rec.title || 'Recommendation';
+                const description = rec.description || 'No description available';
+                
+                recommendationContent = `
+                    <div class="recommendation-simple">
+                        <h4>${title}</h4>
+                        <p>${description}</p>
                     </div>
-                </div>
-                <p class="recommendation-description">${rec.description}</p>
-                <div class="recommendation-meta">
-                    <span class="effort-level">Effort: ${rec.implementation_effort || 'Medium'}</span>
-                    <span class="timeframe">Timeline: ${rec.timeframe || 'Short-term'}</span>
-                </div>
-            </div>
-        `).join('');
-        
-        modalContent = `
+                `;
+            } else {
+                recommendationContent = '<p>No recommendations available.</p>';
+            }
+            
+            console.log('Successfully processed simple recommendation');
+            
+        } catch (error) {
+            console.error('Error processing recommendation:', error);
+            recommendationContent = '<p>Error loading recommendation. Please try again.</p>';
+        }
+          modalContent = `
             <div class="modal-container">
                 <div class="modal-header">
-                    <h3><i class="fas fa-lightbulb"></i> AI Recommendations</h3>
+                    <h3><i class="fas fa-lightbulb"></i> AI Recommendation</h3>
                     <button class="modal-close" onclick="closeRecommendationsModal()">
                         <i class="fas fa-times"></i>
                     </button>
@@ -336,10 +429,10 @@ function showRecommendationsModal(riskTitle, state, errorMessage = null, recomme
                     <div class="recommendations-content">
                         <div class="risk-context">
                             <h4>Risk: ${riskTitle}</h4>
-                            <p>Here are AI-generated recommendations to address this risk:</p>
+                            <p>Here is an AI-generated recommendation to address this risk:</p>
                         </div>
-                        <div class="recommendations-list">
-                            ${recommendationsList}
+                        <div class="recommendation-simple">
+                            ${recommendationContent}
                         </div>
                         <div class="modal-actions">
                             <button class="btn btn-primary" onclick="closeRecommendationsModal()">Close</button>
@@ -352,7 +445,32 @@ function showRecommendationsModal(riskTitle, state, errorMessage = null, recomme
     
     modal.innerHTML = modalContent;
     document.body.appendChild(modal);
-    document.body.style.overflow = 'hidden';
+    
+    // Disable page scroll only after successful modal creation
+    disablePageScroll();
+    
+    // Add click outside to close
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            closeRecommendationsModal();
+        }
+    });
+    
+    // Add escape key to close
+    const escapeHandler = function(e) {
+        if (e.key === 'Escape') {
+            closeRecommendationsModal();
+            document.removeEventListener('keydown', escapeHandler);        }
+    };
+    document.addEventListener('keydown', escapeHandler);
+    
+        } catch (error) {
+            console.error('Error showing recommendations modal:', error);
+            // Fallback: show simple alert
+            alert(`Error showing recommendations: ${error.message}`);
+            restorePageScroll();
+        }
+    }, 10); // Small delay to ensure UI thread doesn't block
 }
 
 /**
@@ -362,7 +480,31 @@ function closeRecommendationsModal() {
     const modal = document.getElementById('recommendationsModal');
     if (modal) {
         modal.remove();
+    }
+    restorePageScroll();
+}
+
+/**
+ * Safely disable page scroll
+ */
+function disablePageScroll() {
+    try {
+        document.body.style.overflow = 'hidden';
+        console.log('Page scroll disabled');
+    } catch (error) {
+        console.error('Error disabling page scroll:', error);
+    }
+}
+
+/**
+ * Safely restore page scroll
+ */
+function restorePageScroll() {
+    try {
         document.body.style.overflow = '';
+        console.log('Page scroll restored');
+    } catch (error) {
+        console.error('Error restoring page scroll:', error);
     }
 }
 
@@ -485,43 +627,6 @@ function getCookie(name) {
 }
 
 /**
- * Manual refresh function for explicit user-triggered refresh
- */
-function manualRefreshAI() {
-    console.log('Manual AI refresh triggered by user');
-    const widget = document.querySelector('.ai-analyst-widget');
-    if (!widget) return;
-    
-    // Show loading overlay instead of replacing content
-    const loadingOverlay = document.createElement('div');
-    loadingOverlay.className = 'ai-loading-overlay';
-    loadingOverlay.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Refreshing analysis...</div>';
-    widget.appendChild(loadingOverlay);
-    
-    fetch('/dashboard/api/refresh-ai-analysis/', { 
-        method: 'POST', 
-        headers: { 'X-CSRFToken': getCookie('csrftoken') } 
-    })
-    .then(response => response.json())
-    .then(data => {
-        // Remove loading overlay
-        if (loadingOverlay.parentNode) {
-            loadingOverlay.parentNode.removeChild(loadingOverlay);
-        }
-        
-        // Update only the dynamic content, not the structure
-        updateAIContentOnly(data);
-    })
-    .catch(error => {
-        console.error('Error refreshing AI analysis:', error);
-        if (loadingOverlay.parentNode) {
-            loadingOverlay.parentNode.removeChild(loadingOverlay);
-        }
-        alert('Failed to refresh AI analysis. Please try again.');
-    });
-}
-
-/**
  * Update only the AI content without changing the layout structure
  */
 function updateAIContentOnly(data) {
@@ -577,9 +682,6 @@ function updateRisksInTemplate(risks) {
             </div>
             <p class="risk-description">${risk.description || ''}</p>
             ${risk.affected_items ? `<small class="risk-affects">Affects: ${risk.affected_items.join(', ')}</small>` : ''}
-            <button class="btn-recommendations" data-risk-id="${risk.id || 'unknown'}" data-risk-title="${risk.title}">
-                <i class="fas fa-lightbulb"></i> Get AI Recommendations
-            </button>
         `;
         risksContainer.appendChild(riskElement);
     });

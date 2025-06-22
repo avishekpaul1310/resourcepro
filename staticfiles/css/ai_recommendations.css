@@ -1,0 +1,37 @@
+/* Simplified AI Recommendations Modal Styles */
+.recommendation-simple {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 15px 0;
+    border-left: 4px solid #007bff;
+}
+
+.recommendation-simple h4 {
+    color: #2c3e50;
+    margin-bottom: 10px;
+    font-size: 1.2rem;
+}
+
+.recommendation-simple p {
+    color: #555;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.modal-actions {
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #dee2e6;
+}
+
+.risk-context h4 {
+    color: #dc3545;
+    margin-bottom: 10px;
+}
+
+.risk-context p {
+    color: #666;
+    margin-bottom: 20px;
+}
