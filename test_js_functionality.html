@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Intervention Simulator</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .btn { padding: 10px 20px; margin: 5px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .btn:hover { background-color: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Testing AI-Powered Project Intervention Simulator</h1>
+    
+    <div id="test-results"></div>
+    
+    <h2>Manual Tests</h2>
+    <button class="btn" onclick="testSimulateButton()">Test Simulate Solutions Button</button>
+    <button class="btn" onclick="testModalOpen()">Test Modal Opening</button>
+    <button class="btn" onclick="testConsoleErrors()">Check Console Errors</button>
+    
+    <h2>Dashboard Link</h2>
+    <p><a href="http://127.0.0.1:8000/dashboard/" target="_blank">Open Dashboard (Login: admin / admin123)</a></p>
+    
+    <script>
+        function addTestResult(message, type = 'success') {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${type}`;
+            resultDiv.textContent = message;
+            document.getElementById('test-results').appendChild(resultDiv);
+        }
+        
+        function testSimulateButton() {
+            addTestResult('Testing if Simulate Solutions buttons exist...', 'warning');
+            
+            // Check if we can access the parent window (dashboard)
+            try {
+                const dashboardWindow = window.parent;
+                if (dashboardWindow && dashboardWindow.document) {
+                    const simulateButtons = dashboardWindow.document.querySelectorAll('.btn-simulate');
+                    if (simulateButtons.length > 0) {
+                        addTestResult(`✅ Found ${simulateButtons.length} Simulate Solutions buttons`);
+                        
+                        // Test clicking the first button
+                        const firstButton = simulateButtons[0];
+                        addTestResult(`Clicking first button: ${firstButton.textContent.trim()}`);
+                        firstButton.click();
+                        
+                        // Check if modal opened
+                        setTimeout(() => {
+                            const modal = dashboardWindow.document.querySelector('#interventionModal');
+                            if (modal && modal.style.display !== 'none') {
+                                addTestResult('✅ Modal opened successfully');
+                            } else {
+                                addTestResult('❌ Modal did not open', 'error');
+                            }
+                        }, 1000);
+                    } else {
+                        addTestResult('❌ No Simulate Solutions buttons found', 'error');
+                    }
+                } else {
+                    addTestResult('❌ Cannot access dashboard window', 'error');
+                }
+            } catch (error) {
+                addTestResult(`❌ Error testing buttons: ${error.message}`, 'error');
+            }
+        }
+        
+        function testModalOpen() {
+            addTestResult('Testing modal functionality...', 'warning');
+            
+            try {
+                // Simulate the openInterventionSimulator function
+                const testRiskData = {
+                    title: 'Test Risk',
+                    description: 'Test Description',
+                    severity: 'HIGH'
+                };
+                
+                // Check if the function exists in the dashboard
+                const dashboardWindow = window.parent;
+                if (dashboardWindow && typeof dashboardWindow.openInterventionSimulator === 'function') {
+                    addTestResult('✅ openInterventionSimulator function found');
+                    dashboardWindow.openInterventionSimulator('Test Risk', JSON.stringify(testRiskData));
+                    addTestResult('✅ Function called successfully');
+                } else {
+                    addTestResult('❌ openInterventionSimulator function not found', 'error');
+                }
+            } catch (error) {
+                addTestResult(`❌ Error testing modal: ${error.message}`, 'error');
+            }
+        }
+        
+        function testConsoleErrors() {
+            addTestResult('Checking console for JavaScript errors...', 'warning');
+            
+            // Check if there are any console errors
+            const originalConsoleError = console.error;
+            let errorCount = 0;
+            
+            console.error = function(...args) {
+                errorCount++;
+                addTestResult(`Console Error: ${args.join(' ')}`, 'error');
+                originalConsoleError.apply(console, args);
+            };
+            
+            // Restore after 3 seconds
+            setTimeout(() => {
+                console.error = originalConsoleError;
+                if (errorCount === 0) {
+                    addTestResult('✅ No console errors detected');
+                } else {
+                    addTestResult(`❌ Found ${errorCount} console errors`, 'error');
+                }
+            }, 3000);
+        }
+        
+        // Auto-run some tests on load
+        window.onload = function() {
+            addTestResult('🚀 JavaScript test page loaded');
+            
+            // Check if we're in an iframe or can access dashboard
+            if (window.parent !== window) {
+                addTestResult('Running in iframe - can test dashboard functions');
+            } else {
+                addTestResult('Running standalone - limited testing', 'warning');
+            }
+        };
+    </script>
+</body>
+</html>

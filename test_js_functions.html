@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test JavaScript Functions</title>
+</head>
+<body>
+    <h1>JavaScript Function Test</h1>
+    <button onclick="testRunSimulation()">Test runSimulation</button>
+    <button onclick="testGlobalAccess()">Test Global Access</button>
+    <div id="output"></div>
+
+    <script src="/static/js/ai_dashboard.js"></script>
+    <script>
+        function testRunSimulation() {
+            const output = document.getElementById('output');
+            
+            try {
+                if (typeof runSimulation === 'function') {
+                    output.innerHTML += '<p>✅ runSimulation is defined as a function</p>';
+                    
+                    if (typeof window.runSimulation === 'function') {
+                        output.innerHTML += '<p>✅ window.runSimulation is defined as a function</p>';
+                    } else {
+                        output.innerHTML += '<p>❌ window.runSimulation is NOT defined</p>';
+                    }
+                } else {
+                    output.innerHTML += '<p>❌ runSimulation is NOT defined: ' + typeof runSimulation + '</p>';
+                }
+            } catch (error) {
+                output.innerHTML += '<p>❌ Error: ' + error.message + '</p>';
+            }
+        }
+        
+        function testGlobalAccess() {
+            const output = document.getElementById('output');
+            
+            try {
+                output.innerHTML += '<p>window.runSimulation type: ' + typeof window.runSimulation + '</p>';
+                output.innerHTML += '<p>window.restartSimulation type: ' + typeof window.restartSimulation + '</p>';
+                output.innerHTML += '<p>window.implementScenario type: ' + typeof window.implementScenario + '</p>';
+            } catch (error) {
+                output.innerHTML += '<p>❌ Error accessing globals: ' + error.message + '</p>';
+            }
+        }
+        
+        // Test on page load
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                document.getElementById('output').innerHTML = '<h3>Auto-test results:</h3>';
+                testRunSimulation();
+                testGlobalAccess();
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

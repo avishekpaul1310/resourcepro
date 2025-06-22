@@ -15,7 +15,7 @@ from django.contrib.auth.models import User
 from resources.models import Resource
 from projects.models import Task, Project
 from allocation.models import Assignment
-from dashboard.models import DashboardAIAnalysis, InterventionScenario, NLIQuery, AIInsight
+from dashboard.models import DashboardAIAnalysis, InterventionScenario, NLIQuery, AIInsight, RiskCategory, DynamicRisk
 from utils.gemini_ai import gemini_service
 
 logger = logging.getLogger(__name__)
@@ -38,8 +38,7 @@ class DashboardAIService:
             recent_analysis = DashboardAIAnalysis.objects.filter(
                 analysis_type='daily_briefing',
                 created_at__gte=timezone.now() - timedelta(hours=2),
-                is_active=True
-            ).first()
+                is_active=True            ).first()
             
             if recent_analysis:
                 return self._format_analysis_response(recent_analysis)
@@ -52,8 +51,12 @@ class DashboardAIService:
             # Gather dashboard data
             dashboard_data = self._gather_dashboard_data()
             
-            # Create prompt for AI analysis
-            prompt = self._create_dashboard_analysis_prompt(dashboard_data)
+            # Perform comprehensive risk analysis
+            risk_service = EnhancedRiskAnalysisService()
+            comprehensive_risks = risk_service.analyze_comprehensive_risks(dashboard_data)
+            
+            # Create prompt for AI analysis (enhanced with comprehensive risks)
+            prompt = self._create_enhanced_dashboard_analysis_prompt(dashboard_data, comprehensive_risks)
             
             # Get AI analysis
             ai_response = gemini_service.generate_json_response(prompt, temperature=0.3)
@@ -62,9 +65,13 @@ class DashboardAIService:
                 logger.warning("AI service returned no response")
                 return {"error": "Failed to generate AI analysis"}
             
+            # Enhance response with comprehensive risk data
+            ai_response['comprehensive_risks'] = comprehensive_risks
+            ai_response['risk_categories'] = self._categorize_risks(comprehensive_risks)
+            
             # Store and return analysis
-            analysis = self._store_analysis(ai_response, dashboard_data)
-            return self._format_analysis_response(analysis)
+            analysis = self._store_enhanced_analysis(ai_response, dashboard_data, comprehensive_risks)
+            return self._format_enhanced_analysis_response(analysis)
             
         except Exception as e:
             logger.error(f"Error generating dashboard briefing: {e}")
@@ -226,6 +233,93 @@ Respond with valid JSON in this exact format:
     ]
 }}
 """
+    def _create_enhanced_dashboard_analysis_prompt(self, data: Dict[str, Any], comprehensive_risks: List[Dict[str, Any]]) -> str:
+        """Create enhanced prompt including comprehensive risk analysis"""
+        return f"""
+You are an expert resource management analyst providing daily briefings for a project management dashboard.
+
+Current Dashboard Data:
+{json.dumps(data, indent=2)}
+
+Comprehensive Risk Analysis:
+{json.dumps(comprehensive_risks, indent=2)}
+
+Based on both the dashboard data and the comprehensive risk analysis, provide insights in the following format:
+
+{{
+    "summary": "A concise overview of the current situation (2-3 sentences)",
+    "risks": [
+        {{
+            "title": "Brief descriptive title",
+            "description": "Detailed explanation",
+            "priority": "high|medium|low",
+            "affected_items": ["list of affected resources/projects/tasks"],
+            "confidence": 0.85,
+            "risk_category": "resource|technical|external|team|business|operational|financial|timeline|scope|quality"
+        }}
+    ],
+    "recommendations": [
+        {{
+            "title": "Actionable recommendation title", 
+            "description": "Detailed implementation guidance",
+            "priority": "high|medium|low",
+            "affected_items": ["list of affected items"],
+            "confidence": 0.90,
+            "intervention_type": "training|external_resource|process_improvement|technology_upgrade|communication_plan|quality_assurance|stakeholder_engagement|risk_mitigation|reassignment|overtime|resource_addition|deadline_extension|scope_reduction"
+        }}
+    ],
+    "confidence_score": 0.85
+}}
+
+Focus on actionable insights that help project managers make informed decisions. Include risks from ALL categories, not just resource-related ones."""
+
+    def _categorize_risks(self, comprehensive_risks: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Categorize risks by type for better organization"""
+        categories = {}
+        
+        for risk in comprehensive_risks:
+            category = risk.get('category_type', 'operational')
+            if category not in categories:
+                categories[category] = []
+            categories[category].append(risk)
+        
+        return categories
+
+    def _store_enhanced_analysis(self, ai_response: Dict[str, Any], dashboard_data: Dict[str, Any], comprehensive_risks: List[Dict[str, Any]]) -> DashboardAIAnalysis:
+        """Store enhanced analysis with comprehensive risk data"""
+        analysis = DashboardAIAnalysis.objects.create(
+            analysis_type='daily_briefing',
+            summary=ai_response.get('summary', 'No summary available'),
+            risks=ai_response.get('risks', []),
+            recommendations=ai_response.get('recommendations', []),
+            confidence_score=ai_response.get('confidence_score', 0.0),
+            analysis_data={
+                'dashboard_data': dashboard_data,
+                'comprehensive_risks': comprehensive_risks,
+                'ai_response': ai_response
+            }
+        )
+        
+        # Create AI insights for high-priority risks
+        for risk in ai_response.get('risks', []):
+            if risk.get('priority') == 'high':
+                self._create_ai_insight_from_risk(risk, analysis)
+        return analysis
+
+    def _format_enhanced_analysis_response(self, analysis: DashboardAIAnalysis) -> Dict[str, Any]:
+        """Format enhanced analysis for frontend response"""
+        return {
+            "id": analysis.id,
+            "summary": analysis.summary,
+            "risks": analysis.risks,
+            "recommendations": analysis.recommendations,
+            "confidence_score": analysis.confidence_score,
+            "comprehensive_risks": analysis.analysis_data.get('comprehensive_risks', []),
+            "risk_categories": self._categorize_risks(analysis.analysis_data.get('comprehensive_risks', [])),
+            "created_at": analysis.created_at,
+            "is_fresh": (timezone.now() - analysis.created_at).total_seconds() < 3600
+        }
+    
     def _store_analysis(self, ai_response: Dict[str, Any], dashboard_data: Dict[str, Any]) -> DashboardAIAnalysis:
         """Store AI analysis in database"""
         analysis = DashboardAIAnalysis.objects.create(
@@ -949,7 +1043,270 @@ Respond in this JSON format:
     "recommendations": ["actionable suggestions based on analysis"]
 }}
 """
+
+# Enhanced AI services for comprehensive risk management
+
+class EnhancedRiskAnalysisService:
+    """Advanced AI-powered risk analysis for diverse project scenarios"""
+    
+    def analyze_comprehensive_risks(self, project_context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Identify all types of risks, not just resource-related ones"""
+        
+        if not gemini_service.is_available():
+            return []
+        
+        try:
+            # Create comprehensive risk analysis prompt
+            prompt = self._create_comprehensive_risk_prompt(project_context)
+            
+            # Get AI analysis
+            ai_response = gemini_service.generate_json_response(prompt, temperature=0.4)
+            
+            if not ai_response or 'risks' not in ai_response:
+                return []
+            
+            # Process and categorize risks
+            enhanced_risks = []
+            for risk in ai_response['risks']:
+                enhanced_risk = self._enhance_risk_analysis(risk, project_context)
+                enhanced_risks.append(enhanced_risk)
+            
+            return enhanced_risks
+            
+        except Exception as e:
+            logger.error(f"Error in comprehensive risk analysis: {e}")
+            return []
+    
+    def _create_comprehensive_risk_prompt(self, context: Dict[str, Any]) -> str:
+        """Create prompt for comprehensive risk analysis"""
+        return f"""
+You are an expert project management risk analyst. Analyze the following project context and identify ALL types of risks that could impact project success.
+
+Project Context:
+{json.dumps(context, indent=2)}
+
+Analyze for these risk categories:
+1. RESOURCE & ALLOCATION: Team capacity, skill gaps, utilization issues
+2. TECHNICAL & QUALITY: Technical debt, integration issues, quality problems
+3. EXTERNAL DEPENDENCIES: Vendor delays, API issues, client dependencies
+4. TEAM DYNAMICS: Communication, conflicts, knowledge silos
+5. BUSINESS & STRATEGIC: Changing requirements, market shifts, priorities
+6. OPERATIONAL: Infrastructure, tools, processes, compliance
+7. FINANCIAL & BUDGET: Cost overruns, budget cuts, resource costs
+8. TIMELINE & SCHEDULE: Deadline pressure, sequence issues, dependencies
+9. SCOPE & REQUIREMENTS: Scope creep, unclear requirements, changes
+10. QUALITY & STANDARDS: Quality standards, testing gaps, compliance
+
+For each identified risk, provide:
+
+{{
+    "risks": [
+        {{
+            "category": "string (one of the categories above)",
+            "title": "string",
+            "description": "string (detailed explanation)",
+            "severity": "low|medium|high|critical",
+            "probability": decimal (0.0-1.0),
+            "impact_score": decimal (0.0-10.0),
+            "affected_items": ["string"],
+            "root_causes": ["string"],
+            "potential_triggers": ["string"],
+            "impact_areas": ["timeline", "budget", "quality", "team_morale", "client_satisfaction"],
+            "suggested_interventions": [
+                {{
+                    "intervention_type": "string",
+                    "description": "string",
+                    "effort_required": "low|medium|high",
+                    "success_probability": decimal,
+                    "estimated_cost": decimal,
+                    "time_to_implement": "string"
+                }}
+            ],
+            "monitoring_indicators": ["string"],
+            "escalation_conditions": ["string"]
+        }}
+    ],
+    "overall_risk_assessment": {{
+        "project_risk_level": "low|medium|high|critical",
+        "primary_concerns": ["string"],
+        "immediate_actions_needed": ["string"],
+        "long_term_strategies": ["string"]
+    }}
+}}
+"""
+
+    def _enhance_risk_analysis(self, risk: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Enhance risk analysis with additional context and interventions"""
+        
+        # Map risk category to our model categories
+        category_mapping = {
+            'RESOURCE & ALLOCATION': 'resource',
+            'TECHNICAL & QUALITY': 'technical',
+            'EXTERNAL DEPENDENCIES': 'external',
+            'TEAM DYNAMICS': 'team',
+            'BUSINESS & STRATEGIC': 'business',
+            'OPERATIONAL': 'operational',
+            'FINANCIAL & BUDGET': 'financial',
+            'TIMELINE & SCHEDULE': 'timeline',
+            'SCOPE & REQUIREMENTS': 'scope',
+            'QUALITY & STANDARDS': 'quality'
+        }
+        
+        risk['category_type'] = category_mapping.get(risk.get('category', ''), 'operational')
+        
+        # Generate dynamic intervention scenarios
+        risk['dynamic_interventions'] = self._generate_dynamic_interventions(risk, context)
+        
+        # Add risk metadata
+        risk['analysis_timestamp'] = timezone.now().isoformat()
+        risk['confidence'] = min(risk.get('probability', 0.5) * risk.get('impact_score', 5.0) / 5.0, 1.0)
+        
+        return risk
+    
+    def _generate_dynamic_interventions(self, risk: Dict[str, Any], context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Generate context-specific intervention strategies for any type of risk"""
+        
+        risk_category = risk.get('category_type', 'operational')
+        severity = risk.get('severity', 'medium')
+        
+        # Base interventions by category
+        category_interventions = {
+            'resource': ['reassignment', 'overtime', 'resource_addition', 'training'],
+            'technical': ['training', 'external_resource', 'technology_upgrade', 'process_improvement'],
+            'external': ['stakeholder_engagement', 'risk_mitigation', 'scope_reduction'],
+            'team': ['communication_plan', 'training', 'process_improvement'],
+            'business': ['stakeholder_engagement', 'scope_reduction', 'deadline_extension'],
+            'operational': ['process_improvement', 'technology_upgrade', 'risk_mitigation'],
+            'financial': ['scope_reduction', 'resource_addition', 'deadline_extension'],
+            'timeline': ['overtime', 'resource_addition', 'scope_reduction', 'deadline_extension'],
+            'scope': ['scope_reduction', 'stakeholder_engagement', 'deadline_extension'],
+            'quality': ['quality_assurance', 'training', 'process_improvement']
+        }
+        
+        suggested_types = category_interventions.get(risk_category, ['custom'])
+        
+        # If high severity, add emergency interventions
+        if severity in ['high', 'critical']:
+            suggested_types.extend(['external_resource', 'stakeholder_engagement'])
+        
+        # Generate specific intervention details
+        interventions = []
+        for intervention_type in suggested_types[:5]:  # Limit to top 5
+            intervention = self._create_intervention_details(intervention_type, risk, context)
+            if intervention:
+                interventions.append(intervention)
+        
+        return interventions
+    
+    def _create_intervention_details(self, intervention_type: str, risk: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Create detailed intervention plan for specific risk"""
+        
+        intervention_templates = {
+            'training': {
+                'name': 'Skill Development & Training',
+                'description': 'Provide targeted training to address skill gaps',
+                'effort': 'medium',
+                'success_rate': 0.75,
+                'time_range': '1-4 weeks'
+            },
+            'external_resource': {
+                'name': 'External Consultant/Contractor',
+                'description': 'Bring in specialized external expertise',
+                'effort': 'high', 
+                'success_rate': 0.85,
+                'time_range': '1-2 weeks'
+            },
+            'process_improvement': {
+                'name': 'Process Optimization',
+                'description': 'Improve workflows and eliminate inefficiencies',
+                'effort': 'medium',
+                'success_rate': 0.70,
+                'time_range': '2-6 weeks'
+            },
+            'technology_upgrade': {
+                'name': 'Technology/Tool Enhancement',
+                'description': 'Upgrade tools or implement new technology',
+                'effort': 'high',
+                'success_rate': 0.80,
+                'time_range': '2-8 weeks'
+            },
+            'communication_plan': {
+                'name': 'Communication Enhancement',
+                'description': 'Improve team communication and collaboration',
+                'effort': 'low',
+                'success_rate': 0.65,
+                'time_range': '1-2 weeks'
+            },
+            'quality_assurance': {
+                'name': 'Quality Assurance Boost',
+                'description': 'Implement additional QA measures and testing',
+                'effort': 'medium',
+                'success_rate': 0.80,
+                'time_range': '1-3 weeks'
+            },
+            'stakeholder_engagement': {
+                'name': 'Stakeholder Re-engagement',
+                'description': 'Realign stakeholder expectations and requirements',
+                'effort': 'medium',
+                'success_rate': 0.70,
+                'time_range': '1-2 weeks'
+            },
+            'risk_mitigation': {
+                'name': 'Risk Mitigation Plan',
+                'description': 'Develop comprehensive risk mitigation strategy',
+                'effort': 'medium',
+                'success_rate': 0.75,
+                'time_range': '1-3 weeks'
+            }
+        }
+        
+        template = intervention_templates.get(intervention_type)
+        if not template:
+            return None
+        
+        return {
+            'type': intervention_type,
+            'name': template['name'],
+            'description': f"{template['description']} - {risk.get('title', '')}",
+            'effort_required': template['effort'],
+            'success_probability': template['success_rate'],
+            'time_to_implement': template['time_range'],
+            'estimated_cost': self._estimate_intervention_cost(intervention_type, context),
+            'risk_category': risk.get('category_type', 'operational')
+        }
+    
+    def _estimate_intervention_cost(self, intervention_type: str, context: Dict[str, Any]) -> float:
+        """Estimate cost for different intervention types"""
+        
+        # Base cost estimates (in USD)
+        cost_estimates = {
+            'training': 2000,
+            'external_resource': 8000,
+            'process_improvement': 3000,
+            'technology_upgrade': 5000,
+            'communication_plan': 500,
+            'quality_assurance': 3000,
+            'stakeholder_engagement': 1000,
+            'risk_mitigation': 2000,
+            'reassignment': 0,
+            'overtime': 1500,
+            'resource_addition': 6000,
+            'deadline_extension': 500,
+            'scope_reduction': 0
+        }
+        
+        base_cost = cost_estimates.get(intervention_type, 1000)
+        
+        # Adjust based on project size/complexity
+        project_count = len(context.get('projects', {}).get('details', []))
+        team_size = context.get('resources', {}).get('total', 1)
+        
+        complexity_multiplier = 1 + (project_count * 0.2) + (team_size * 0.1)
+        
+        return base_cost * complexity_multiplier
+
 # Create service instances
 dashboard_ai_service = DashboardAIService()
 intervention_simulator_service = InterventionSimulatorService()
 nli_service = NaturalLanguageInterfaceService()
+enhanced_risk_analysis_service = EnhancedRiskAnalysisService()

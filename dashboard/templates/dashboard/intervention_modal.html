@@ -95,13 +95,86 @@
                         <h5>Deadline Extension</h5>
                         <p>Negotiate timeline extensions with stakeholders</p>
                     </div>
-                    
-                    <div class="scenario-card" data-scenario="scope_reduction">
+                      <div class="scenario-card" data-scenario="scope_reduction">
                         <div class="scenario-icon">
                             <i class="fas fa-cut"></i>
                         </div>
                         <h5>Scope Reduction</h5>
                         <p>Reduce project scope to meet original timeline</p>
+                    </div>
+                    
+                    <!-- Enhanced Intervention Types -->
+                    <div class="scenario-card" data-scenario="training">
+                        <div class="scenario-icon">
+                            <i class="fas fa-graduation-cap"></i>
+                        </div>
+                        <h5>Training & Development</h5>
+                        <p>Provide skill training to address capability gaps</p>
+                    </div>
+                    
+                    <div class="scenario-card" data-scenario="external_resource">
+                        <div class="scenario-icon">
+                            <i class="fas fa-user-tie"></i>
+                        </div>
+                        <h5>External Consultant</h5>
+                        <p>Bring in specialized external expertise</p>
+                    </div>
+                    
+                    <div class="scenario-card" data-scenario="process_improvement">
+                        <div class="scenario-icon">
+                            <i class="fas fa-cogs"></i>
+                        </div>
+                        <h5>Process Optimization</h5>
+                        <p>Improve workflows and eliminate inefficiencies</p>
+                    </div>
+                    
+                    <div class="scenario-card" data-scenario="technology_upgrade">
+                        <div class="scenario-icon">
+                            <i class="fas fa-laptop-code"></i>
+                        </div>
+                        <h5>Technology Upgrade</h5>
+                        <p>Implement new tools or upgrade existing systems</p>
+                    </div>
+                    
+                    <div class="scenario-card" data-scenario="risk_mitigation">
+                        <div class="scenario-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <h5>Risk Mitigation</h5>
+                        <p>Develop comprehensive risk mitigation strategy</p>
+                    </div>
+                    
+                    <div class="scenario-card" data-scenario="stakeholder_engagement">
+                        <div class="scenario-icon">
+                            <i class="fas fa-handshake"></i>
+                        </div>
+                        <h5>Stakeholder Alignment</h5>
+                        <p>Realign stakeholder expectations and requirements</p>
+                    </div>
+                    
+                    <div class="scenario-card" data-scenario="quality_assurance">
+                        <div class="scenario-icon">
+                            <i class="fas fa-check-double"></i>
+                        </div>
+                        <h5>Quality Enhancement</h5>
+                        <p>Implement additional QA measures and testing</p>
+                    </div>
+                    
+                    <div class="scenario-card" data-scenario="communication_plan">
+                        <div class="scenario-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <h5>Communication Plan</h5>
+                        <p>Improve team communication and collaboration</p>
+                    </div>
+                    
+                    <!-- AI-Suggested Custom Intervention -->
+                    <div class="scenario-card" data-scenario="ai_suggested" id="ai-suggested-scenario" style="display: none;">
+                        <div class="scenario-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h5 id="ai-scenario-title">AI-Suggested Solution</h5>
+                        <p id="ai-scenario-description">Custom intervention recommended by AI</p>
                     </div>
                 </div>
                 
@@ -126,11 +199,10 @@
                     <!-- Dynamic configuration form will be populated here -->
                 </div>
                 
-                <div class="step-actions">
-                    <button class="btn btn-secondary" onclick="previousStep('scenario')">
+                <div class="step-actions">                    <button class="btn btn-secondary" onclick="previousStep('scenario')">
                         <i class="fas fa-arrow-left"></i> Back
                     </button>
-                    <button class="btn btn-success" onclick="runSimulation()">
+                    <button id="runSimulationBtn" class="btn btn-success">
                         <i class="fas fa-play"></i> Run Simulation
                     </button>
                 </div>
