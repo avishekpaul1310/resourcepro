@@ -1,11 +1,9 @@
 /**
- * AI Dashboard Features JavaScript
- * Handles AI-powered dashboard analyst, intervention simulator, and NLI
+ * AI Dashboard Features JavaScript - Simplified Version
+ * Handles AI-powered dashboard analyst and recommendation system
  */
 
 // Global state
-let currentSimulationStep = 'problem';
-let selectedScenario = null;
 let currentQuery = '';
 let nliTimeout = null;
 
@@ -24,114 +22,131 @@ document.addEventListener('DOMContentLoaded', function() {
  * Initialize all AI features
  */
 function initializeAIFeatures() {
-    initializeNLISearch();
-    initializeInterventionSimulator();
     initializeAIAnalyst();
+    initializeNLISearch();
     
-    // Set up event delegation for simulate buttons
+    // Set up event delegation for recommendation buttons
     document.addEventListener('click', function(e) {
-        if (e.target.closest('.btn-simulate')) {
+        if (e.target.closest('.btn-recommendations')) {
             e.preventDefault();
-            const button = e.target.closest('.btn-simulate');
-            openInterventionSimulatorFromButton(button);
+            const button = e.target.closest('.btn-recommendations');
+            const riskId = button.dataset.riskId;
+            const riskTitle = button.dataset.riskTitle;
+            
+            if (riskId) {
+                getRiskRecommendations(riskId, riskTitle);
+            } else {
+                console.error('No risk ID found for recommendations');
+            }
         }
     });
-    
-    // Auto-refresh AI analysis every 30 minutes
-    setInterval(function() {
-        refreshAIAnalysis(false); // Don't force refresh
-    }, 30 * 60 * 1000);
+      // Auto-refresh AI analysis every 30 minutes (but only if user explicitly wants it)
+    // Removed auto-refresh to prevent constant layout changes
+    console.log('AI Dashboard initialized - auto-refresh disabled to maintain stable layout');
 }
 
 /**
  * Initialize AI Analyst widget
  */
 function initializeAIAnalyst() {
-    // Auto-refresh on visibility change (when user comes back to tab)
-    document.addEventListener('visibilitychange', function() {
-        if (!document.hidden) {
-            const indicator = document.querySelector('.freshness-indicator');
-            if (indicator && indicator.classList.contains('stale')) {
-                refreshAIAnalysis(false);
-            }
-        }
-    });
+    // Only refresh on explicit user action, not automatically
+    // Remove auto-refresh behavior to prevent layout changes
+    
+    // Check if we already have content rendered from the server
+    const widget = document.querySelector('.ai-analyst-widget');
+    if (widget && widget.querySelector('.ai-content')) {
+        console.log('AI widget already rendered from server, skipping auto-refresh');
+        return; // Don't replace server-rendered content
+    }
+    
+    // Only load if no content exists
+    if (widget && !widget.querySelector('.ai-content')) {
+        console.log('Loading AI analysis for empty widget');
+        refreshAIAnalysis(false);
+    }
 }
 
 /**
  * AI Dashboard Analyst Functions
  */
 function refreshAIAnalysis(force = true) {
-    const indicator = document.querySelector('.freshness-indicator');
+    const widget = document.querySelector('.ai-analyst-widget');
+    if (!widget) return;
     
-    if (indicator) {
-        indicator.textContent = 'Updating...';
-        indicator.className = 'freshness-indicator stale';
+    // Show loading state
+    if (force) {
+        widget.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Analyzing dashboard data...</div>';
     }
     
-    fetch('/dashboard/api/refresh-ai-analysis/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCsrfToken()
-        },
-        body: JSON.stringify({ force_refresh: force })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            showNotification('error', 'Failed to refresh AI analysis: ' + data.error);
-        } else {
+    const apiCall = force ? 
+        fetch('/dashboard/api/refresh-ai-analysis/', { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') } }) :
+        fetch('/dashboard/api/refresh-ai-analysis/', { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') } });
+    
+    apiCall
+        .then(response => response.json())
+        .then(data => {
             updateAIAnalysisWidget(data);
-            showNotification('success', 'AI analysis updated successfully');
-        }
-    })
-    .catch(error => {
-        console.error('Error refreshing AI analysis:', error);
-        showNotification('error', 'Failed to refresh AI analysis');
-    });
+        })
+        .catch(error => {
+            console.error('Error refreshing AI analysis:', error);
+            widget.innerHTML = '<div class="error-message">Failed to load AI analysis</div>';
+        });
 }
 
 function updateAIAnalysisWidget(data) {
-    // Update summary
-    const summaryElement = document.querySelector('.ai-summary');
-    if (summaryElement) {
-        summaryElement.textContent = data.summary;
-    }
+    const widget = document.querySelector('.ai-analyst-widget');
+    if (!widget) return;
     
-    // Update risks
-    updateRisksSection(data.risks);
+    widget.innerHTML = `
+        <div class="ai-analysis-content">
+            <div class="analysis-summary">
+                <h4><i class="fas fa-brain"></i> AI Analysis</h4>
+                <p>${data.summary || 'No analysis available'}</p>
+                <div class="confidence-indicator">
+                    <span>Confidence: </span>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" style="width: ${(data.confidence_score || 0) * 100}%"></div>
+                    </div>
+                    <span class="confidence-value">${Math.round((data.confidence_score || 0) * 100)}%</span>
+                </div>
+            </div>
+            
+            <div class="analysis-sections">
+                <div class="ai-risks">
+                    <h5><i class="fas fa-exclamation-triangle"></i> Key Risks</h5>
+                    <div class="risks-container"></div>
+                </div>
+                
+                <div class="ai-recommendations">
+                    <h5><i class="fas fa-lightbulb"></i> Recommendations</h5>
+                    <div class="recommendations-container"></div>
+                </div>
+            </div>
+            
+            <div class="analysis-meta">
+                <small>Last updated: ${new Date(data.created_at).toLocaleString()}</small>
+                <button class="btn-refresh" onclick="refreshAIAnalysis(true)">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </div>
+    `;
     
-    // Update recommendations
-    updateRecommendationsSection(data.recommendations);
-    
-    // Update confidence
-    updateConfidenceDisplay(data.confidence_score);
-    
-    // Update timestamp
-    const timestampElement = document.querySelector('.ai-timestamp small');
-    if (timestampElement) {
-        const date = new Date(data.created_at);
-        timestampElement.innerHTML = `<i class="fas fa-clock"></i> Updated: ${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-    }
-    
-    // Update freshness indicator
-    const indicator = document.querySelector('.freshness-indicator');
-    if (indicator) {
-        indicator.textContent = 'Fresh';
-        indicator.className = 'freshness-indicator fresh';
-    }
+    // Update sections
+    updateRisksSection(data.risks || []);
+    updateRecommendationsSection(data.recommendations || []);
+    updateConfidenceDisplay(data.confidence_score || 0);
 }
 
 function updateRisksSection(risks) {
-    const risksContainer = document.querySelector('.ai-risks');
-    if (!risksContainer || !risks) return;
+    const riskContainer = document.querySelector('.risks-container');
+    if (!riskContainer || !risks) return;
     
-    risksContainer.innerHTML = '';
+    riskContainer.innerHTML = '';
     
     risks.forEach(risk => {
         const riskElement = createRiskElement(risk);
-        risksContainer.appendChild(riskElement);
+        riskContainer.appendChild(riskElement);
     });
 }
 
@@ -149,9 +164,10 @@ function createRiskElement(risk) {
         <div class="risk-affected">
             <small>Affects: ${risk.affected_items.join(', ')}</small>
         </div>
-        ` : ''}        <div class="risk-actions">
-            <button class="btn-simulate" data-risk-title="${risk.title}" data-risk-data="${JSON.stringify(risk).replace(/"/g, '&quot;')}">
-                <i class="fas fa-cogs"></i> Simulate Solutions
+        ` : ''}
+        <div class="risk-actions">
+            <button class="btn-recommendations" data-risk-id="${risk.id || ''}" data-risk-title="${risk.title}">
+                <i class="fas fa-lightbulb"></i> Get AI Recommendations
             </button>
         </div>
     `;
@@ -160,7 +176,7 @@ function createRiskElement(risk) {
 }
 
 function updateRecommendationsSection(recommendations) {
-    const recContainer = document.querySelector('.ai-recommendations');
+    const recContainer = document.querySelector('.recommendations-container');
     if (!recContainer || !recommendations) return;
     
     recContainer.innerHTML = '';
@@ -193,600 +209,160 @@ function createRecommendationElement(rec) {
 
 function updateConfidenceDisplay(confidence) {
     const confidenceFill = document.querySelector('.confidence-fill');
-    const confidenceValue = document.querySelector('.confidence-value');    
+    const confidenceValue = document.querySelector('.confidence-value');
+    
     if (confidenceFill) {
         confidenceFill.style.width = `${confidence * 100}%`;
     }
     
     if (confidenceValue) {
-        confidenceValue.textContent = `${(confidence * 100).toFixed(1)}%`;
+        confidenceValue.textContent = `${Math.round(confidence * 100)}%`;
     }
 }
 
 /**
- * Intervention Simulator Functions
+ * Get AI recommendations for a specific risk
  */
-let interventionSimulatorInitialized = false;
-
-function initializeInterventionSimulator() {
-    // Prevent duplicate initialization
-    if (interventionSimulatorInitialized) {
-        console.log('Intervention simulator already initialized, skipping...');
-        return;
-    }
+function getRiskRecommendations(riskId, riskTitle) {
+    console.log(`Getting recommendations for risk: ${riskTitle} (ID: ${riskId})`);
     
-    console.log('Initializing intervention simulator...');
+    // Show loading state
+    showRecommendationsModal(riskTitle, 'loading');
     
-    // Add event listeners for scenario cards
-    document.addEventListener('click', function(e) {
-        if (e.target.closest('.scenario-card')) {
-            console.log('Scenario card clicked:', e.target.closest('.scenario-card').dataset.scenario);
-            selectScenario(e.target.closest('.scenario-card'));
+    fetch('/dashboard/api/get-risk-recommendations/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            risk_id: riskId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            showRecommendationsModal(riskTitle, 'error', data.error);
+        } else {
+            showRecommendationsModal(riskTitle, 'success', null, data.recommendations);
         }
+    })
+    .catch(error => {
+        console.error('Error getting recommendations:', error);
+        showRecommendationsModal(riskTitle, 'error', 'Failed to get recommendations');
     });
-    
-    // Add event listener for run simulation button
-    document.addEventListener('click', function(e) {
-        if (e.target.id === 'runSimulationBtn' || e.target.closest('#runSimulationBtn')) {
-            e.preventDefault();
-            console.log('Run simulation button clicked via event listener');
-            if (typeof runSimulation === 'function') {
-                runSimulation();
-            } else {
-                console.error('runSimulation function not available');
-                if (typeof window.runSimulation === 'function') {
-                    console.log('Calling window.runSimulation instead');
-                    window.runSimulation();
-                } else {
-                    console.error('window.runSimulation also not available');                }
-            }
-        }
-    });
-    
-    // Mark as initialized
-    interventionSimulatorInitialized = true;
-    console.log('Intervention simulator initialized successfully');
 }
 
-function openInterventionSimulator(riskTitle = '', riskData = null) {
-    const modal = document.getElementById('interventionModal');
-    if (!modal) return;
-    
-    // Pre-populate problem if coming from a risk
-    if (riskTitle) {
-        const titleInput = document.getElementById('problemTitle');
-        if (titleInput) {
-            titleInput.value = riskTitle;
-        }
+/**
+ * Show recommendations modal
+ */
+function showRecommendationsModal(riskTitle, state, errorMessage = null, recommendations = null) {
+    // Remove existing modal
+    const existingModal = document.getElementById('recommendationsModal');
+    if (existingModal) {
+        existingModal.remove();
     }
     
-    if (riskData && riskData.description) {
-        const descInput = document.getElementById('problemDescription');
-        if (descInput) {
-            descInput.value = riskData.description;
-        }
-    }
-    
-    // Check if this risk has AI-suggested interventions
-    if (riskData && riskData.suggested_interventions) {
-        showAISuggestedScenario(riskData.suggested_interventions);
-    }
-    
-    // Reset to first step
-    showSimulationStep('problem');
-    currentSimulationStep = 'problem';
-    selectedScenario = null;
-    
-    // Show modal
+    // Create modal
+    const modal = document.createElement('div');
+    modal.id = 'recommendationsModal';
+    modal.className = 'modal-overlay';
     modal.style.display = 'flex';
+    
+    let modalContent = '';
+    
+    if (state === 'loading') {
+        modalContent = `
+            <div class="modal-container">
+                <div class="modal-header">
+                    <h3><i class="fas fa-lightbulb"></i> AI Recommendations</h3>
+                    <button class="modal-close" onclick="closeRecommendationsModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Generating AI recommendations for: <strong>${riskTitle}</strong></p>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else if (state === 'error') {
+        modalContent = `
+            <div class="modal-container">
+                <div class="modal-header">
+                    <h3><i class="fas fa-exclamation-triangle"></i> Error</h3>
+                    <button class="modal-close" onclick="closeRecommendationsModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="error-message">
+                        <p><strong>Failed to generate recommendations</strong></p>
+                        <p>${errorMessage}</p>
+                        <button class="btn btn-secondary" onclick="closeRecommendationsModal()">Close</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else if (state === 'success' && recommendations) {
+        const recommendationsList = recommendations.map((rec, index) => `
+            <div class="recommendation-card">
+                <div class="recommendation-header">
+                    <h4>${rec.title}</h4>
+                    <div class="success-score">
+                        <span class="score-label">Success Rate:</span>
+                        <span class="score-value">${rec.success_probability}%</span>
+                    </div>
+                </div>
+                <p class="recommendation-description">${rec.description}</p>
+                <div class="recommendation-meta">
+                    <span class="effort-level">Effort: ${rec.implementation_effort || 'Medium'}</span>
+                    <span class="timeframe">Timeline: ${rec.timeframe || 'Short-term'}</span>
+                </div>
+            </div>
+        `).join('');
+        
+        modalContent = `
+            <div class="modal-container">
+                <div class="modal-header">
+                    <h3><i class="fas fa-lightbulb"></i> AI Recommendations</h3>
+                    <button class="modal-close" onclick="closeRecommendationsModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="recommendations-content">
+                        <div class="risk-context">
+                            <h4>Risk: ${riskTitle}</h4>
+                            <p>Here are AI-generated recommendations to address this risk:</p>
+                        </div>
+                        <div class="recommendations-list">
+                            ${recommendationsList}
+                        </div>
+                        <div class="modal-actions">
+                            <button class="btn btn-primary" onclick="closeRecommendationsModal()">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    modal.innerHTML = modalContent;
+    document.body.appendChild(modal);
     document.body.style.overflow = 'hidden';
 }
 
-function closeInterventionModal() {
-    const modal = document.getElementById('interventionModal');
+/**
+ * Close recommendations modal
+ */
+function closeRecommendationsModal() {
+    const modal = document.getElementById('recommendationsModal');
     if (modal) {
-        modal.style.display = 'none';
+        modal.remove();
         document.body.style.overflow = '';
-    }
-}
-
-function nextStep(step) {
-    if (step === 'scenario' && !validateProblemForm()) {
-        return;
-    }
-    
-    if (step === 'configuration' && !selectedScenario) {
-        showNotification('error', 'Please select an intervention scenario');
-        return;
-    }
-    
-    if (step === 'configuration') {
-        generateConfigurationForm();
-    }
-    
-    showSimulationStep(step);
-    currentSimulationStep = step;
-}
-
-function previousStep(step) {
-    showSimulationStep(step);
-    currentSimulationStep = step;
-}
-
-function showSimulationStep(step) {
-    // Hide all steps
-    document.querySelectorAll('.simulation-step').forEach(el => {
-        el.classList.remove('active');
-    });
-    
-    // Show target step
-    const targetStep = document.getElementById(`step-${step}`);
-    if (targetStep) {
-        targetStep.classList.add('active');
-    }
-}
-
-function validateProblemForm() {
-    const title = document.getElementById('problemTitle').value.trim();
-    const description = document.getElementById('problemDescription').value.trim();
-    
-    if (!title) {
-        showNotification('error', 'Please enter a problem title');
-        return false;
-    }
-    
-    if (!description) {
-        showNotification('error', 'Please enter a problem description');
-        return false;
-    }
-    
-    return true;
-}
-
-function selectScenario(card) {
-    console.log('selectScenario called with card:', card, 'scenario:', card.dataset.scenario);
-    
-    // Remove previous selection
-    document.querySelectorAll('.scenario-card').forEach(c => {
-        c.classList.remove('selected');
-    });
-    
-    // Select new card
-    card.classList.add('selected');
-    selectedScenario = card.dataset.scenario;
-    
-    console.log('Selected scenario:', selectedScenario);
-    
-    // Enable next button
-    const nextBtn = document.getElementById('nextToConfig');
-    if (nextBtn) {
-        nextBtn.disabled = false;
-        console.log('Next button enabled');
-    } else {
-        console.log('Next button not found');
-    }
-}
-
-function generateConfigurationForm() {
-    const configContainer = document.getElementById('configurationForm');
-    if (!configContainer) return;
-    
-    let formHTML = '';
-    
-    switch (selectedScenario) {
-        case 'reassignment':
-            formHTML = `
-                <div class="form-group">
-                    <label for="sourceResource">From Resource</label>
-                    <select id="sourceResource" class="form-control" required>
-                        <option value="">Select resource...</option>
-                        <!-- Resources will be populated dynamically -->
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="targetResource">To Resource</label>
-                    <select id="targetResource" class="form-control" required>
-                        <option value="">Select resource...</option>
-                        <!-- Resources will be populated dynamically -->
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="workloadPercentage">Workload to Transfer (%)</label>
-                    <input type="number" id="workloadPercentage" class="form-control" min="1" max="100" value="25">
-                </div>
-            `;
-            break;
-            
-        case 'overtime':
-            formHTML = `
-                <div class="form-group">
-                    <label for="overtimeResource">Resource</label>
-                    <select id="overtimeResource" class="form-control" required>
-                        <option value="">Select resource...</option>
-                        <!-- Resources will be populated dynamically -->
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="overtimeHours">Additional Hours per Week</label>
-                    <input type="number" id="overtimeHours" class="form-control" min="1" max="20" value="10">
-                </div>
-                <div class="form-group">
-                    <label for="overtimeDuration">Duration (weeks)</label>
-                    <input type="number" id="overtimeDuration" class="form-control" min="1" max="8" value="2">
-                </div>
-            `;
-            break;
-              case 'resource_addition':
-            formHTML = `
-                <div class="form-group">
-                    <label for="newResourceRole">Required Role</label>
-                    <select id="newResourceRole" class="form-control" required>
-                        <option value="">Select role...</option>
-                        <!-- Roles will be populated dynamically -->
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="newResourceSkills">Required Skills</label>
-                    <select id="newResourceSkills" class="form-control" multiple>
-                        <!-- Skills will be populated dynamically -->
-                    </select>
-                    <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple skills</small>
-                </div>
-                <div class="form-group">
-                    <label for="newResourceCost">Estimated Cost (per month)</label>
-                    <input type="number" id="newResourceCost" class="form-control" min="0" placeholder="8000">
-                </div>
-                <div class="form-group">
-                    <label for="newResourceStartDate">Expected Start Date</label>
-                    <input type="date" id="newResourceStartDate" class="form-control">
-                </div>
-            `;
-            break;
-            
-        case 'deadline_extension':
-            formHTML = `
-                <div class="form-group">
-                    <label for="extensionDays">Extension Period (days)</label>
-                    <input type="number" id="extensionDays" class="form-control" min="1" max="90" value="7">
-                </div>
-                <div class="form-group">
-                    <label for="extensionReason">Business Justification</label>
-                    <textarea id="extensionReason" class="form-control" rows="3" placeholder="Explain why the extension is necessary..."></textarea>
-                </div>
-            `;
-            break;
-              case 'scope_reduction':
-            formHTML = `
-                <div class="form-group">
-                    <label for="scopeReduction">Scope Reduction (%)</label>
-                    <input type="range" id="scopeReduction" class="form-control" min="5" max="50" value="20" 
-                           oninput="updateScopeValue(this.value)">
-                    <div class="d-flex justify-content-between">
-                        <small>5%</small>
-                        <span id="scopeValue">20%</span>
-                        <small>50%</small>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="tasksToDefer">Tasks/Features to Remove or Defer</label>
-                    <select id="tasksToDefer" class="form-control" multiple>
-                        <!-- Tasks will be populated dynamically -->
-                    </select>
-                    <small class="form-text text-muted">Select tasks that can be removed or deferred</small>
-                </div>
-                <div class="form-group">
-                    <label for="reducedFeatures">Custom Features Description</label>
-                    <textarea id="reducedFeatures" class="form-control" rows="3" placeholder="Describe any additional features or requirements to remove..."></textarea>
-                </div>
-            `;
-            break;
-            
-        case 'training':
-            formHTML = `
-                <div class="form-group">
-                    <label for="trainingType">Training Type</label>
-                    <select id="trainingType" class="form-control" required>
-                        <option value="">Select training type...</option>
-                        <option value="technical_skills">Technical Skills</option>
-                        <option value="soft_skills">Soft Skills</option>
-                        <option value="leadership">Leadership Development</option>
-                        <option value="process_training">Process Training</option>
-                        <option value="tool_training">Tool/Technology Training</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="trainingTargets">Target Resources</label>
-                    <select id="trainingTargets" class="form-control" multiple required>
-                        <!-- Populated dynamically -->
-                    </select>
-                    <small class="form-text text-muted">Select team members who need training</small>
-                </div>
-                <div class="form-group">
-                    <label for="trainingDuration">Training Duration (days)</label>
-                    <input type="number" id="trainingDuration" class="form-control" min="1" max="30" value="5" required>
-                </div>
-                <div class="form-group">
-                    <label for="trainingBudget">Training Budget ($)</label>
-                    <input type="number" id="trainingBudget" class="form-control" min="0" step="100" value="2000">
-                </div>
-            `;
-            break;
-            
-        case 'external_resource':
-            formHTML = `
-                <div class="form-group">
-                    <label for="consultantType">Consultant Type</label>
-                    <select id="consultantType" class="form-control" required>
-                        <option value="">Select consultant type...</option>
-                        <option value="technical_expert">Technical Expert</option>
-                        <option value="project_manager">Project Manager</option>
-                        <option value="business_analyst">Business Analyst</option>
-                        <option value="qa_specialist">QA Specialist</option>
-                        <option value="domain_expert">Domain Expert</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="consultantSkills">Required Skills</label>
-                    <textarea id="consultantSkills" class="form-control" rows="3" 
-                              placeholder="List specific skills or expertise needed..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="engagementDuration">Engagement Duration (weeks)</label>
-                    <input type="number" id="engagementDuration" class="form-control" min="1" max="52" value="4">
-                </div>
-                <div class="form-group">
-                    <label for="consultantBudget">Budget ($)</label>
-                    <input type="number" id="consultantBudget" class="form-control" min="0" step="500" value="8000">
-                </div>
-            `;
-            break;
-            
-        case 'process_improvement':
-            formHTML = `
-                <div class="form-group">
-                    <label for="processArea">Process Area</label>
-                    <select id="processArea" class="form-control" required>
-                        <option value="">Select process area...</option>
-                        <option value="communication">Communication</option>
-                        <option value="development">Development Workflow</option>
-                        <option value="testing">Testing Process</option>
-                        <option value="deployment">Deployment Process</option>
-                        <option value="project_management">Project Management</option>
-                        <option value="quality_assurance">Quality Assurance</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="currentIssues">Current Issues</label>
-                    <textarea id="currentIssues" class="form-control" rows="3" 
-                              placeholder="Describe the current process issues..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="proposedSolution">Proposed Solution</label>
-                    <textarea id="proposedSolution" class="form-control" rows="3" 
-                              placeholder="Describe the proposed improvement..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="implementationTime">Implementation Time (weeks)</label>
-                    <input type="number" id="implementationTime" class="form-control" min="1" max="12" value="3">
-                </div>
-            `;
-            break;
-            
-        case 'technology_upgrade':
-            formHTML = `
-                <div class="form-group">
-                    <label for="technologyType">Technology Type</label>
-                    <select id="technologyType" class="form-control" required>
-                        <option value="">Select technology type...</option>
-                        <option value="development_tools">Development Tools</option>
-                        <option value="project_management">Project Management Tools</option>
-                        <option value="communication">Communication Tools</option>
-                        <option value="testing_tools">Testing Tools</option>
-                        <option value="infrastructure">Infrastructure</option>
-                        <option value="automation">Automation Tools</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="currentTechnology">Current Technology</label>
-                    <input type="text" id="currentTechnology" class="form-control" 
-                           placeholder="Current tools/technology being used">
-                </div>
-                <div class="form-group">
-                    <label for="proposedTechnology">Proposed Technology</label>
-                    <input type="text" id="proposedTechnology" class="form-control" 
-                           placeholder="Proposed new tools/technology">
-                </div>
-                <div class="form-group">
-                    <label for="migrationTime">Migration Time (weeks)</label>
-                    <input type="number" id="migrationTime" class="form-control" min="1" max="24" value="6">
-                </div>
-                <div class="form-group">
-                    <label for="technologyBudget">Budget ($)</label>
-                    <input type="number" id="technologyBudget" class="form-control" min="0" step="500" value="5000">
-                </div>
-            `;
-            break;
-            
-        case 'risk_mitigation':
-            formHTML = `
-                <div class="form-group">
-                    <label for="riskType">Risk Type</label>
-                    <select id="riskType" class="form-control" required>
-                        <option value="">Select risk type...</option>
-                        <option value="technical">Technical Risk</option>
-                        <option value="external">External Dependency</option>
-                        <option value="team">Team Risk</option>
-                        <option value="business">Business Risk</option>
-                        <option value="operational">Operational Risk</option>
-                        <option value="financial">Financial Risk</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="riskDescription">Risk Description</label>
-                    <textarea id="riskDescription" class="form-control" rows="3" 
-                              placeholder="Describe the specific risk..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="mitigationStrategy">Mitigation Strategy</label>
-                    <textarea id="mitigationStrategy" class="form-control" rows="3" 
-                              placeholder="Describe the mitigation approach..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="contingencyPlan">Contingency Plan</label>
-                    <textarea id="contingencyPlan" class="form-control" rows="2" 
-                              placeholder="Backup plan if mitigation fails..."></textarea>
-                </div>
-            `;
-            break;
-            
-        case 'stakeholder_engagement':
-            formHTML = `
-                <div class="form-group">
-                    <label for="stakeholderType">Stakeholder Type</label>
-                    <select id="stakeholderType" class="form-control" required>
-                        <option value="">Select stakeholder type...</option>
-                        <option value="client">Client/Customer</option>
-                        <option value="management">Management</option>
-                        <option value="team">Team Members</option>
-                        <option value="vendor">Vendor/Supplier</option>
-                        <option value="end_users">End Users</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="engagementIssue">Engagement Issue</label>
-                    <textarea id="engagementIssue" class="form-control" rows="3" 
-                              placeholder="Describe the stakeholder issue..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="engagementStrategy">Engagement Strategy</label>
-                    <textarea id="engagementStrategy" class="form-control" rows="3" 
-                              placeholder="How will you re-engage the stakeholder..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="successMetrics">Success Metrics</label>
-                    <textarea id="successMetrics" class="form-control" rows="2" 
-                              placeholder="How will you measure successful engagement..."></textarea>
-                </div>
-            `;
-            break;
-            
-        case 'quality_assurance':
-            formHTML = `
-                <div class="form-group">
-                    <label for="qualityArea">Quality Area</label>
-                    <select id="qualityArea" class="form-control" required>
-                        <option value="">Select quality area...</option>
-                        <option value="code_quality">Code Quality</option>
-                        <option value="testing">Testing Coverage</option>
-                        <option value="documentation">Documentation</option>
-                        <option value="standards">Standards Compliance</option>
-                        <option value="performance">Performance</option>
-                        <option value="security">Security</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="qualityIssues">Current Quality Issues</label>
-                    <textarea id="qualityIssues" class="form-control" rows="3" 
-                              placeholder="Describe current quality problems..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="qualityMeasures">Proposed QA Measures</label>
-                    <textarea id="qualityMeasures" class="form-control" rows="3" 
-                              placeholder="Describe additional QA measures..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="qualityTimeline">Implementation Timeline (weeks)</label>
-                    <input type="number" id="qualityTimeline" class="form-control" min="1" max="8" value="2">
-                </div>
-            `;
-            break;
-            
-        case 'communication_plan':
-            formHTML = `
-                <div class="form-group">
-                    <label for="communicationIssue">Communication Issue</label>
-                    <select id="communicationIssue" class="form-control" required>
-                        <option value="">Select issue type...</option>
-                        <option value="unclear_requirements">Unclear Requirements</option>
-                        <option value="poor_coordination">Poor Team Coordination</option>
-                        <option value="stakeholder_disconnect">Stakeholder Disconnect</option>
-                        <option value="information_silos">Information Silos</option>
-                        <option value="feedback_delays">Feedback Delays</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="communicationSolution">Communication Solution</label>
-                    <textarea id="communicationSolution" class="form-control" rows="3" 
-                              placeholder="Describe the communication improvement plan..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="communicationTools">Tools/Methods</label>
-                    <input type="text" id="communicationTools" class="form-control" 
-                           placeholder="Slack, daily standups, documentation tools, etc.">
-                </div>
-                <div class="form-group">
-                    <label for="communicationFrequency">Communication Frequency</label>
-                    <select id="communicationFrequency" class="form-control">
-                        <option value="daily">Daily</option>
-                        <option value="twice_weekly">Twice Weekly</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="bi_weekly">Bi-weekly</option>
-                    </select>
-                </div>
-            `;
-            break;
-            
-        case 'ai_suggested':
-            // Handle AI-suggested custom interventions
-            formHTML = generateAISuggestedForm();
-            break;
-            
-        // ...existing cases...
-    }
-    
-    if (formHTML) {
-        configContainer.innerHTML = formHTML;
-        // Populate dropdowns with real data if needed
-        if (['training', 'external_resource'].includes(selectedScenario)) {
-            populateResourceDropdowns();
-        }
-    }
-}
-
-function generateAISuggestedForm() {
-    // This would be populated based on AI analysis
-    return `
-        <div class="alert alert-info">
-            <i class="fas fa-robot"></i>
-            <strong>AI-Suggested Intervention</strong><br>
-            This custom intervention was generated based on AI analysis of your specific risk pattern.
-        </div>
-        <div class="form-group">
-            <label for="aiInterventionDetails">Intervention Details</label>
-            <textarea id="aiInterventionDetails" class="form-control" rows="4" readonly></textarea>
-        </div>
-        <div class="form-group">
-            <label for="aiImplementationPlan">Implementation Plan</label>
-            <textarea id="aiImplementationPlan" class="form-control" rows="3" readonly></textarea>
-        </div>
-        <div class="form-group">
-            <label for="aiSuccessMetrics">Success Metrics</label>
-            <textarea id="aiSuccessMetrics" class="form-control" rows="2" readonly></textarea>
-        </div>
-    `;
-}
-
-function showAISuggestedScenario(interventions) {
-    const aiScenario = document.getElementById('ai-suggested-scenario');
-    if (aiScenario && interventions.length > 0) {
-        const topIntervention = interventions[0];
-        document.getElementById('ai-scenario-title').textContent = topIntervention.name || 'AI-Suggested Solution';
-        document.getElementById('ai-scenario-description').textContent = 
-            topIntervention.description || 'Custom intervention recommended by AI';
-        aiScenario.style.display = 'block';
-        
-        // Store intervention data for form population
-        aiScenario.dataset.interventionData = JSON.stringify(topIntervention);
     }
 }
 
@@ -794,72 +370,29 @@ function showAISuggestedScenario(interventions) {
  * Natural Language Interface Functions
  */
 function initializeNLISearch() {
-    const searchInput = document.getElementById('nliSearchInput');
-    const clearBtn = document.getElementById('clearBtn');
-    const voiceBtn = document.getElementById('voiceBtn');
+    const nliInput = document.getElementById('nli-input');
+    if (!nliInput) return;
     
-    if (searchInput) {
-        searchInput.addEventListener('input', handleNLIInput);
-        searchInput.addEventListener('keydown', handleNLIKeydown);
-        searchInput.addEventListener('focus', showQuickSuggestions);
-        searchInput.addEventListener('blur', hideQuickSuggestionsDelayed);
-    }
-    
-    if (clearBtn) {
-        clearBtn.addEventListener('click', clearNLISearch);
-    }
-    
-    if (voiceBtn) {
-        voiceBtn.addEventListener('click', toggleVoiceSearch);
-    }
-    
-    // Add click handlers for quick suggestions
-    document.addEventListener('click', function(e) {
-        if (e.target.closest('.suggestion-item')) {
-            const suggestion = e.target.closest('.suggestion-item');
-            const query = suggestion.dataset.query;
-            if (query) {
-                searchInput.value = query;
-                processNLIQuery(query);
-            }
-        }
-    });
-    
-    // Close results when clicking outside
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('.nli-search-container')) {
-            closeNLIResults();
-        }
-    });
+    nliInput.addEventListener('input', handleNLIInput);
+    nliInput.addEventListener('keydown', handleNLIKeydown);
 }
 
 function handleNLIInput(e) {
     const query = e.target.value.trim();
-    const clearBtn = document.getElementById('clearBtn');
+    currentQuery = query;
     
-    // Show/hide clear button
-    if (clearBtn) {
-        clearBtn.style.display = query ? 'flex' : 'none';
-    }
-    
-    // Add has-query class
-    const searchBar = document.querySelector('.nli-search-bar');
-    if (searchBar) {
-        searchBar.classList.toggle('has-query', query.length > 0);
-    }
-    
-    // Clear previous timeout
+    // Clear existing timeout
     if (nliTimeout) {
         clearTimeout(nliTimeout);
     }
     
-    // Process query after delay
-    if (query.length >= 3) {
+    // Set new timeout for delayed search
+    if (query.length > 2) {
         nliTimeout = setTimeout(() => {
             processNLIQuery(query);
-        }, 500);
-    } else if (query.length === 0) {
-        closeNLIResults();
+        }, 800);
+    } else {
+        hideNLIResults();
     }
 }
 
@@ -867,893 +400,187 @@ function handleNLIKeydown(e) {
     if (e.key === 'Enter') {
         e.preventDefault();
         const query = e.target.value.trim();
-        if (query) {
+        if (query.length > 2) {
             processNLIQuery(query);
         }
-    } else if (e.key === 'Escape') {
-        closeNLIResults();
-        e.target.blur();
     }
-}
-
-function showQuickSuggestions() {
-    const suggestions = document.getElementById('quickSuggestions');
-    if (suggestions) {
-        suggestions.style.display = 'block';
-    }
-}
-
-function hideQuickSuggestionsDelayed() {
-    setTimeout(() => {
-        const suggestions = document.getElementById('quickSuggestions');
-        if (suggestions) {
-            suggestions.style.display = 'none';
-        }
-    }, 200);
 }
 
 function processNLIQuery(query) {
-    currentQuery = query;
+    if (!query || query.length < 3) return;
     
-    // Show loading state
     showNLILoading();
     
     fetch('/dashboard/api/nli-query/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': getCsrfToken()
+            'X-CSRFToken': getCookie('csrftoken')
         },
         body: JSON.stringify({ query: query })
     })
     .then(response => response.json())
     .then(data => {
-        hideNLILoading();
-        if (data.error) {
-            showNLIError(data.error);
-        } else {
-            showNLIResults(data.response);
-        }
+        displayNLIResults(data);
     })
     .catch(error => {
-        console.error('NLI query error:', error);
-        hideNLILoading();
-        showNLIError('Failed to process query');
+        console.error('Error processing NLI query:', error);
+        hideNLIResults();
     });
 }
 
 function showNLILoading() {
-    const loadingElement = document.getElementById('nliLoading');
-    const resultsElement = document.getElementById('nliResults');
-    
-    if (resultsElement) {
-        resultsElement.style.display = 'none';
-    }
-    
-    if (loadingElement) {
-        loadingElement.style.display = 'block';
-        loadingElement.classList.add('show');
+    const resultsContainer = document.getElementById('nli-results');
+    if (resultsContainer) {
+        resultsContainer.style.display = 'block';
+        resultsContainer.innerHTML = '<div class="nli-loading"><i class="fas fa-spinner fa-spin"></i> Processing...</div>';
     }
 }
 
-function hideNLILoading() {
-    const loadingElement = document.getElementById('nliLoading');
-    if (loadingElement) {
-        loadingElement.style.display = 'none';
-        loadingElement.classList.remove('show');
+function displayNLIResults(data) {
+    const resultsContainer = document.getElementById('nli-results');
+    if (!resultsContainer) return;
+    
+    if (data.error) {
+        resultsContainer.innerHTML = `<div class="nli-error">Error: ${data.error}</div>`;
+        return;
     }
+    
+    resultsContainer.style.display = 'block';
+    resultsContainer.innerHTML = `
+        <div class="nli-response">
+            <div class="nli-answer">${data.response_text || 'No response available'}</div>
+            ${data.response_data ? `
+                <div class="nli-data">
+                    <pre>${JSON.stringify(data.response_data, null, 2)}</pre>
+                </div>
+            ` : ''}
+        </div>
+    `;
 }
 
-function showNLIResults(response) {
-    const resultsElement = document.getElementById('nliResults');
-    const contentElement = document.getElementById('resultsContent');
-    
-    if (!resultsElement || !contentElement) return;
-    
-    // Format response based on type
-    let contentHTML = '';
-    
-    if (response.error) {
-        contentHTML = `
-            <div class="result-error">
-                <i class="fas fa-exclamation-triangle"></i>
-                <p>${response.error}</p>
-            </div>
-        `;
-    } else {
-        contentHTML = `<div class="result-text">${response.text}</div>`;
-        
-        // Add data visualization if available
-        if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-            if (response.type === 'availability_list' || response.type === 'utilization_list') {
-                contentHTML += '<div class="result-data-grid">';
-                response.data.slice(0, 6).forEach(item => {
-                    contentHTML += `
-                        <div class="result-data-item">
-                            <h5>${item.name}</h5>
-                            <p>${item.role}</p>
-                            <p>${response.type === 'availability_list' ? 
-                                `${item.availability?.toFixed(1)}% available` : 
-                                `${item.utilization?.toFixed(1)}% utilized`}</p>
-                        </div>
-                    `;
-                });
-                contentHTML += '</div>';
-            } else if (response.type === 'deadline_list') {
-                contentHTML += '<ul class="result-list">';
-                response.data.slice(0, 8).forEach(item => {
-                    contentHTML += `
-                        <li>${item.task} (${item.project}) - ${item.days_until} days</li>
-                    `;
-                });
-                contentHTML += '</ul>';
-            } else if (response.type === 'project_list') {
-                contentHTML += '<div class="result-data-grid">';
-                response.data.slice(0, 6).forEach(item => {
-                    contentHTML += `
-                        <div class="result-data-item">
-                            <h5>${item.name}</h5>
-                            <p>${item.completion?.toFixed(1)}% complete</p>
-                            <p>Status: ${item.status}</p>
-                        </div>
-                    `;
-                });
-                contentHTML += '</div>';
-            }
-        }
-    }
-    
-    contentElement.innerHTML = contentHTML;
-    resultsElement.style.display = 'block';
-    resultsElement.classList.add('show');
-    
-    // Update search bar styling
-    const searchBar = document.querySelector('.nli-search-bar');
-    if (searchBar) {
-        searchBar.classList.add('has-results');
-    }
-    
-    // Update results container styling
-    resultsElement.classList.add('connected');
-}
-
-function showNLIError(error) {
-    showNLIResults({ error: error });
-}
-
-function closeNLIResults() {
-    const resultsElement = document.getElementById('nliResults');
-    const searchBar = document.querySelector('.nli-search-bar');
-    
-    if (resultsElement) {
-        resultsElement.style.display = 'none';
-        resultsElement.classList.remove('show', 'connected');
-    }
-    
-    if (searchBar) {
-        searchBar.classList.remove('has-results');
-    }
-}
-
-function clearNLISearch() {
-    const searchInput = document.getElementById('nliSearchInput');
-    const clearBtn = document.getElementById('clearBtn');
-    const searchBar = document.querySelector('.nli-search-bar');
-    
-    if (searchInput) {
-        searchInput.value = '';
-        searchInput.focus();
-    }
-    
-    if (clearBtn) {
-        clearBtn.style.display = 'none';
-    }
-    
-    if (searchBar) {
-        searchBar.classList.remove('has-query');
-    }
-    
-    closeNLIResults();
-    currentQuery = '';
-}
-
-function toggleVoiceSearch() {
-    const voiceBtn = document.getElementById('voiceBtn');
-    
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        const recognition = new SpeechRecognition();
-        
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = 'en-US';
-        
-        recognition.onstart = function() {
-            if (voiceBtn) {
-                voiceBtn.classList.add('recording');
-                voiceBtn.innerHTML = '<i class="fas fa-microphone-slash"></i>';
-            }
-        };
-        
-        recognition.onresult = function(event) {
-            const transcript = event.results[0][0].transcript;
-            const searchInput = document.getElementById('nliSearchInput');
-            if (searchInput) {
-                searchInput.value = transcript;
-                processNLIQuery(transcript);
-            }
-        };
-        
-        recognition.onend = function() {
-            if (voiceBtn) {
-                voiceBtn.classList.remove('recording');
-                voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-            }
-        };
-        
-        recognition.onerror = function(event) {
-            console.error('Speech recognition error:', event.error);
-            showNotification('error', 'Voice recognition failed. Please try again.');
-            if (voiceBtn) {
-                voiceBtn.classList.remove('recording');
-                voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-            }
-        };
-        
-        recognition.start();
-    } else {
-        showNotification('error', 'Voice recognition not supported in this browser');
+function hideNLIResults() {
+    const resultsContainer = document.getElementById('nli-results');
+    if (resultsContainer) {
+        resultsContainer.style.display = 'none';
     }
 }
 
 /**
- * Utility Functions
+ * Get CSRF token for API calls
  */
-function getCsrfToken() {
-    const token = document.querySelector('[name=csrfmiddlewaretoken]');
-    return token ? token.value : '';
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
 }
 
-function showNotification(type, message) {
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.innerHTML = `
-        <div class="notification-content">
-            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-            <span>${message}</span>
-        </div>
-        <button class="notification-close" onclick="this.parentElement.remove()">
-            <i class="fas fa-times"></i>
-        </button>
-    `;
+/**
+ * Manual refresh function for explicit user-triggered refresh
+ */
+function manualRefreshAI() {
+    console.log('Manual AI refresh triggered by user');
+    const widget = document.querySelector('.ai-analyst-widget');
+    if (!widget) return;
     
-    // Add to page
-    document.body.appendChild(notification);
+    // Show loading overlay instead of replacing content
+    const loadingOverlay = document.createElement('div');
+    loadingOverlay.className = 'ai-loading-overlay';
+    loadingOverlay.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Refreshing analysis...</div>';
+    widget.appendChild(loadingOverlay);
     
-    // Auto-remove after 5 seconds
-    setTimeout(() => {
-        if (notification.parentElement) {
-            notification.remove();
+    fetch('/dashboard/api/refresh-ai-analysis/', { 
+        method: 'POST', 
+        headers: { 'X-CSRFToken': getCookie('csrftoken') } 
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Remove loading overlay
+        if (loadingOverlay.parentNode) {
+            loadingOverlay.parentNode.removeChild(loadingOverlay);
         }
-    }, 5000);
+        
+        // Update only the dynamic content, not the structure
+        updateAIContentOnly(data);
+    })
+    .catch(error => {
+        console.error('Error refreshing AI analysis:', error);
+        if (loadingOverlay.parentNode) {
+            loadingOverlay.parentNode.removeChild(loadingOverlay);
+        }
+        alert('Failed to refresh AI analysis. Please try again.');
+    });
+}
+
+/**
+ * Update only the AI content without changing the layout structure
+ */
+function updateAIContentOnly(data) {
+    // Update summary
+    const summaryElement = document.querySelector('.ai-summary');
+    if (summaryElement && data.summary) {
+        summaryElement.textContent = data.summary;
+    }
     
-    // Add notification styles if not already present
-    if (!document.getElementById('notificationStyles')) {
-        const styles = document.createElement('style');
-        styles.id = 'notificationStyles';
-        styles.textContent = `
-            .notification {
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: white;
-                border-radius: 8px;
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-                padding: 16px;
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                z-index: 10000;
-                min-width: 300px;
-                border-left: 4px solid;
-                animation: slideInRight 0.3s ease-out;
-            }
-            
-            .notification-success {
-                border-left-color: #48bb78;
-            }
-            
-            .notification-error {
-                border-left-color: #e53e3e;
-            }
-            
-            .notification-info {
-                border-left-color: #4c51bf;
-            }
-            
-            .notification-content {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                flex: 1;
-            }
-            
-            .notification-content i {
-                font-size: 1.1rem;
-            }
-            
-            .notification-success .notification-content i {
-                color: #48bb78;
-            }
-            
-            .notification-error .notification-content i {
-                color: #e53e3e;
-            }
-            
-            .notification-info .notification-content i {
-                color: #4c51bf;
-            }
-            
-            .notification-close {
-                background: none;
-                border: none;
-                color: #718096;
-                cursor: pointer;
-                padding: 4px;
-                border-radius: 4px;
-            }
-            
-            .notification-close:hover {
-                background: #f7fafc;
-            }
-            
-            @keyframes slideInRight {
-                from {
-                    transform: translateX(100%);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateX(0);
-                    opacity: 1;
-                }
-            }
+    // Update confidence
+    const confidenceFill = document.querySelector('.confidence-fill');
+    const confidenceValue = document.querySelector('.confidence-value');
+    if (confidenceFill && data.confidence_score !== undefined) {
+        confidenceFill.style.width = `${Math.round(data.confidence_score * 100)}%`;
+    }
+    if (confidenceValue && data.confidence_score !== undefined) {
+        confidenceValue.textContent = `${Math.round(data.confidence_score * 100)}%`;
+    }
+    
+    // Update timestamp
+    const timestampElement = document.querySelector('.ai-timestamp small');
+    if (timestampElement && data.created_at) {
+        const date = new Date(data.created_at);
+        timestampElement.innerHTML = `<i class="fas fa-clock"></i> Updated: ${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+    }
+    
+    // Update risks section if it exists
+    const risksContainer = document.querySelector('.ai-risks');
+    if (risksContainer && data.risks) {
+        updateRisksInTemplate(data.risks);
+    }
+}
+
+/**
+ * Update risks while maintaining the template structure
+ */
+function updateRisksInTemplate(risks) {
+    const risksContainer = document.querySelector('.ai-risks');
+    if (!risksContainer) return;
+    
+    // Clear existing risks but keep the structure
+    const existingRisks = risksContainer.querySelectorAll('.ai-risk-item');
+    existingRisks.forEach(risk => risk.remove());
+    
+    // Add new risks in the template format
+    risks.forEach(risk => {
+        const riskElement = document.createElement('div');
+        riskElement.className = `ai-risk-item risk-${risk.priority || 'medium'}`;
+        riskElement.innerHTML = `
+            <div class="risk-header">
+                <span class="risk-title">${risk.title}</span>
+                <span class="risk-priority priority-${risk.priority || 'medium'}">${(risk.priority || 'medium').charAt(0).toUpperCase() + (risk.priority || 'medium').slice(1)}</span>
+            </div>
+            <p class="risk-description">${risk.description || ''}</p>
+            ${risk.affected_items ? `<small class="risk-affects">Affects: ${risk.affected_items.join(', ')}</small>` : ''}
+            <button class="btn-recommendations" data-risk-id="${risk.id || 'unknown'}" data-risk-title="${risk.title}">
+                <i class="fas fa-lightbulb"></i> Get AI Recommendations
+            </button>
         `;
-        document.head.appendChild(styles);
-    }
-}
-
-function openInterventionSimulatorFromButton(button) {
-    try {
-        const riskTitle = button.dataset.riskTitle || '';
-        let riskDataStr = button.dataset.riskData;
-        let riskData = null;
-        
-        if (riskDataStr) {
-            // Decode HTML entities if they exist
-            const textArea = document.createElement('textarea');
-            textArea.innerHTML = riskDataStr;
-            riskDataStr = textArea.value;
-            
-            riskData = JSON.parse(riskDataStr);
-        }
-        
-        openInterventionSimulator(riskTitle, riskData);
-    } catch (error) {
-        console.error('Error opening intervention simulator:', error);
-        showNotification('error', 'Failed to open intervention simulator');
-    }
-}
-
-// Make function globally available
-window.openInterventionSimulatorFromButton = openInterventionSimulatorFromButton;
-
-// Helper function to populate role dropdown for additional resource scenario
-function populateRoleDropdown(resources) {
-    const roleSelect = document.getElementById('newResourceRole');
-    if (!roleSelect) return;
-    
-    // Extract unique roles from resources
-    const roles = [...new Set(resources.map(r => r.role))];
-    
-    roles.forEach(role => {
-        const option = document.createElement('option');
-        option.value = role;
-        option.textContent = role;
-        roleSelect.appendChild(option);
+        risksContainer.appendChild(riskElement);
     });
 }
-
-// Helper function to populate skills dropdown for additional resource scenario
-function populateSkillsDropdown(resources) {
-    const skillsSelect = document.getElementById('newResourceSkills');
-    if (!skillsSelect) return;
-    
-    // Extract unique skills from all resources
-    const allSkills = new Set();
-    resources.forEach(resource => {
-        if (resource.skills) {
-            resource.skills.forEach(skill => allSkills.add(skill));
-        }
-    });
-    
-    [...allSkills].sort().forEach(skill => {
-        const option = document.createElement('option');
-        option.value = skill;
-        option.textContent = skill;
-        skillsSelect.appendChild(option);
-    });
-}
-
-// Function to fetch project tasks for scope reduction scenario
-function fetchProjectTasks(projectId) {
-    const tasksSelect = document.getElementById('tasksToDefer');
-    if (!tasksSelect) return;
-    
-    fetch(`/dashboard/api/project-tasks/?project_id=${projectId}`, {
-        method: 'GET',
-        headers: {
-            'X-CSRFToken': getCsrfToken()
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Clear existing options
-            tasksSelect.innerHTML = '';
-            
-            // Add tasks as options
-            data.tasks.forEach(task => {
-                const option = document.createElement('option');
-                option.value = task.id;
-                option.textContent = `${task.name} (${task.status}, ${task.completion_percentage}% complete)`;
-                tasksSelect.appendChild(option);
-            });
-        } else {
-            console.error('Failed to fetch project tasks:', data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error fetching project tasks:', error);
-    });
-}
-
-// Function to update scope reduction percentage display
-function updateScopeValue(value) {
-    const scopeValueElement = document.getElementById('scopeValue');
-    if (scopeValueElement) {
-        scopeValueElement.textContent = value + '%';
-    }
-}
-
-// Function to run the intervention simulation
-function runSimulation() {
-    console.log('=== runSimulation called ===');
-    console.log('Starting simulation...');
-    console.log('selectedScenario:', selectedScenario);
-    
-    if (!selectedScenario) {
-        showNotification('error', 'No scenario selected');
-        return;
-    }
-    
-    try {
-        // Collect form data based on scenario type
-        const simulationData = collectSimulationData();
-        
-        if (!simulationData) {
-            return; // Error already shown in collectSimulationData
-        }
-        
-        // Show loading state
-        const runButton = document.querySelector('#runSimulationBtn, .btn-success');
-        if (runButton) {
-            runButton.disabled = true;
-            runButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running Simulation...';
-        }
-          // Make API call to run simulation
-        fetch('/dashboard/api/simulate-intervention/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCsrfToken()
-            },
-            body: JSON.stringify(simulationData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showSimulationResults(data.result);
-                showSimulationStep('results');
-                currentSimulationStep = 'results';
-            } else {
-                showNotification('error', data.error || 'Simulation failed');
-            }
-        })
-        .catch(error => {
-            console.error('Simulation error:', error);
-            showNotification('error', 'Failed to run simulation');
-        })
-        .finally(() => {
-            // Reset button state
-            if (runButton) {
-                runButton.disabled = false;
-                runButton.innerHTML = '<i class="fas fa-play"></i> Run Simulation';
-            }
-        });
-        
-    } catch (error) {
-        console.error('Error in runSimulation:', error);
-        showNotification('error', 'Failed to prepare simulation');
-    }
-}
-
-// Function to collect simulation data from the form
-function collectSimulationData() {
-    const problemTitle = document.getElementById('problemTitle')?.value.trim();
-    const problemDescription = document.getElementById('problemDescription')?.value.trim();
-    
-    if (!problemTitle || !problemDescription) {
-        showNotification('error', 'Please fill in problem title and description');
-        return null;
-    }
-    
-    const baseData = {
-        scenario_type: selectedScenario,
-        title: problemTitle,
-        description: problemDescription,
-        project_id: document.getElementById('simulationProject')?.value || null
-    };
-    
-    // Add scenario-specific data
-    switch (selectedScenario) {
-        case 'reassignment':
-            const sourceResource = document.getElementById('sourceResource')?.value;
-            const targetResource = document.getElementById('targetResource')?.value;
-            const workloadPercentage = document.getElementById('workloadPercentage')?.value;
-            
-            if (!sourceResource || !targetResource) {
-                showNotification('error', 'Please select both source and target resources');
-                return null;
-            }
-            
-            return {
-                ...baseData,
-                sourceResource,
-                targetResource,
-                workloadPercentage: parseInt(workloadPercentage) || 25
-            };
-            
-        case 'overtime':
-            const overtimeResource = document.getElementById('overtimeResource')?.value;
-            const overtimeHours = document.getElementById('overtimeHours')?.value;
-            const overtimeDuration = document.getElementById('overtimeDuration')?.value;
-            
-            if (!overtimeResource) {
-                showNotification('error', 'Please select a resource for overtime');
-                return null;
-            }
-            
-            return {
-                ...baseData,
-                resource_id: overtimeResource,
-                overtime_hours: parseInt(overtimeHours) || 10,
-                duration_weeks: parseInt(overtimeDuration) || 2
-            };
-            
-        case 'resource_addition':
-            const newRole = document.getElementById('newResourceRole')?.value;
-            const newSkills = Array.from(document.getElementById('newResourceSkills')?.selectedOptions || [])
-                .map(option => option.value);
-            const startDate = document.getElementById('resourceStartDate')?.value;
-            const estimatedCost = document.getElementById('estimatedCost')?.value;
-            
-            if (!newRole) {
-                showNotification('error', 'Please specify the role for the new resource');
-                return null;
-            }
-            
-            return {
-                ...baseData,
-                new_role: newRole,
-                required_skills: newSkills,
-                start_date: startDate,
-                estimated_cost: parseFloat(estimatedCost) || 0
-            };
-            
-        case 'deadline_extension':
-            const extensionWeeks = document.getElementById('extensionWeeks')?.value;
-            const extensionReason = document.getElementById('extensionReason')?.value;
-            
-            if (!extensionWeeks) {
-                showNotification('error', 'Please specify extension duration');
-                return null;
-            }
-            
-            return {
-                ...baseData,
-                extension_weeks: parseInt(extensionWeeks),
-                reason: extensionReason || 'Resource constraints'
-            };
-            
-        case 'scope_reduction':
-            const scopeReduction = document.getElementById('scopeReduction')?.value;
-            const tasksToDefer = Array.from(document.getElementById('tasksToDefer')?.selectedOptions || [])
-                .map(option => option.value);
-            
-            return {
-                ...baseData,
-                scope_reduction_percentage: parseInt(scopeReduction) || 20,
-                tasks_to_defer: tasksToDefer
-            };
-            
-        // Enhanced intervention types
-        case 'training':
-            const trainingType = document.getElementById('trainingType')?.value;
-            const trainingDuration = document.getElementById('trainingDuration')?.value;
-            const targetTeam = document.getElementById('targetTeam')?.value;
-            
-            return {
-                ...baseData,
-                training_type: trainingType || 'skill_development',
-                duration_weeks: parseInt(trainingDuration) || 2,
-                target_team: targetTeam
-            };
-            
-        case 'external_resource':
-            const consultantType = document.getElementById('consultantType')?.value;
-            const consultantDuration = document.getElementById('consultantDuration')?.value;
-            const consultantBudget = document.getElementById('consultantBudget')?.value;
-            
-            return {
-                ...baseData,
-                consultant_type: consultantType || 'technical_expert',
-                duration_weeks: parseInt(consultantDuration) || 4,
-                budget: parseFloat(consultantBudget) || 10000
-            };
-            
-        case 'process_improvement':
-            const processArea = document.getElementById('processArea')?.value;
-            const improvementType = document.getElementById('improvementType')?.value;
-            
-            return {
-                ...baseData,
-                process_area: processArea || 'workflow',
-                improvement_type: improvementType || 'automation'
-            };
-            
-        case 'technology_upgrade':
-            const technologyType = document.getElementById('technologyType')?.value;
-            const upgradeBudget = document.getElementById('upgradeBudget')?.value;
-            const implementationTime = document.getElementById('implementationTime')?.value;
-            
-            return {
-                ...baseData,
-                technology_type: technologyType || 'development_tools',
-                budget: parseFloat(upgradeBudget) || 5000,
-                implementation_weeks: parseInt(implementationTime) || 4
-            };
-            
-        case 'communication_plan':
-            const communicationType = document.getElementById('communicationType')?.value;
-            const frequency = document.getElementById('communicationFrequency')?.value;
-            const tools = document.getElementById('communicationTools')?.value;
-            
-            return {
-                ...baseData,
-                communication_type: communicationType || 'team_meetings',
-                frequency: frequency || 'daily',
-                tools: tools || 'documentation_tools'
-            };
-            
-        case 'quality_assurance':
-            const qaType = document.getElementById('qaType')?.value;
-            const testingLevel = document.getElementById('testingLevel')?.value;
-            
-            return {
-                ...baseData,
-                qa_type: qaType || 'additional_testing',
-                testing_level: testingLevel || 'comprehensive'
-            };
-            
-        case 'stakeholder_engagement':
-            const engagementType = document.getElementById('engagementType')?.value;
-            const stakeholderLevel = document.getElementById('stakeholderLevel')?.value;
-            
-            return {
-                ...baseData,
-                engagement_type: engagementType || 'alignment_meetings',
-                stakeholder_level: stakeholderLevel || 'management'
-            };
-            
-        case 'risk_mitigation':
-            const mitigationType = document.getElementById('mitigationType')?.value;
-            const contingencyBudget = document.getElementById('contingencyBudget')?.value;
-            
-            return {
-                ...baseData,
-                mitigation_type: mitigationType || 'contingency_planning',
-                contingency_budget: parseFloat(contingencyBudget) || 5000
-            };
-            
-        default:
-            return baseData;
-    }
-}
-
-// Function to show simulation results
-function showSimulationResults(result) {
-    const resultsContainer = document.getElementById('simulationResults');
-    if (!resultsContainer) return;
-    
-    // Store simulation ID for later use
-    resultsContainer.dataset.simulationId = result.id;
-    
-    let resultsHTML = `
-        <div class="results-summary">
-            <h4><i class="fas fa-chart-line"></i> Simulation Results</h4>
-            
-            <div class="result-metrics">
-                <div class="metric-card">
-                    <div class="metric-value">${(result.success_probability * 100).toFixed(1)}%</div>
-                    <div class="metric-label">Success Probability</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value">$${result.estimated_cost ? result.estimated_cost.toLocaleString() : '0'}</div>
-                    <div class="metric-label">Estimated Cost</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value">${result.estimated_time_impact || 0}h</div>
-                    <div class="metric-label">Time Impact</div>
-                </div>
-            </div>
-            
-            <div class="result-section">
-                <h5><i class="fas fa-bullseye"></i> Predicted Outcome</h5>
-                <p>${result.estimated_impact || 'Outcome analysis in progress...'}</p>
-            </div>
-    `;
-    
-    if (result.predicted_outcome && typeof result.predicted_outcome === 'object') {
-        resultsHTML += `
-            <div class="result-section">
-                <h5><i class="fas fa-chart-pie"></i> Detailed Predictions</h5>
-                <ul>
-        `;
-        
-        Object.entries(result.predicted_outcome).forEach(([key, value]) => {
-            resultsHTML += `<li><strong>${key.replace(/_/g, ' ').toUpperCase()}:</strong> ${value}</li>`;
-        });
-        
-        resultsHTML += `</ul></div>`;
-    }
-    
-    resultsHTML += `
-            <div class="result-actions">
-                <button class="btn btn-primary" onclick="acceptSimulation(${result.id})">
-                    <i class="fas fa-check"></i> Accept & Implement
-                </button>
-                <button class="btn btn-secondary" onclick="previousStep('configuration')">
-                    <i class="fas fa-edit"></i> Modify Parameters
-                </button>
-                <button class="btn btn-outline-secondary" onclick="closeInterventionModal()">
-                    <i class="fas fa-times"></i> Close
-                </button>
-            </div>
-        </div>
-    `;
-    
-    resultsContainer.innerHTML = resultsHTML;
-}
-
-// Function to accept and implement simulation
-function acceptSimulation(simulationId) {
-    fetch(`/dashboard/accept-simulation/${simulationId}/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': getCsrfToken()
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification('success', 'Intervention plan accepted and queued for implementation');
-            closeInterventionModal();
-            // Optionally refresh the dashboard
-            location.reload();
-        } else {
-            showNotification('error', data.error || 'Failed to accept simulation');
-        }
-    })
-    .catch(error => {
-        console.error('Error accepting simulation:', error);
-        showNotification('error', 'Failed to accept simulation');
-    });
-}
-
-// Function to restart simulation (go back to first step)
-function restartSimulation() {
-    // Reset form data
-    document.getElementById('problemTitle').value = '';
-    document.getElementById('problemDescription').value = '';
-    
-    // Clear scenario selection
-    document.querySelectorAll('.scenario-card').forEach(card => {
-        card.classList.remove('selected');
-    });
-    selectedScenario = null;
-    
-    // Reset to first step
-    showSimulationStep('problem');
-    currentSimulationStep = 'problem';
-    
-    // Disable next button
-    const nextBtn = document.getElementById('nextToConfig');
-    if (nextBtn) {
-        nextBtn.disabled = true;
-    }
-}
-
-// Function to implement the scenario (similar to accept but with different messaging)
-function implementScenario() {
-    // Get the simulation ID from the current results
-    const resultsContainer = document.getElementById('simulationResults');
-    const simulationId = resultsContainer?.dataset.simulationId;
-    
-    if (!simulationId) {
-        showNotification('error', 'No simulation found to implement');
-        return;
-    }
-    
-    // Show confirmation dialog
-    if (!confirm('Are you sure you want to implement this intervention scenario? This will create action items for your team.')) {
-        return;
-    }
-    
-    fetch(`/dashboard/implement-scenario/${simulationId}/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': getCsrfToken()
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification('success', 'Intervention scenario has been implemented and action items created');
-            closeInterventionModal();
-            // Refresh the dashboard to show updates
-            setTimeout(() => {
-                location.reload();
-            }, 2000);
-        } else {
-            showNotification('error', data.error || 'Failed to implement scenario');
-        }
-    })
-    .catch(error => {
-        console.error('Error implementing scenario:', error);
-        showNotification('error', 'Failed to implement scenario');
-    });
-}
-
-// Make functions globally available
-console.log('Making functions globally available...');
-console.log('runSimulation function exists:', typeof runSimulation);
-console.log('restartSimulation function exists:', typeof restartSimulation);
-console.log('implementScenario function exists:', typeof implementScenario);
-
-window.restartSimulation = restartSimulation;
-window.implementScenario = implementScenario;
-window.runSimulation = runSimulation;
-
-// Verify global assignments
-console.log('Global runSimulation assigned:', typeof window.runSimulation);
-console.log('Global restartSimulation assigned:', typeof window.restartSimulation);
-console.log('Global implementScenario assigned:', typeof window.implementScenario);
-
-// Add final verification after a short delay
-setTimeout(function() {
-    console.log('=== Final verification after 1 second ===');
-    console.log('window.runSimulation available:', typeof window.runSimulation);
-    console.log('window.restartSimulation available:', typeof window.restartSimulation);
-    console.log('window.implementScenario available:', typeof window.implementScenario);
-}, 1000);

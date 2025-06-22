@@ -95,76 +95,30 @@ class DynamicRisk(models.Model):
     def __str__(self):
         return f"{self.title} ({self.severity})"
 
-class InterventionScenario(models.Model):
+class AIRecommendation(models.Model):
     """
-    Store intervention scenarios and their simulated outcomes
+    Store AI-generated recommendations for risk mitigation
     """
-    SCENARIO_TYPES = [
-        ('reassignment', 'Task Reassignment'),
-        ('overtime', 'Overtime Authorization'),
-        ('resource_addition', 'Additional Resource'),
-        ('deadline_extension', 'Deadline Extension'),
-        ('scope_reduction', 'Scope Reduction'),
-        # Enhanced intervention types
-        ('training', 'Training & Skill Development'),
-        ('process_improvement', 'Process Optimization'),
-        ('external_resource', 'External Consultant/Contractor'),
-        ('technology_upgrade', 'Technology/Tool Upgrade'),
-        ('risk_mitigation', 'Risk Mitigation Plan'),
-        ('communication_plan', 'Communication Enhancement'),
-        ('quality_assurance', 'Quality Assurance Boost'),
-        ('stakeholder_engagement', 'Stakeholder Re-engagement'),
-        ('custom', 'Custom Intervention'),
-    ]
-    
-    SCENARIO_STATUS = [
-        ('simulated', 'Simulated'),
-        ('in_progress', 'In Progress'),
-        ('completed', 'Completed'),
-        ('rejected', 'Rejected'),
-    ]
-    
-    scenario_type = models.CharField(max_length=30, choices=SCENARIO_TYPES)
     title = models.CharField(max_length=255)
     description = models.TextField()
+    success_probability = models.FloatField(default=0.0)  # Success percentage (0.0 to 1.0)
+    
+    # Related entities
+    related_risk = models.ForeignKey(DynamicRisk, on_delete=models.CASCADE)
     related_project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True, blank=True)
-    related_task = models.ForeignKey(Task, on_delete=models.CASCADE, null=True, blank=True)
-    related_resource = models.ForeignKey(Resource, on_delete=models.CASCADE, null=True, blank=True)
     
-    # Simulation parameters
-    simulation_data = models.JSONField(default=dict)
-    predicted_outcome = models.JSONField(default=dict)
-    estimated_impact = models.TextField()
-    success_probability = models.FloatField(default=0.0)
-    estimated_cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    estimated_time_impact = models.IntegerField(help_text="Impact in hours", null=True, blank=True)
+    # Recommendation details
+    recommendation_data = models.JSONField(default=dict)
+    confidence_score = models.FloatField(default=0.0)
     
-    # Execution tracking
-    status = models.CharField(max_length=15, choices=SCENARIO_STATUS, default='simulated')
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    # Status tracking
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    executed_at = models.DateTimeField(null=True, blank=True)
-    
-    # Enhanced fields for dynamic scenarios
-    risk_category = models.ForeignKey(RiskCategory, on_delete=models.CASCADE, null=True, blank=True)
-    dynamic_risk = models.ForeignKey(DynamicRisk, on_delete=models.CASCADE, null=True, blank=True)
-    intervention_type = models.CharField(max_length=30, choices=SCENARIO_TYPES, default='reassignment')
-    
-    # Custom intervention details
-    custom_intervention_type = models.CharField(max_length=100, blank=True)
-    custom_description = models.TextField(blank=True)
-    ai_generated = models.BooleanField(default=False)  # Whether AI suggested this intervention
     
     class Meta:
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['scenario_type', 'status']),
-            models.Index(fields=['related_project', 'created_at']),
-        ]
+        ordering = ['-success_probability', '-created_at']
     
     def __str__(self):
-        return f"{self.title} - {self.get_status_display()}"
+        return f"{self.title} ({self.success_probability:.0%} success)"
 
 class NLIQuery(models.Model):
     """
@@ -249,24 +203,4 @@ class AIInsight(models.Model):
         self.resolved_by = user
         self.save()
 
-class InterventionTemplate(models.Model):
-    """Templates for common intervention strategies by risk type"""
-    name = models.CharField(max_length=100)
-    risk_category = models.ForeignKey(RiskCategory, on_delete=models.CASCADE)
-    intervention_type = models.CharField(max_length=30, choices=InterventionScenario.SCENARIO_TYPES)
-    
-    # Template configuration
-    template_config = models.JSONField(default=dict)  # Configuration parameters
-    success_conditions = models.JSONField(default=list)  # What defines success
-    resource_requirements = models.JSONField(default=dict)  # Required resources
-    
-    # Effectiveness metrics
-    average_success_rate = models.FloatField(default=0.0)
-    average_cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    average_time_impact = models.IntegerField(null=True, blank=True)  # in hours
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    def __str__(self):
-        return f"{self.name} for {self.risk_category.name}"
+

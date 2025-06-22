@@ -55,10 +55,10 @@
                             <small>Affects: {{ risk.affected_items|join:", " }}</small>
                         </div>
                         {% endif %}                        <div class="risk-actions">
-                            <button class="btn-simulate" 
-                                    data-risk-title="{{ risk.title|escapejs }}" 
-                                    data-risk-data="{{ risk|jsonify|force_escape }}">
-                                <i class="fas fa-cogs"></i> Simulate Solutions
+                            <button class="btn-recommendations" 
+                                    data-risk-id="{{ risk.id|default:'' }}" 
+                                    data-risk-title="{{ risk.title|escapejs }}">
+                                <i class="fas fa-lightbulb"></i> Get AI Recommendations
                             </button>
                         </div>
                     </div>
@@ -91,8 +91,7 @@
                 </div>
             </div>
             {% endif %}
-            
-            <!-- Confidence and Timestamp -->
+              <!-- Confidence and Timestamp -->
             <div class="ai-footer">
                 <div class="ai-confidence">
                     <span class="confidence-label">Confidence:</span>
@@ -100,6 +99,11 @@
                         <div class="confidence-fill" style="width: {{ ai_analysis.confidence_score|floatformat:0|mul:100 }}%"></div>
                     </div>
                     <span class="confidence-value">{{ ai_analysis.confidence_score|floatformat:1|mul:100 }}%</span>
+                </div>
+                <div class="ai-actions">
+                    <button class="btn-refresh-ai" onclick="manualRefreshAI()" title="Refresh AI Analysis">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
                 </div>
                 <div class="ai-timestamp">
                     <small><i class="fas fa-clock"></i> Updated: {{ ai_analysis.created_at|date:"M d, H:i" }}</small>
@@ -327,10 +331,12 @@
 
 .ai-footer {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 15px;
+    padding: 15px 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
     margin-top: 20px;
 }
 
@@ -415,6 +421,77 @@
 .btn-ai-retry:hover {
     background: rgba(255, 255, 255, 0.3);
     transform: translateY(-2px);
+}
+
+/* Loading overlay for AI refresh */
+.ai-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(76, 81, 191, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    z-index: 1000;
+}
+
+.ai-loading-overlay .loading-spinner {
+    color: white;
+    font-size: 1.1rem;
+}
+
+.ai-loading-overlay .fa-spinner {
+    margin-right: 10px;
+}
+
+/* AI actions section */
+.ai-actions {
+    display: flex;
+    align-items: center;
+    margin: 0 10px;
+}
+
+.btn-refresh-ai {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.3s ease;
+}
+
+.btn-refresh-ai:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+}
+
+.btn-refresh-ai:active {
+    transform: translateY(0);
+}
+
+/* Ensure AI widget has relative positioning for overlay */
+.ai-analyst-widget {
+    position: relative;
+}
+
+/* Update footer layout to include actions */
+.ai-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 15px;
+    padding: 15px 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Responsive Design */

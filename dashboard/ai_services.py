@@ -15,7 +15,7 @@ from django.contrib.auth.models import User
 from resources.models import Resource
 from projects.models import Task, Project
 from allocation.models import Assignment
-from dashboard.models import DashboardAIAnalysis, InterventionScenario, NLIQuery, AIInsight, RiskCategory, DynamicRisk
+from dashboard.models import DashboardAIAnalysis, NLIQuery, AIInsight, RiskCategory, DynamicRisk, AIRecommendation
 from utils.gemini_ai import gemini_service
 
 logger = logging.getLogger(__name__)
@@ -32,8 +32,7 @@ class DashboardAIService:
             
         Returns:
             Dictionary containing briefing data
-        """
-        # Check if we have recent analysis (within last 2 hours)
+        """        # Check if we have recent analysis (within last 2 hours)
         if not force_refresh:
             recent_analysis = DashboardAIAnalysis.objects.filter(
                 analysis_type='daily_briefing',
@@ -41,7 +40,7 @@ class DashboardAIService:
                 is_active=True            ).first()
             
             if recent_analysis:
-                return self._format_analysis_response(recent_analysis)
+                return self._format_enhanced_analysis_response(recent_analysis)
         
         if not gemini_service.is_available():
             logger.warning("Gemini AI not available for dashboard analysis")
@@ -305,20 +304,83 @@ Focus on actionable insights that help project managers make informed decisions.
             if risk.get('priority') == 'high':
                 self._create_ai_insight_from_risk(risk, analysis)
         return analysis
-
+    
     def _format_enhanced_analysis_response(self, analysis: DashboardAIAnalysis) -> Dict[str, Any]:
         """Format enhanced analysis for frontend response"""
+        # Enrich risks with database IDs where available
+        enriched_risks = self._enrich_risks_with_database_ids(analysis.risks)
+        
         return {
             "id": analysis.id,
             "summary": analysis.summary,
-            "risks": analysis.risks,
+            "risks": enriched_risks,
             "recommendations": analysis.recommendations,
             "confidence_score": analysis.confidence_score,
             "comprehensive_risks": analysis.analysis_data.get('comprehensive_risks', []),
             "risk_categories": self._categorize_risks(analysis.analysis_data.get('comprehensive_risks', [])),
             "created_at": analysis.created_at,
-            "is_fresh": (timezone.now() - analysis.created_at).total_seconds() < 3600
-        }
+            "is_fresh": (timezone.now() - analysis.created_at).total_seconds() < 3600        }
+    
+    def _enrich_risks_with_database_ids(self, risks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Enrich AI-generated risks with database IDs where matches exist"""
+        enriched_risks = []
+        
+        # Get all existing dynamic risks
+        existing_risks = DynamicRisk.objects.all()
+        
+        for risk in risks:
+            enriched_risk = risk.copy()
+            
+            # Try to match with existing database risks by keywords and similarity
+            risk_title = risk.get('title', '').lower()
+            best_match = None
+            best_score = 0
+            
+            for db_risk in existing_risks:
+                db_title = db_risk.title.lower()
+                
+                # Check for exact keyword matches first
+                if 'deadline' in risk_title and 'deadline' in db_title:
+                    best_match = db_risk
+                    break
+                elif 'overallocation' in risk_title and 'overallocation' in db_title:
+                    best_match = db_risk
+                    break
+                elif 'communication' in risk_title and 'communication' in db_title:
+                    best_match = db_risk
+                    break
+                elif 'skill' in risk_title and 'skill' in db_title:
+                    best_match = db_risk
+                    break
+                else:
+                    # Calculate title similarity
+                    similarity = self._calculate_title_similarity(risk_title, db_title)
+                    if similarity > best_score:
+                        best_score = similarity
+                        if similarity > 0.3:  # Lower threshold for similarity
+                            best_match = db_risk
+            
+            if best_match:
+                enriched_risk['id'] = best_match.id
+                enriched_risk['database_risk_id'] = best_match.id
+                print(f"Matched '{risk.get('title')}' with '{best_match.title}' (ID: {best_match.id})")
+            
+            enriched_risks.append(enriched_risk)
+        
+        return enriched_risks
+    
+    def _calculate_title_similarity(self, title1: str, title2: str) -> float:
+        """Calculate similarity between two titles"""
+        title1_words = set(title1.lower().split())
+        title2_words = set(title2.lower().split())
+        
+        if not title1_words or not title2_words:
+            return 0.0
+        
+        intersection = title1_words.intersection(title2_words)
+        union = title1_words.union(title2_words)
+        
+        return len(intersection) / len(union) if union else 0.0
     
     def _store_analysis(self, ai_response: Dict[str, Any], dashboard_data: Dict[str, Any]) -> DashboardAIAnalysis:
         """Store AI analysis in database"""
@@ -372,230 +434,10 @@ Focus on actionable insights that help project managers make informed decisions.
             "summary": analysis.summary,
             "risks": analysis.risks,
             "recommendations": analysis.recommendations,
-            "confidence_score": analysis.confidence_score,
-            "created_at": analysis.created_at,  # Keep as datetime object for template formatting
+            "confidence_score": analysis.confidence_score,            "created_at": analysis.created_at,  # Keep as datetime object for template formatting
             "is_fresh": (timezone.now() - analysis.created_at).total_seconds() < 3600  # Less than 1 hour old
         }
 
-class InterventionSimulatorService:
-    """AI-powered intervention scenario simulation service"""
-    
-    def simulate_intervention(self, scenario_data: Dict[str, Any], user: Optional[User] = None) -> Dict[str, Any]:
-        """
-        Simulate an intervention scenario
-        
-        Args:
-            scenario_data: Dictionary containing scenario parameters
-            user: User requesting the simulation
-            
-        Returns:
-            Dictionary containing simulation results
-        """
-        if not gemini_service.is_available():
-            return {"error": "AI service not available"}
-        
-        try:
-            # Gather context data
-            context_data = self._gather_intervention_context(scenario_data)
-            
-            # Create simulation prompt
-            prompt = self._create_simulation_prompt(scenario_data, context_data)
-            
-            # Get AI simulation
-            ai_response = gemini_service.generate_json_response(prompt, temperature=0.4)
-            
-            if not ai_response:
-                return {"error": "Failed to generate simulation"}
-            
-            # Store simulation
-            scenario = self._store_simulation(scenario_data, ai_response, context_data, user)
-            
-            return self._format_simulation_response(scenario)
-            
-        except Exception as e:
-            logger.error(f"Error simulating intervention: {e}")
-            return {"error": f"Simulation failed: {str(e)}"}
-    def _gather_intervention_context(self, scenario_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Gather context data for intervention simulation"""
-        context = {
-            "current_time": timezone.now().isoformat(),
-            "resources": [],
-            "projects": [],
-            "tasks": [],
-            "project_tasks": [],
-            "project_resources": []
-        }
-        
-        # Get relevant resources
-        if scenario_data.get('resource_id'):
-            try:
-                resource = Resource.objects.get(id=scenario_data['resource_id'])
-                context["target_resource"] = {
-                    "name": resource.name,
-                    "role": resource.role,
-                    "current_utilization": resource.current_utilization(),
-                    "skills": [skill.name for skill in resource.skills.all()],
-                    "hourly_rate": float(resource.hourly_rate) if hasattr(resource, 'hourly_rate') and resource.hourly_rate else 50.0
-                }
-            except Resource.DoesNotExist:
-                pass
-        
-        # Get relevant projects and tasks
-        if scenario_data.get('project_id'):
-            try:
-                project = Project.objects.get(id=scenario_data['project_id'])
-                context["target_project"] = {
-                    "name": project.name,
-                    "status": project.status,
-                    "completion": project.get_completion_percentage(),
-                    "deadline": project.end_date.isoformat() if project.end_date else None,
-                    "total_budget": float(project.budget) if hasattr(project, 'budget') and project.budget else None
-                }
-                
-                # Get project tasks for scope reduction scenarios
-                project_tasks = Task.objects.filter(project=project)
-                for task in project_tasks:
-                    context["project_tasks"].append({                        "name": task.name,
-                        "status": task.status,
-                        "priority": getattr(task, 'priority', 'medium'),
-                        "estimated_hours": float(task.estimated_hours) if task.estimated_hours else 0,
-                        "completion": task.completion_percentage,
-                        "assigned_resources": [a.resource.name for a in task.assignments.all()]
-                    })
-                
-                # Get project resources for overtime scenarios
-                assigned_resource_ids = Assignment.objects.filter(
-                    task__project=project
-                ).values_list('resource_id', flat=True).distinct()
-                
-                for resource_id in assigned_resource_ids:
-                    try:
-                        resource = Resource.objects.get(id=resource_id)
-                        context["project_resources"].append({
-                            "id": resource.id,
-                            "name": resource.name,
-                            "role": resource.role,
-                            "utilization": resource.current_utilization(),
-                            "availability": 100 - resource.current_utilization(),
-                            "hourly_rate": float(resource.hourly_rate) if hasattr(resource, 'hourly_rate') and resource.hourly_rate else 50.0
-                        })
-                    except Resource.DoesNotExist:
-                        pass
-                        
-            except Project.DoesNotExist:
-                pass
-        
-        # Get all available resources for reassignment and additional resource scenarios
-        if scenario_data.get('scenario_type') in ['reassignment', 'overtime', 'resource_addition']:
-            available_resources = Resource.objects.all()
-            for resource in available_resources:
-                resource_data = {
-                    "id": resource.id,
-                    "name": resource.name,
-                    "role": resource.role,
-                    "utilization": resource.current_utilization(),
-                    "availability": 100 - resource.current_utilization(),
-                    "skills": [skill.name for skill in resource.skills.all()],
-                    "hourly_rate": float(resource.hourly_rate) if hasattr(resource, 'hourly_rate') and resource.hourly_rate else 50.0
-                }
-                
-                # Only add to general resources if not already in project_resources
-                if not any(pr['id'] == resource.id for pr in context["project_resources"]):
-                    context["resources"].append(resource_data)
-        
-        return context
-    
-    def _create_simulation_prompt(self, scenario_data: Dict[str, Any], context_data: Dict[str, Any]) -> str:
-        """Create prompt for intervention simulation"""
-        return f"""
-You are an expert project management consultant simulating intervention scenarios.
-
-Scenario to Simulate:
-{json.dumps(scenario_data, indent=2)}
-
-Current Context:
-{json.dumps(context_data, indent=2)}
-
-Simulate this intervention scenario and provide:
-
-1. PREDICTED_OUTCOME: Specific measurable outcomes
-2. SUCCESS_PROBABILITY: Decimal from 0.0-1.0
-3. ESTIMATED_IMPACT: Detailed impact analysis
-4. ESTIMATED_COST: Cost in dollars (if applicable)
-5. TIME_IMPACT: Time impact in hours
-6. RISKS: Potential risks and mitigation strategies
-7. ALTERNATIVES: Alternative approaches to consider
-
-Focus on realistic, data-driven predictions based on the current context.
-
-Respond with valid JSON in this exact format:
-{{
-    "predicted_outcome": {{
-        "primary_metric": "string",
-        "expected_value": "string",
-        "timeline": "string"
-    }},
-    "success_probability": decimal,
-    "estimated_impact": "string",
-    "estimated_cost": decimal,
-    "time_impact": integer,
-    "risks": [
-        {{
-            "risk": "string",
-            "probability": decimal,
-            "mitigation": "string"
-        }}
-    ],
-    "alternatives": [
-        {{
-            "option": "string",
-            "description": "string",
-            "pros": ["string"],
-            "cons": ["string"]
-        }}
-    ]
-}}
-"""
-    
-    def _store_simulation(self, scenario_data: Dict[str, Any], ai_response: Dict[str, Any], 
-                         context_data: Dict[str, Any], user: Optional[User]) -> InterventionScenario:
-        """Store simulation results"""
-        scenario = InterventionScenario.objects.create(
-            scenario_type=scenario_data.get('scenario_type', 'reassignment'),
-            title=scenario_data.get('title', 'Intervention Simulation'),
-            description=scenario_data.get('description', ''),
-            simulation_data=scenario_data,
-            predicted_outcome=ai_response.get('predicted_outcome', {}),
-            estimated_impact=ai_response.get('estimated_impact', ''),
-            success_probability=ai_response.get('success_probability', 0.0),
-            estimated_cost=ai_response.get('estimated_cost'),
-            estimated_time_impact=ai_response.get('time_impact'),
-            created_by=user
-        )
-        
-        # Link to related objects if specified
-        if scenario_data.get('project_id'):
-            try:
-                scenario.related_project = Project.objects.get(id=scenario_data['project_id'])
-                scenario.save()
-            except Project.DoesNotExist:
-                pass
-        
-        return scenario
-    
-    def _format_simulation_response(self, scenario: InterventionScenario) -> Dict[str, Any]:
-        """Format simulation response for frontend"""
-        return {
-            "id": scenario.id,
-            "title": scenario.title,
-            "scenario_type": scenario.scenario_type,
-            "predicted_outcome": scenario.predicted_outcome,
-            "estimated_impact": scenario.estimated_impact,
-            "success_probability": scenario.success_probability,
-            "estimated_cost": float(scenario.estimated_cost) if scenario.estimated_cost else None,
-            "estimated_time_impact": scenario.estimated_time_impact,
-            "created_at": scenario.created_at.isoformat()
-        }
 
 class NaturalLanguageInterfaceService:
     """Natural Language Interface service for AI queries"""
@@ -1169,6 +1011,13 @@ For each identified risk, provide:
         risk_category = risk.get('category_type', 'operational')
         severity = risk.get('severity', 'medium')
         
+        # Enhanced context-aware filtering
+        project_context = context.get('project_context', {})
+        budget_level = self._categorize_budget(project_context.get('budget', 0))
+        timeline_pressure = self._assess_timeline_pressure(project_context)
+        team_size = self._categorize_team_size(context.get('team_size', 0))
+        project_type = project_context.get('project_type', 'standard')
+        
         # Base interventions by category
         category_interventions = {
             'resource': ['reassignment', 'overtime', 'resource_addition', 'training'],
@@ -1185,128 +1034,473 @@ For each identified risk, provide:
         
         suggested_types = category_interventions.get(risk_category, ['custom'])
         
-        # If high severity, add emergency interventions
-        if severity in ['high', 'critical']:
-            suggested_types.extend(['external_resource', 'stakeholder_engagement'])
+        # Context-based filtering and prioritization
+        filtered_types = self._filter_by_context(suggested_types, budget_level, timeline_pressure, team_size, project_type)
         
-        # Generate specific intervention details
+        # If high severity, add emergency interventions (but filter by budget)
+        if severity in ['high', 'critical']:
+            emergency_options = ['external_resource', 'stakeholder_engagement']
+            if budget_level in ['high', 'medium']:  # Only add expensive options if budget allows
+                filtered_types.extend(emergency_options)
+            elif timeline_pressure == 'high':
+                filtered_types.extend(['overtime', 'scope_reduction'])  # Cheaper emergency options
+        
+        # Generate specific intervention details for filtered types
         interventions = []
-        for intervention_type in suggested_types[:5]:  # Limit to top 5
+        for intervention_type in filtered_types[:6]:  # Limit to top 6 most relevant
             intervention = self._create_intervention_details(intervention_type, risk, context)
             if intervention:
+                # Add context-specific success probability adjustments
+                intervention = self._adjust_for_context(intervention, budget_level, timeline_pressure, team_size)
                 interventions.append(intervention)
         
         return interventions
     
-    def _create_intervention_details(self, intervention_type: str, risk: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
-        """Create detailed intervention plan for specific risk"""
+    def _categorize_budget(self, budget: float) -> str:
+        """Categorize project budget level"""
+        if budget >= 100000:
+            return 'high'
+        elif budget >= 25000:
+            return 'medium'
+        else:
+            return 'low'
+    
+    def _assess_timeline_pressure(self, project_context: Dict) -> str:
+        """Assess timeline pressure level"""
+        days_remaining = project_context.get('days_remaining', 30)
+        completion_percentage = project_context.get('completion_percentage', 0)
         
+        if days_remaining <= 7 and completion_percentage < 80:
+            return 'critical'
+        elif days_remaining <= 14 and completion_percentage < 60:
+            return 'high'
+        elif days_remaining <= 30 and completion_percentage < 40:
+            return 'medium'
+        else:
+            return 'low'
+    
+    def _categorize_team_size(self, team_size: int) -> str:
+        """Categorize team size"""
+        if team_size >= 10:
+            return 'large'
+        elif team_size >= 5:
+            return 'medium'
+        elif team_size >= 2:
+            return 'small'
+        else:
+            return 'minimal'
+    
+    def _filter_by_context(self, interventions: List[str], budget_level: str, timeline_pressure: str, team_size: str, project_type: str) -> List[str]:
+        """Filter and prioritize interventions based on project context"""
+        filtered = []
+        
+        # Budget-based filtering
+        expensive_interventions = ['external_resource', 'technology_upgrade', 'resource_addition']
+        cheap_interventions = ['reassignment', 'process_improvement', 'communication_plan']
+        
+        for intervention in interventions:
+            # Budget filtering
+            if budget_level == 'low' and intervention in expensive_interventions:
+                continue  # Skip expensive options for low budget
+            
+            # Timeline pressure filtering
+            if timeline_pressure in ['critical', 'high']:
+                # Prioritize quick wins
+                if intervention in ['overtime', 'scope_reduction', 'reassignment']:
+                    filtered.insert(0, intervention)  # Add to front
+                elif intervention in ['training', 'technology_upgrade']:
+                    continue  # Skip long-term solutions under time pressure
+                else:
+                    filtered.append(intervention)
+            else:
+                # Normal priority
+                filtered.append(intervention)
+            
+            # Team size considerations
+            if team_size == 'minimal' and intervention == 'reassignment':
+                continue  # Can't reassign in minimal teams
+            
+            # Project type considerations
+            if project_type == 'maintenance' and intervention == 'resource_addition':
+                continue  # Maintenance projects rarely need additional resources
+        
+        return list(dict.fromkeys(filtered))  # Remove duplicates while preserving order
+    
+    def _adjust_for_context(self, intervention: Dict, budget_level: str, timeline_pressure: str, team_size: str) -> Dict:
+        """Adjust intervention success rates and costs based on context"""
+        
+        # Adjust success probability based on context
+        base_success = intervention.get('success_rate', 0.75)
+        
+        # Budget impact on success
+        if budget_level == 'high' and intervention['name'] in ['External Consultant/Contractor', 'Technology Upgrade']:
+            base_success += 0.1  # Better resources = higher success
+        elif budget_level == 'low' and intervention['name'] in ['External Consultant/Contractor']:
+            base_success -= 0.15  # Budget constraints reduce quality
+        
+        # Timeline pressure impact
+        if timeline_pressure in ['critical', 'high']:
+            if intervention['name'] in ['Overtime Authorization', 'Scope Reduction']:
+                base_success += 0.05  # These work well under pressure
+            else:
+                base_success -= 0.1  # Most interventions suffer under time pressure
+        
+        # Team size impact
+        if team_size == 'large' and intervention['name'] == 'Communication Enhancement':
+            base_success += 0.1  # More important in large teams
+        elif team_size == 'minimal' and intervention['name'] == 'Task Reassignment':
+            base_success -= 0.2  # Hard to reassign in small teams
+        
+        intervention['success_rate'] = max(0.1, min(0.95, base_success))  # Keep between 10-95%
+        
+        return intervention
+
+    def _create_intervention_details(self, intervention_type: str, risk: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Create detailed intervention information based on type and context"""
+        
+        # Base intervention templates
         intervention_templates = {
+            'reassignment': {
+                'name': 'Task Reassignment',
+                'description': 'Redistribute tasks among team members based on skills and availability',
+                'estimated_cost': 500,
+                'time_range': '1-3 days',
+                'success_rate': 0.75
+            },
+            'overtime': {
+                'name': 'Overtime Authorization',
+                'description': 'Authorize additional working hours to meet deadlines',
+                'estimated_cost': 2000,
+                'time_range': '1-2 weeks',
+                'success_rate': 0.65
+            },
+            'resource_addition': {
+                'name': 'Additional Resource',
+                'description': 'Add temporary or permanent team members to increase capacity',
+                'estimated_cost': 8000,
+                'time_range': '2-4 weeks',
+                'success_rate': 0.80
+            },
+            'deadline_extension': {
+                'name': 'Deadline Extension',
+                'description': 'Negotiate timeline extension with stakeholders',
+                'estimated_cost': 0,
+                'time_range': '1 week',
+                'success_rate': 0.60
+            },
+            'scope_reduction': {
+                'name': 'Scope Reduction',
+                'description': 'Reduce project scope to meet timeline and budget constraints',
+                'estimated_cost': 0,
+                'time_range': '1-2 weeks',
+                'success_rate': 0.70
+            },
             'training': {
-                'name': 'Skill Development & Training',
+                'name': 'Training & Development',
                 'description': 'Provide targeted training to address skill gaps',
-                'effort': 'medium',
-                'success_rate': 0.75,
-                'time_range': '1-4 weeks'
+                'estimated_cost': 3000,
+                'time_range': '2-6 weeks',
+                'success_rate': 0.85
             },
             'external_resource': {
                 'name': 'External Consultant/Contractor',
-                'description': 'Bring in specialized external expertise',
-                'effort': 'high', 
-                'success_rate': 0.85,
-                'time_range': '1-2 weeks'
+                'description': 'Engage external experts or contractors for specialized skills',
+                'estimated_cost': 12000,
+                'time_range': '1-8 weeks',
+                'success_rate': 0.80
             },
             'process_improvement': {
                 'name': 'Process Optimization',
-                'description': 'Improve workflows and eliminate inefficiencies',
-                'effort': 'medium',
-                'success_rate': 0.70,
-                'time_range': '2-6 weeks'
+                'description': 'Streamline workflows and eliminate inefficiencies',
+                'estimated_cost': 1500,
+                'time_range': '2-4 weeks',
+                'success_rate': 0.75
             },
             'technology_upgrade': {
-                'name': 'Technology/Tool Enhancement',
-                'description': 'Upgrade tools or implement new technology',
-                'effort': 'high',
-                'success_rate': 0.80,
-                'time_range': '2-8 weeks'
+                'name': 'Technology Upgrade',
+                'description': 'Upgrade tools, infrastructure, or technology stack',
+                'estimated_cost': 15000,
+                'time_range': '4-8 weeks',
+                'success_rate': 0.70
+            },
+            'risk_mitigation': {
+                'name': 'Risk Mitigation',
+                'description': 'Implement specific measures to reduce identified risks',
+                'estimated_cost': 2500,
+                'time_range': '1-3 weeks',
+                'success_rate': 0.65
             },
             'communication_plan': {
                 'name': 'Communication Enhancement',
-                'description': 'Improve team communication and collaboration',
-                'effort': 'low',
-                'success_rate': 0.65,
-                'time_range': '1-2 weeks'
+                'description': 'Improve communication channels and meeting structures',
+                'estimated_cost': 500,
+                'time_range': '1-2 weeks',
+                'success_rate': 0.70
             },
             'quality_assurance': {
-                'name': 'Quality Assurance Boost',
-                'description': 'Implement additional QA measures and testing',
-                'effort': 'medium',
-                'success_rate': 0.80,
-                'time_range': '1-3 weeks'
+                'name': 'Quality Enhancement',
+                'description': 'Strengthen quality assurance processes and controls',
+                'estimated_cost': 3500,
+                'time_range': '2-6 weeks',
+                'success_rate': 0.80
             },
             'stakeholder_engagement': {
-                'name': 'Stakeholder Re-engagement',
-                'description': 'Realign stakeholder expectations and requirements',
-                'effort': 'medium',
-                'success_rate': 0.70,
-                'time_range': '1-2 weeks'
-            },
-            'risk_mitigation': {
-                'name': 'Risk Mitigation Plan',
-                'description': 'Develop comprehensive risk mitigation strategy',
-                'effort': 'medium',
-                'success_rate': 0.75,
-                'time_range': '1-3 weeks'
+                'name': 'Stakeholder Alignment',
+                'description': 'Improve stakeholder communication and expectation management',
+                'estimated_cost': 1000,
+                'time_range': '1-4 weeks',
+                'success_rate': 0.65
             }
         }
         
-        template = intervention_templates.get(intervention_type)
-        if not template:
-            return None
+        # Get base template
+        intervention = intervention_templates.get(intervention_type, {
+            'name': 'Custom Intervention',
+            'description': 'Custom intervention strategy',
+            'estimated_cost': 2000,
+            'time_range': '2-4 weeks',
+            'success_rate': 0.70
+        })
         
-        return {
-            'type': intervention_type,
-            'name': template['name'],
-            'description': f"{template['description']} - {risk.get('title', '')}",
-            'effort_required': template['effort'],
-            'success_probability': template['success_rate'],
-            'time_to_implement': template['time_range'],
-            'estimated_cost': self._estimate_intervention_cost(intervention_type, context),
-            'risk_category': risk.get('category_type', 'operational')
-        }
-    
-    def _estimate_intervention_cost(self, intervention_type: str, context: Dict[str, Any]) -> float:
-        """Estimate cost for different intervention types"""
+        # Customize description based on risk context
+        risk_title = risk.get('title', 'project issue')
+        risk_category = risk.get('category_type', 'general')
         
-        # Base cost estimates (in USD)
-        cost_estimates = {
-            'training': 2000,
-            'external_resource': 8000,
-            'process_improvement': 3000,
-            'technology_upgrade': 5000,
-            'communication_plan': 500,
-            'quality_assurance': 3000,
-            'stakeholder_engagement': 1000,
-            'risk_mitigation': 2000,
-            'reassignment': 0,
-            'overtime': 1500,
-            'resource_addition': 6000,
-            'deadline_extension': 500,
-            'scope_reduction': 0
-        }
+        # Add context-specific details to description
+        if intervention_type == 'reassignment' and risk_category == 'resource':
+            intervention['description'] = f"Redistribute tasks to better match team member skills and availability for {risk_title}"
+        elif intervention_type == 'training' and risk_category == 'technical':
+            intervention['description'] = f"Provide technical training to address skill gaps related to {risk_title}"
+        elif intervention_type == 'external_resource' and risk_category == 'technical':
+            intervention['description'] = f"Engage external technical experts to resolve {risk_title}"
         
-        base_cost = cost_estimates.get(intervention_type, 1000)
+        return intervention
+    def generate_risk_recommendations(self, risk_id, risk_data=None):
+        """
+        Generate simple AI recommendations for a specific risk
         
-        # Adjust based on project size/complexity
-        project_count = len(context.get('projects', {}).get('details', []))
-        team_size = context.get('resources', {}).get('total', 1)
+        Args:
+            risk_id: ID of the risk (can be string or int)
+            risk_data: Optional risk data dict if risk_id is not a database ID
+            
+        Returns:
+            List of AIRecommendation objects
+        """
+        if not gemini_service.is_available():
+            logger.warning("Gemini AI not available for recommendations")
+            return {"error": "AI service not available"}
         
-        complexity_multiplier = 1 + (project_count * 0.2) + (team_size * 0.1)
+        risk_obj = None
         
-        return base_cost * complexity_multiplier
+        try:
+            # Handle different risk_id types
+            if isinstance(risk_id, str) and risk_data:
+                # Use provided risk data for generated risks
+                context = {
+                    "risk": {
+                        "title": risk_data.get('title', 'Unknown Risk'),
+                        "description": risk_data.get('description', ''),
+                        "severity": risk_data.get('priority', 'medium'),
+                        "category": risk_data.get('category_type', 'general'),
+                        "probability": risk_data.get('probability', 0.5),
+                        "impact_score": risk_data.get('impact_score', 5.0)
+                    },
+                    "project": None,
+                    "resources": []
+                }
+                risk_title = risk_data.get('title', 'Unknown Risk')
+            else:
+                # Try to get from database
+                from dashboard.models import DynamicRisk
+                try:
+                    risk_obj = DynamicRisk.objects.get(id=int(risk_id))
+                    # Create context for the risk
+                    context = {
+                        "risk": {
+                            "title": risk_obj.title,
+                            "description": risk_obj.description,
+                            "severity": risk_obj.severity,
+                            "category": risk_obj.category.risk_type if risk_obj.category else "general",
+                            "probability": risk_obj.probability,
+                            "impact_score": risk_obj.impact_score
+                        },
+                        "project": None,
+                        "resources": []
+                    }
+                    
+                    # Add project context if available
+                    if risk_obj.related_project:
+                        context["project"] = {
+                            "name": risk_obj.related_project.name,
+                            "status": risk_obj.related_project.status,
+                            "completion": risk_obj.related_project.get_completion_percentage(),
+                            "deadline": risk_obj.related_project.end_date.isoformat() if risk_obj.related_project.end_date else None
+                        }
+                    
+                    # Add resource context if available
+                    if risk_obj.related_resource:
+                        context["resources"].append({
+                            "name": risk_obj.related_resource.name,
+                            "role": risk_obj.related_resource.role,
+                            "utilization": risk_obj.related_resource.current_utilization()
+                        })
+                    
+                    risk_title = risk_obj.title
+                    
+                except (DynamicRisk.DoesNotExist, ValueError):
+                    # Fallback for string IDs
+                    context = {
+                        "risk": {
+                            "title": f"Risk {risk_id}",
+                            "description": "General project risk",
+                            "severity": "medium",
+                            "category": "general",
+                            "probability": 0.5,
+                            "impact_score": 5.0
+                        },
+                        "project": None,
+                        "resources": []
+                    }
+                    risk_title = f"Risk {risk_id}"
+              # Create AI prompt for recommendations
+            prompt = f"""
+You are an expert project management consultant. Generate 2-3 practical, actionable recommendations for the following risk:
 
-# Create service instances
+Risk Context:
+{json.dumps(context, indent=2)}
+
+Provide recommendations that are:
+1. Specific and actionable
+2. Realistic based on the context
+3. Include a success probability percentage (0-100)
+
+Respond with valid JSON in this exact format:
+{{
+    "recommendations": [
+        {{
+            "title": "Brief recommendation title",
+            "description": "Detailed actionable description",
+            "success_probability": 85,
+            "implementation_effort": "Low|Medium|High",
+            "timeframe": "Immediate|Short-term|Medium-term"
+        }}
+    ]
+}}
+"""
+            
+            # Get AI recommendations
+            ai_response = gemini_service.generate_json_response(prompt, temperature=0.3)
+            
+            if not ai_response or 'recommendations' not in ai_response:
+                return {"error": "Failed to generate recommendations"}
+            
+            # Store recommendations in database if we have a risk object
+            if risk_obj:
+                self._store_risk_recommendations(risk_obj, ai_response['recommendations'])
+            
+            return {
+                "success": True,
+                "risk_title": risk_title,
+                "recommendations": ai_response['recommendations']
+            }
+            
+        except Exception as e:
+            logger.error(f"Error generating risk recommendations: {e}")
+            return {"error": f"Failed to generate recommendations: {str(e)}"}
+    
+    def _store_risk_recommendations(self, risk: 'DynamicRisk', recommendations: List[Dict[str, Any]]) -> None:
+        """Store recommendations in the database"""
+        try:
+            from dashboard.models import AIRecommendation
+            
+            # Clear any existing recommendations for this risk
+            AIRecommendation.objects.filter(related_risk=risk).delete()
+            
+            # Store new recommendations
+            for rec in recommendations:
+                AIRecommendation.objects.create(
+                    title=rec.get('title', 'Untitled Recommendation'),
+                    description=rec.get('description', ''),
+                    success_probability=rec.get('success_probability', 75) / 100.0,  # Convert to decimal
+                    related_risk=risk,
+                    related_project=risk.related_project,
+                    recommendation_data=rec,
+                    confidence_score=rec.get('success_probability', 75) / 100.0
+                )
+                
+        except Exception as e:
+            logger.error(f"Error storing recommendations: {e}")
+
+    def analyze_portfolio_risks(self) -> Dict[str, Any]:
+        """Analyze risks across the entire portfolio"""
+        try:
+            # Get portfolio context
+            project_context = self._get_portfolio_context()
+            
+            # Get comprehensive risks
+            risks = self.analyze_comprehensive_risks(project_context)
+            
+            # Add unique IDs to risks for frontend use
+            for i, risk in enumerate(risks):
+                risk['id'] = f"risk-{i+1}"
+            
+            return {
+                'risks': risks,
+                'summary': self._generate_portfolio_summary(risks),
+                'confidence_score': 0.85,
+                'created_at': timezone.now().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Error analyzing portfolio risks: {e}")
+            return {
+                'risks': [],
+                'summary': 'Unable to analyze portfolio risks at this time.',
+                'confidence_score': 0.0,
+                'created_at': timezone.now().isoformat()
+            }
+    
+    def _get_portfolio_context(self) -> Dict[str, Any]:
+        """Get context data for portfolio analysis"""
+        try:
+            # Get basic project statistics
+            projects = Project.objects.all()
+            resources = Resource.objects.all()
+            tasks = Task.objects.all()
+            
+            context = {
+                'projects': {
+                    'total': projects.count(),
+                    'active': projects.filter(status='active').count() if hasattr(Project, 'status') else projects.count(),
+                },
+                'resources': {
+                    'total': resources.count(),
+                    'available': resources.filter(is_active=True).count() if hasattr(Resource, 'is_active') else resources.count(),
+                },
+                'tasks': {
+                    'total': tasks.count(),
+                    'pending': tasks.filter(status='pending').count() if hasattr(Task, 'status') else 0,
+                }
+            }
+            
+            return context
+        except Exception as e:
+            logger.error(f"Error getting portfolio context: {e}")
+            return {'projects': {'total': 0}, 'resources': {'total': 0}, 'tasks': {'total': 0}}
+    
+    def _generate_portfolio_summary(self, risks: List[Dict]) -> str:
+        """Generate a summary of portfolio risks"""
+        if not risks:
+            return "No significant risks identified in the current portfolio."
+        
+        high_priority = len([r for r in risks if r.get('priority') == 'high'])
+        total_risks = len(risks)
+        
+        if high_priority > 0:
+            return f"Portfolio analysis identified {total_risks} risks, with {high_priority} requiring immediate attention."
+        else:
+            return f"Portfolio analysis identified {total_risks} risks with manageable impact levels."
+    
+# Create instances for import
 dashboard_ai_service = DashboardAIService()
-intervention_simulator_service = InterventionSimulatorService()
 nli_service = NaturalLanguageInterfaceService()
-enhanced_risk_analysis_service = EnhancedRiskAnalysisService()
+enhanced_risk_service = EnhancedRiskAnalysisService()

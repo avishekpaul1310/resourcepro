@@ -9,8 +9,8 @@ from datetime import timedelta
 from resources.models import Resource
 from projects.models import Project, Task
 from allocation.models import Assignment
-from dashboard.models import DashboardAIAnalysis, InterventionScenario, AIInsight
-from dashboard.ai_services import dashboard_ai_service, intervention_simulator_service, nli_service
+from dashboard.models import DashboardAIAnalysis, AIInsight
+from dashboard.ai_services import dashboard_ai_service, nli_service, enhanced_risk_service
 
 @login_required
 def dashboard(request):
@@ -81,7 +81,8 @@ def dashboard(request):
             resource_colors.append("#ed8936")
         else:
             resource_colors.append("#48bb78")
-      # Get AI analysis for dashboard
+    
+    # Get AI analysis for dashboard
     ai_analysis = dashboard_ai_service.generate_daily_briefing()
     
     # Add AI data to context
@@ -99,7 +100,8 @@ def dashboard(request):
         # Add these for the charts as JSON strings
         'resource_names_json': json.dumps(resource_names),
         'resource_utilizations_json': json.dumps(resource_utilizations),
-        'resource_colors_json': json.dumps(resource_colors),        'project_names_json': json.dumps(project_names),
+        'resource_colors_json': json.dumps(resource_colors),
+        'project_names_json': json.dumps(project_names),
         'project_completions_json': json.dumps(project_completions),
         'ai_analysis': ai_analysis,
         'has_ai_service': True,
@@ -110,17 +112,19 @@ def dashboard(request):
 @login_required
 @require_http_methods(["POST"])
 @csrf_exempt
-def simulate_intervention(request):
+def get_risk_recommendations(request):
     """
-    API endpoint for simulating intervention scenarios
+    API endpoint for getting AI recommendations for a specific risk
     """
     try:
         data = json.loads(request.body)
-        simulation_result = intervention_simulator_service.simulate_intervention(
-            data, 
-            user=request.user
-        )
-        return JsonResponse(simulation_result)
+        risk_id = data.get('risk_id')
+        
+        if not risk_id:
+            return JsonResponse({"error": "Risk ID is required"}, status=400)
+        
+        recommendations = enhanced_risk_service.generate_risk_recommendations(risk_id)
+        return JsonResponse(recommendations)
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON data"}, status=400)
     except Exception as e:
@@ -191,9 +195,9 @@ def get_project_resources(request):
             # Get resources assigned to tasks in this project
             assigned_resource_ids = Assignment.objects.filter(
                 task__project=project
-            ).values_list('resource_id', flat=True).distinct()            
-            # For simulation, we want to show all resources, not just assigned ones
-            # as we may want to reassign tasks to different resources
+            ).values_list('resource_id', flat=True).distinct()
+            
+            # For recommendations, we want to show all resources, not just assigned ones
             resources = Resource.objects.all()
         except Project.DoesNotExist:
             return JsonResponse({"error": "Project not found"}, status=404)
@@ -247,5 +251,43 @@ def get_project_tasks(request):
         })
     except Project.DoesNotExist:
         return JsonResponse({"error": "Project not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+@login_required
+@require_http_methods(["GET"])
+def get_ai_analysis(request):
+    """
+    API endpoint for getting current AI analysis
+    """
+    try:
+        # Get the latest AI analysis
+        latest_analysis = DashboardAIAnalysis.objects.filter(
+            analysis_type='daily_briefing'
+        ).order_by('-created_at').first()
+        
+        if latest_analysis:
+            # Check if analysis is fresh (less than 1 hour old)
+            is_fresh = (timezone.now() - latest_analysis.created_at).total_seconds() < 3600
+            
+            return JsonResponse({
+                "id": latest_analysis.id,
+                "summary": latest_analysis.summary,
+                "risks": latest_analysis.risks,
+                "recommendations": latest_analysis.recommendations,
+                "confidence_score": latest_analysis.confidence_score,
+                "created_at": latest_analysis.created_at.isoformat(),
+                "is_fresh": is_fresh
+            })
+        else:
+            # If no analysis exists, return basic structure
+            return JsonResponse({
+                "summary": "No AI analysis available yet.",
+                "risks": [],
+                "recommendations": [],
+                "confidence_score": 0.0,
+                "created_at": timezone.now().isoformat(),
+                "is_fresh": False
+            })
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
