@@ -90,11 +90,9 @@ class Task(models.Model):
         ('not_started', 'Not Started'),
         ('in_progress', 'In Progress'),
         ('completed', 'Completed'),
-        ('blocked', 'Blocked')
-    ], default='not_started')
+        ('blocked', 'Blocked')    ], default='not_started')
     completion_percentage = models.IntegerField(default=0, help_text="Percentage of task completed (0-100)")
     priority = models.IntegerField(choices=[(i, i) for i in range(1, 6)], default=3)  # 1-5 scale
-    dependencies = models.ManyToManyField('self', symmetrical=False, blank=True, related_name='dependents')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

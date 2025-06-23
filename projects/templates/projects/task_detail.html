@@ -55,8 +55,7 @@
             <div style="color: #718096; font-size: 0.875rem;">Description</div>
             <div style="margin-top: 5px;">{{ task.description|linebreaks|default:"No description provided." }}</div>
         </div>
-        
-        <div style="margin-top: 20px;">
+          <div style="margin-top: 20px;">
             <div style="color: #718096; font-size: 0.875rem;">Required Skills</div>
             <div style="margin-top: 5px; display: flex; flex-wrap: wrap; gap: 8px;">
                 {% for skill in task.skills_required.all %}
@@ -66,21 +65,6 @@
                 {% empty %}
                 <div style="color: #718096;">No specific skills required.</div>
                 {% endfor %}
-            </div>
-        </div>
-        
-        <div style="margin-top: 20px;">
-            <div style="color: #718096; font-size: 0.875rem;">Dependencies</div>
-            <div style="margin-top: 5px;">
-                {% if task.dependencies.all %}
-                <ul style="list-style-type: disc; padding-left: 20px;">
-                    {% for dependency in task.dependencies.all %}
-                    <li><a href="{% url 'task_detail' dependency.id %}">{{ dependency.name }}</a> ({{ dependency.get_status_display }})</li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <div style="color: #718096;">No dependencies.</div>
-                {% endif %}
             </div>
         </div>
     </div>

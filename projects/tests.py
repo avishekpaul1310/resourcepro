@@ -353,26 +353,6 @@ class TaskModelTest(TestCase):
             status='completed'
         )
         self.assertFalse(completed_task.is_overdue)
-    
-    def test_task_dependencies(self):
-        """Test task dependencies"""
-        dependency_task = Task.objects.create(
-            project=self.project,
-            name="Dependency Task",
-            start_date=date.today(),
-            end_date=date.today() + timedelta(days=3),
-            estimated_hours=10
-        )
-        
-        self.task.dependencies.add(dependency_task)
-        
-        # Test forward relationship
-        dependencies = self.task.dependencies.all()
-        self.assertIn(dependency_task, dependencies)
-        
-        # Test reverse relationship
-        dependents = dependency_task.dependents.all()
-        self.assertIn(self.task, dependents)
 
 
 class ProjectViewsTest(TestCase):
@@ -615,17 +595,4 @@ class ProjectIntegrationTest(TestCase):
             name="Testing Phase",
             start_date=date.today() + timedelta(days=30),
             end_date=date.today() + timedelta(days=40),
-            estimated_hours=60
-        )
-        
-        # Set up dependencies
-        development_task.dependencies.add(design_task)
-        testing_task.dependencies.add(development_task)
-        
-        # Test dependency relationships
-        self.assertIn(design_task, development_task.dependencies.all())
-        self.assertIn(development_task, testing_task.dependencies.all())
-        
-        # Test reverse relationships
-        self.assertIn(development_task, design_task.dependents.all())
-        self.assertIn(testing_task, development_task.dependents.all())
+            estimated_hours=60        )
