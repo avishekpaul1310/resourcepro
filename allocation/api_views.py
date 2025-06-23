@@ -14,46 +14,9 @@ from projects.models import Task
 from resources.models import Resource
 from .models import Assignment
 from analytics.ai_services import AIResourceAllocationService
+from analytics.working_enhanced_ai import WorkingEnhancedAIService
 
 logger = logging.getLogger(__name__)
-
-@login_required
-@require_http_methods(["GET"])
-def ai_task_suggestions(request, task_id):
-    """
-    Get AI-powered resource suggestions for a specific task
-    """
-    try:
-        task = get_object_or_404(Task, id=task_id)
-        
-        # Get AI suggestions
-        ai_service = AIResourceAllocationService()
-        suggestions = ai_service.suggest_optimal_resource_allocation(
-            task_id=task_id, 
-            force_refresh=False  # Use cache if available
-        )
-        
-        if not suggestions or 'error' in suggestions:
-            return JsonResponse({
-                'success': False,
-                'error': suggestions.get('error', 'Failed to get AI suggestions') if suggestions else 'No suggestions available'            })
-        
-        return JsonResponse({
-            'success': True,
-            'task': {
-                'id': task.id,
-                'name': task.name,
-                'estimated_hours': task.estimated_hours,
-                'project_name': task.project.name if task.project else 'No Project'
-            },
-            'suggestions': suggestions.get('suggestions', [])
-        })
-        
-    except Task.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Task not found'})
-    except Exception as e:
-        logger.error(f"Error getting AI task suggestions: {e}")
-        return JsonResponse({'success': False, 'error': 'Internal server error'})
 
 @login_required
 @require_http_methods(["POST"])
@@ -319,3 +282,32 @@ def unassign_task(request):
     except Exception as e:
         logger.error(f"Error unassigning task: {e}")
         return JsonResponse({'success': False, 'error': f'Internal server error: {str(e)}'})
+
+@login_required
+@require_http_methods(["GET"])
+def enhanced_ai_task_suggestions(request):
+    """
+    Get enhanced AI-powered resource suggestions for multiple tasks
+    Implements priority-driven, future-aware scheduling
+    """
+    try:
+        # Get task IDs from request (optional)
+        task_ids = request.GET.get('task_ids')
+        if task_ids:
+            task_ids = [int(tid) for tid in task_ids.split(',')]
+          # Get enhanced AI suggestions
+        enhanced_ai = WorkingEnhancedAIService()
+        results = enhanced_ai.get_enhanced_suggestions(task_ids)
+        
+        return JsonResponse({
+            'success': True,
+            'results': results,
+            'message': f"Enhanced AI analyzed {results['total_tasks_analyzed']} tasks and provided suggestions for {results['tasks_with_suggestions']} tasks"
+        })
+        
+    except Exception as e:
+        logger.error(f"Enhanced AI suggestions error: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Enhanced AI error: {str(e)}'
+        })

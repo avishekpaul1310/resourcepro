@@ -340,26 +340,52 @@ class AIResourceAllocationService:
             suggestions = self._process_and_store_allocation_suggestions(task, ai_response, available_resources)
             
             return suggestions
-            
         except Exception as e:
             logger.error(f"Error generating allocation suggestions: {e}")
             return {"error": "Failed to generate suggestions"}
     
     def _get_available_resources(self, task: Task) -> List[Resource]:
         """Get resources that are available for allocation"""
-        # Get resources that are not over-allocated (utilization < 100%)
         available_resources = []
         
         for resource in Resource.objects.all():
-            current_utilization = resource.current_utilization(
-                task.start_date, task.end_date
-            )
+            # Check current overall utilization
+            current_utilization = resource.current_utilization()
+              # Calculate what utilization would be if this task is assigned
+            projected_utilization = self._calculate_projected_utilization(resource, task)
             
-            # Consider resource available if utilization is less than 90%
-            if current_utilization < 90:
+            # Consider resource available if:
+            # 1. Current utilization is less than 90% (reasonable safety buffer)
+            # 2. Projected utilization after adding this task would be less than 100% (prevent overallocation)
+            if current_utilization < 90 and projected_utilization < 100:
                 available_resources.append(resource)
+                logger.debug(f"Resource {resource.name}: current={current_utilization}%, projected={projected_utilization}% - AVAILABLE")
+            else:
+                logger.debug(f"Resource {resource.name}: current={current_utilization}%, projected={projected_utilization}% - EXCLUDED")
         
         return available_resources
+    
+    def _calculate_projected_utilization(self, resource: Resource, task: Task) -> float:
+        """Calculate what the resource utilization would be if this task is assigned"""
+        # Get current utilization during the task period
+        current_util = resource.current_utilization(task.start_date, task.end_date)
+        
+        # Calculate additional utilization from this task
+        task_duration_days = (task.end_date - task.start_date).days + 1
+        work_days = sum(1 for i in range(task_duration_days) 
+                       if (task.start_date + timezone.timedelta(days=i)).weekday() < 5)
+        
+        if work_days > 0:
+            available_hours_in_period = (resource.capacity / 5) * work_days
+            if available_hours_in_period > 0:
+                additional_util = (task.estimated_hours / available_hours_in_period) * 100
+                projected_util = current_util + additional_util
+            else:
+                projected_util = current_util
+        else:
+            projected_util = current_util
+            
+        return round(projected_util, 1)
     
     def _prepare_task_data(self, task: Task) -> Dict[str, Any]:
         """Prepare task data for AI analysis"""

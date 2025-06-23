@@ -20,13 +20,12 @@ function initializeAllocationAIFeatures() {
         console.log('NLI Search initialized for allocation page');
     } else {
         console.warn('initializeNLISearch function not available');
-    }
-      // AI Task Suggestions button (renamed from auto-assign)
+    }    // Enhanced AI Task Suggestions button (now the main AI button)
     const aiSuggestionsBtn = document.getElementById('ai-task-suggestions');
     console.log('AI Task Suggestions button found:', !!aiSuggestionsBtn);
     if (aiSuggestionsBtn) {
-        aiSuggestionsBtn.addEventListener('click', handleAITaskSuggestions);
-        console.log('AI Task Suggestions click handler added');
+        aiSuggestionsBtn.addEventListener('click', handleEnhancedAISuggestions);
+        console.log('Enhanced AI click handler added to main button');
     }
     
     // Assignment remove buttons
@@ -64,55 +63,334 @@ function initializeDragDrop() {
     });
 }
 
-// AI Task Suggestions - Shows all recommendations with reasoning
-async function handleAITaskSuggestions() {
-    console.log('AI Task Suggestions clicked!');
+// Enhanced AI Task Suggestions - Next-generation AI with priority-driven and future-aware scheduling
+async function handleEnhancedAISuggestions() {
+    console.log('Enhanced AI Suggestions clicked!');
     
-    const suggestionsBtn = document.getElementById('ai-task-suggestions');
+    const enhancedBtn = document.getElementById('ai-task-suggestions');
     const unassignedTasks = document.querySelectorAll('.task-card');
     
-    console.log('Unassigned tasks found:', unassignedTasks.length);
+    console.log('Unassigned tasks found for enhanced AI:', unassignedTasks.length);
     
     if (unassignedTasks.length === 0) {
         showNotification('No unassigned tasks found', 'info');
         return;
     }    // Show loading state
-    suggestionsBtn.disabled = true;
-    suggestionsBtn.innerHTML = '<span class="ai-icon">⚡</span><span class="ai-text">AI Analyzing...</span>';
+    enhancedBtn.disabled = true;
+    enhancedBtn.innerHTML = '<span class="ai-icon">🧠</span><span class="ai-text">AI Analyzing...</span><span class="ai-badge">ENHANCED</span>';
 
     try {
         const taskIds = Array.from(unassignedTasks).map(task => 
             parseInt(task.dataset.taskId)
         );
         
-        console.log('Getting AI suggestions for tasks:', taskIds);
-
-        // Get suggestions for all tasks
-        const allSuggestions = [];
-        for (const taskId of taskIds) {
-            const response = await fetch(`/allocation/api/ai-suggestions/${taskId}/`);
-            const data = await response.json();
-            
-            if (data.success && data.suggestions && data.suggestions.length > 0) {
-                allSuggestions.push({
-                    task: data.task,
-                    suggestion: data.suggestions[0] // Best suggestion
-                });
-            }
-        }
-
-        if (allSuggestions.length > 0) {
-            showAITaskSuggestionsModal(allSuggestions);
+        console.log('Getting enhanced AI suggestions for tasks:', taskIds);        // Call the enhanced AI API
+        const response = await fetch(`/allocation/api/enhanced-ai-suggestions/?task_ids=${taskIds.join(',')}`);
+        const data = await response.json();
+        
+        console.log('Enhanced AI API Response:', data);
+        
+        if (data.success) {
+            showEnhancedAISuggestionsModal(data.results);
         } else {
-            showNotification('No AI recommendations available for current tasks', 'warning');
+            showNotification(data.error || 'Failed to get enhanced AI suggestions', 'error');
         }
 
     } catch (error) {
-        console.error('AI task suggestions error:', error);
-        showNotification('Failed to get AI suggestions', 'error');
-    } finally {        // Restore button
-        suggestionsBtn.disabled = false;
-        suggestionsBtn.innerHTML = '<span class="ai-icon">🤖</span><span class="ai-text">AI Task Suggestions</span><span class="ai-badge">SMART</span>';
+        console.error('Enhanced AI suggestions error:', error);
+        showNotification('Failed to get enhanced AI suggestions', 'error');
+    } finally {
+        // Restore button
+        enhancedBtn.disabled = false;
+        enhancedBtn.innerHTML = '<span class="ai-icon">🧠</span><span class="ai-text">AI Task Suggestions</span><span class="ai-badge">ENHANCED</span>';
+    }
+}
+
+// Show enhanced AI suggestions modal
+function showEnhancedAISuggestionsModal(results) {
+    console.log('Showing enhanced AI suggestions modal:', results);
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.style.display = 'block';
+    modal.innerHTML = `
+        <div class="modal enhanced-ai-modal">
+            <div class="modal-header">
+                <h3>🧠 Enhanced AI Task Recommendations</h3>
+                <span class="modal-close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="enhanced-ai-summary">
+                    <p><strong>Analysis Complete:</strong> ${results.total_tasks_analyzed} tasks analyzed, 
+                    ${results.tasks_with_suggestions} recommendations generated</p>
+                </div>
+                <div class="enhanced-suggestions-container">
+                    ${generateEnhancedSuggestionsHTML(results.suggestions)}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Close</button>
+                <button class="btn btn-ai-primary" onclick="applyEnhancedSuggestions()">Apply Selected</button>
+            </div>
+        </div>
+    `;
+    
+    // Add close functionality
+    modal.querySelector('.modal-close').onclick = () => modal.remove();
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    
+    document.body.appendChild(modal);
+}
+
+// Generate enhanced suggestions HTML
+function generateEnhancedSuggestionsHTML(suggestions) {
+    let html = '';
+    
+    for (const [taskId, suggestionData] of Object.entries(suggestions)) {
+        const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+        const taskName = taskElement ? taskElement.querySelector('.task-title').textContent : `Task ${taskId}`;
+        
+        html += `
+            <div class="enhanced-suggestion-item" data-task-id="${taskId}">
+                <div class="suggestion-header">
+                    <h4>${taskName}</h4>
+                    <span class="suggestion-type ${suggestionData.type}">${suggestionData.type.replace('_', ' ').toUpperCase()}</span>
+                </div>
+                <div class="suggestion-reasoning">
+                    <p><em>${suggestionData.reasoning}</em></p>
+                </div>
+                <div class="suggestion-options">
+                    ${generateSuggestionOptionsHTML(suggestionData.suggestions, suggestionData.type)}
+                </div>
+            </div>
+        `;
+    }
+    
+    return html || '<p>No enhanced suggestions available at this time.</p>';
+}
+
+// Generate suggestion options HTML based on type
+function generateSuggestionOptionsHTML(suggestions, type) {
+    let html = '';
+    
+    suggestions.forEach((suggestion, index) => {
+        html += `<div class="suggestion-option" data-suggestion-index="${index}">`;
+        
+        switch (type) {
+            case 'ideal':
+                html += `
+                    <div class="option-content">
+                        <input type="checkbox" class="suggestion-checkbox" id="sugg-${suggestion.resource_id}-${index}">
+                        <label for="sugg-${suggestion.resource_id}-${index}">
+                            <strong>${suggestion.resource_name}</strong>
+                            <div class="option-details">
+                                <span>Skill Match: ${(suggestion.skill_match * 100).toFixed(0)}%</span>
+                                <span>Utilization: ${suggestion.current_utilization}% → ${suggestion.projected_utilization}%</span>
+                                <span class="confidence high">High Confidence</span>
+                            </div>
+                        </label>
+                    </div>
+                `;
+                break;
+                
+            case 'future_scheduled':
+                html += `
+                    <div class="option-content">
+                        <input type="checkbox" class="suggestion-checkbox" id="sugg-${suggestion.resource_id}-${index}">
+                        <label for="sugg-${suggestion.resource_id}-${index}">
+                            <strong>${suggestion.resource_name}</strong>
+                            <div class="option-details">
+                                <span>Skill Match: ${(suggestion.skill_match * 100).toFixed(0)}%</span>
+                                <span>Delay: ${suggestion.delay_days} days</span>
+                                <span>New Start: ${suggestion.suggested_start_date}</span>
+                                <span class="confidence medium">Medium Confidence</span>
+                            </div>
+                        </label>
+                    </div>
+                `;
+                break;
+                
+            case 'collaborative':
+                if (suggestion.collaborators) {
+                    html += `
+                        <div class="option-content">
+                            <input type="checkbox" class="suggestion-checkbox" id="sugg-collab-${index}">
+                            <label for="sugg-collab-${index}">
+                                <strong>Collaborative Assignment</strong>
+                                <div class="option-details">
+                                    ${suggestion.collaborators.map(c => 
+                                        `<span>${c.resource_name}: ${c.available_hours}h</span>`
+                                    ).join('')}
+                                    <span>Coverage: ${suggestion.coverage_percentage.toFixed(0)}%</span>
+                                </div>
+                            </label>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="option-content">
+                            <span><strong>Task Splitting Recommended</strong></span>
+                            <div class="option-details">
+                                <span>Duration: ${suggestion.total_duration_weeks} weeks</span>
+                                <span>Phases: ${suggestion.phases ? suggestion.phases.length : 'Multiple'}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+                break;
+                
+            case 'good_fit':
+                html += `
+                    <div class="option-content">
+                        <input type="checkbox" class="suggestion-checkbox" id="sugg-${suggestion.resource_id}-${index}">
+                        <label for="sugg-${suggestion.resource_id}-${index}">
+                            <strong>${suggestion.resource_name}</strong>
+                            <div class="option-details">
+                                <span>Skill Match: ${(suggestion.skill_match * 100).toFixed(0)}%</span>
+                                <span>Gaps: ${suggestion.skill_gap ? suggestion.skill_gap.join(', ') : 'None'}</span>
+                                <span class="mentoring">Mentoring: ${suggestion.mentoring_needed ? 'Required' : 'Not needed'}</span>
+                                <span class="confidence medium">Medium Confidence</span>
+                            </div>
+                        </label>
+                    </div>
+                `;
+                break;
+                
+            case 'overallocation':
+                html += `
+                    <div class="option-content warning">
+                        <input type="checkbox" class="suggestion-checkbox" id="sugg-${suggestion.resource_id}-${index}">
+                        <label for="sugg-${suggestion.resource_id}-${index}">
+                            <strong>${suggestion.resource_name}</strong>
+                            <div class="option-details">
+                                <span>Skill Match: ${(suggestion.skill_match * 100).toFixed(0)}%</span>
+                                <span class="warning">⚠️ Over-allocation: +${suggestion.overallocation_percentage.toFixed(1)}%</span>
+                                <span>Risk: ${suggestion.risk_analysis.delay_risk}</span>
+                                <div class="mitigation-options">
+                                    <strong>Mitigation:</strong>
+                                    ${suggestion.mitigation_options.slice(0, 2).map(opt => 
+                                        `<span>${opt.description}</span>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                `;
+                break;
+        }
+        
+        html += '</div>';
+    });
+    
+    return html;
+}
+
+// Apply selected enhanced suggestions
+async function applyEnhancedSuggestions() {
+    const selectedCheckboxes = document.querySelectorAll('.suggestion-checkbox:checked');
+    console.log('Applying enhanced suggestions:', selectedCheckboxes.length);
+    
+    if (selectedCheckboxes.length === 0) {
+        showNotification('Please select at least one suggestion to apply', 'warning');
+        return;
+    }
+    
+    // Extract assignment data from selected checkboxes
+    const assignments = [];
+    selectedCheckboxes.forEach(checkbox => {
+        const suggestionOption = checkbox.closest('.suggestion-option');
+        const enhancedItem = checkbox.closest('.enhanced-suggestion-item');
+        const taskId = enhancedItem.dataset.taskId;
+        
+        // Extract resource ID from checkbox ID (format: sugg-{resource_id}-{index})
+        const checkboxId = checkbox.id;
+        const resourceIdMatch = checkboxId.match(/sugg-(\d+)-\d+/);
+        
+        if (resourceIdMatch) {
+            const resourceId = resourceIdMatch[1];
+            const resourceName = checkbox.parentElement.querySelector('strong').textContent;
+            
+            assignments.push({
+                task_id: parseInt(taskId),
+                resource_id: parseInt(resourceId),
+                resource_name: resourceName
+            });
+        }
+    });
+    
+    console.log('Assignments to apply:', assignments);
+    
+    if (assignments.length === 0) {
+        showNotification('No valid assignments found', 'error');
+        return;
+    }
+    
+    // Apply assignments one by one
+    let successCount = 0;
+    let errorCount = 0;
+    
+    for (const assignment of assignments) {
+        try {
+            const response = await fetch('/allocation/api/assign-task/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: JSON.stringify({
+                    task_id: assignment.task_id,
+                    resource_id: assignment.resource_id
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                successCount++;
+                console.log(`Successfully assigned task ${assignment.task_id} to resource ${assignment.resource_id}`);
+                
+                // Remove task from unassigned list
+                const taskCard = document.querySelector(`.task-list .task-card[data-task-id="${assignment.task_id}"]`);
+                if (taskCard) {
+                    taskCard.remove();
+                }
+                
+                // Update resource utilization if provided
+                if (data.new_utilization !== undefined) {
+                    updateResourceUtilization(assignment.resource_id, data.new_utilization);
+                }
+                
+                // Add assignment to resource if assignment data is provided
+                if (data.assignment) {
+                    addAssignmentToResource(data.assignment, assignment.resource_id);
+                }
+            } else {
+                errorCount++;
+                console.error(`Failed to assign task ${assignment.task_id}:`, data.error);
+            }
+        } catch (error) {
+            errorCount++;
+            console.error(`Error assigning task ${assignment.task_id}:`, error);
+        }
+    }
+    
+    // Show results notification
+    if (successCount > 0 && errorCount === 0) {
+        showNotification(`Successfully assigned ${successCount} task${successCount === 1 ? '' : 's'}!`, 'success');
+    } else if (successCount > 0 && errorCount > 0) {
+        showNotification(`Assigned ${successCount} task${successCount === 1 ? '' : 's'}, ${errorCount} failed`, 'warning');
+    } else {
+        showNotification('Failed to assign any tasks', 'error');
+    }
+    
+    // Close modal
+    document.querySelector('.enhanced-ai-modal').closest('.modal-overlay').remove();
+    
+    // Refresh page if all assignments succeeded to ensure UI is in sync
+    if (successCount > 0 && errorCount === 0) {
+        setTimeout(() => {
+            location.reload();
+        }, 1500);
     }
 }
 
@@ -731,126 +1009,6 @@ function showConflictDialog(conflicts) {
     });
 }
 
-function showAITaskSuggestionsModal(suggestions) {
-    console.log('Showing AI Task Suggestions modal with', suggestions.length, 'suggestions');
-    
-    // Create modal overlay
-    const modal = document.createElement('div');
-    modal.className = 'modal-overlay';
-    modal.style.display = 'block';
-    
-    const modalContent = `
-        <div class="modal ai-suggestions-modal">
-            <div class="modal-header">
-                <h3 class="modal-title">
-                    <i class="fas fa-robot"></i> AI Task Recommendations
-                </h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="ai-modal-intro">
-                    <p>AI has analyzed ${suggestions.length} task${suggestions.length === 1 ? '' : 's'} and found the following optimal assignment${suggestions.length === 1 ? '' : 's'}:</p>
-                </div>
-                <div class="ai-suggestions-list">
-                    ${suggestions.map(item => `
-                        <div class="ai-suggestion-item">                            <div class="suggestion-task">
-                                <h4>${item.task.name}</h4>
-                                <div class="task-meta">
-                                    <span class="task-project">${item.task.project_name || 'No Project'}</span>
-                                    <span class="task-hours">${item.task.estimated_hours}h</span>
-                                </div>
-                            </div>
-                            <div class="suggestion-arrow">→</div>
-                            <div class="suggestion-resource">
-                                <div class="resource-name">${item.suggestion.resource.name}</div>
-                                <div class="resource-role">${item.suggestion.resource.role}</div>
-                                <div class="match-score">
-                                    <span class="score-value">${Math.round(item.suggestion.match_score * 100)}% match</span>
-                                </div>
-                            </div>
-                            <div class="suggestion-reasoning">
-                                <strong>Why this match:</strong> ${item.suggestion.reasoning}
-                            </div>
-                            <div class="suggestion-actions">
-                                <button class="btn btn-primary assign-suggestion-btn" 
-                                        data-task-id="${item.task.id}" 
-                                        data-resource-id="${item.suggestion.resource.id}"
-                                        data-hours="${item.task.estimated_hours}">
-                                    <i class="fas fa-check"></i> Assign
-                                </button>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-                <div class="modal-actions">
-                    <button class="btn btn-secondary modal-cancel">
-                        <i class="fas fa-times"></i> Cancel
-                    </button>
-                    <button class="btn btn-ai-primary assign-all-suggestions">
-                        <i class="fas fa-magic"></i> ${suggestions.length === 1 ? 'Assign the Recommendation' : 'Assign All Recommendations'}
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    modal.innerHTML = modalContent;
-    document.body.appendChild(modal);
-    
-    // Event handlers
-    modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
-    modal.querySelector('.modal-cancel').addEventListener('click', () => modal.remove());
-    
-    // Individual assign buttons
-    modal.querySelectorAll('.assign-suggestion-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            const taskId = e.target.dataset.taskId;
-            const resourceId = e.target.dataset.resourceId;
-            const hours = e.target.dataset.hours;
-            
-            try {
-                const success = await assignTaskToResource(taskId, resourceId, hours);
-                if (success) {
-                    e.target.closest('.ai-suggestion-item').style.opacity = '0.5';
-                    e.target.disabled = true;
-                    e.target.innerHTML = '<i class="fas fa-check"></i> Assigned';
-                    showNotification('Task assigned successfully!', 'success');
-                }
-            } catch (error) {
-                showNotification('Failed to assign task', 'error');
-            }
-        });
-    });
-    
-    // Assign all button
-    modal.querySelector('.assign-all-suggestions').addEventListener('click', async () => {
-        console.log('Assign all suggestions clicked');
-        
-        const buttons = modal.querySelectorAll('.assign-suggestion-btn:not(:disabled)');
-        let successCount = 0;
-        
-        for (const btn of buttons) {
-            try {
-                const success = await assignTaskToResource(
-                    btn.dataset.taskId, 
-                    btn.dataset.resourceId, 
-                    btn.dataset.hours
-                );
-                if (success) {
-                    successCount++;
-                    btn.disabled = true;
-                    btn.innerHTML = '<i class="fas fa-check"></i> Assigned';
-                }
-            } catch (error) {
-                console.error('Failed to assign task:', error);
-            }
-        }
-        
-        showNotification(`Successfully assigned ${successCount} of ${buttons.length} tasks`, 'success');
-        setTimeout(() => modal.remove(), 2000);
-    });
-}
-
 async function assignTaskToResource(taskId, resourceId, hours) {
     console.log('Assigning task', taskId, 'to resource', resourceId);
     
@@ -868,9 +1026,7 @@ async function assignTaskToResource(taskId, resourceId, hours) {
         });
 
         const data = await response.json();
-        console.log('Assignment response:', data);
-
-        if (data.success) {
+        console.log('Assignment response:', data);        if (data.success) {
             // Remove task from unassigned list
             const taskCard = document.querySelector(`.task-list .task-card[data-task-id="${taskId}"]`);
             if (taskCard) {
@@ -878,88 +1034,45 @@ async function assignTaskToResource(taskId, resourceId, hours) {
             }
             
             // Add to resource assignments
-            addAssignmentToResource(data.assignment, resourceId);
-            
-            // Update resource utilization
-            if (data.new_utilization !== undefined) {
-                updateResourceUtilization(resourceId, data.new_utilization);
-            }
-            
-            return true;
+            location.reload(); // Refresh to show new assignment
         } else {
             showNotification(data.error || 'Failed to assign task', 'error');
-            return false;
-        }
-        
-    } catch (error) {
-        console.error('Error assigning task:', error);
+        }    } catch (error) {
+        console.error('Assignment error:', error);
         showNotification('Failed to assign task', 'error');
-        return false;
     }
 }
 
+// Utility function to get CSRF token
+function getCsrfToken() {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    return csrfToken ? csrfToken.value : '';
+}
+
+// Utility function to show notifications
 function showNotification(message, type = 'info') {
-    // Remove any existing notifications
-    const existingNotifications = document.querySelectorAll('.notification');
-    existingNotifications.forEach(notification => notification.remove());
+    console.log(`Notification (${type}):`, message);
     
     // Create notification element
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.innerHTML = `
-        <span class="notification-icon">${getNotificationIcon(type)}</span>
         <span class="notification-message">${message}</span>
-        <button class="notification-close" onclick="this.parentElement.remove();">&times;</button>
+        <button class="notification-close">&times;</button>
     `;
     
-    // Add styles
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: ${getNotificationColor(type)};
-        color: white;
-        padding: 12px 16px;
-        border-radius: 4px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        z-index: 10000;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        max-width: 400px;
-        animation: slideIn 0.3s ease-out;
-    `;
-      document.body.appendChild(notification);
+    // Add to page
+    document.body.appendChild(notification);
     
-    // Auto-remove after 5 seconds
+    // Auto remove after 5 seconds
     setTimeout(() => {
-        if (notification.parentElement) {
+        if (notification.parentNode) {
             notification.remove();
         }
     }, 5000);
+    
+    // Close button handler
+    notification.querySelector('.notification-close').addEventListener('click', () => {
+        notification.remove();
+    });
 }
-
-function getNotificationIcon(type) {
-    switch (type) {
-        case 'success': return '✅';
-        case 'error': return '❌';
-        case 'warning': return '⚠️';
-        default: return 'ℹ️';
-    }
-}
-
-function getNotificationColor(type) {
-    switch (type) {
-        case 'success': return '#10b981';
-        case 'error': return '#ef4444';
-        case 'warning': return '#f59e0b';
-        default: return '#3b82f6';
-    }
-}
-
-function getCsrfToken() {
-    const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
-    return csrfInput ? csrfInput.value : '';
-}
-
-console.log('AI-Allocation JavaScript loaded successfully');
