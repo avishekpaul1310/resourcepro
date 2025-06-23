@@ -30,16 +30,22 @@ class WorkingEnhancedAIService:
         
         # Sort by priority (higher number = higher priority)
         prioritized_tasks = unassigned_tasks.order_by('-priority')
-        
         suggestions = {}
+        unassigned_analysis = []
         
         for task in prioritized_tasks[:10]:  # Limit to first 10 tasks
             suggestion = self._analyze_single_task(task)
             if suggestion:
                 suggestions[str(task.id)] = suggestion
+            else:
+                # Analyze why this task couldn't be assigned
+                analysis = self._analyze_unassigned_task(task)
+                if analysis:
+                    unassigned_analysis.append(analysis)
         
         return {
             'suggestions': suggestions,
+            'unassigned_analysis': unassigned_analysis,
             'total_tasks_analyzed': prioritized_tasks.count(),
             'tasks_with_suggestions': len(suggestions)
         }
@@ -287,3 +293,151 @@ class WorkingEnhancedAIService:
             projected_util = current_util
             
         return projected_util
+    
+    def _analyze_unassigned_task(self, task: Task) -> Dict[str, Any]:
+        """Analyze why a task couldn't be assigned and provide recommendations"""
+        
+        analysis = {
+            'task_id': task.id,
+            'task_name': task.name,
+            'priority': task.priority,
+            'estimated_hours': task.estimated_hours,
+            'issues': [],
+            'recommendations': []
+        }
+        
+        # Check skill availability
+        task_skills = set(task.skills_required.all())
+        available_resources = Resource.objects.all()
+        skilled_resources = []
+        
+        for resource in available_resources:
+            skill_match = self._calculate_skill_match(resource, task)
+            if skill_match > 0:
+                skilled_resources.append((resource, skill_match))
+        
+        if not skilled_resources:
+            analysis['issues'].append("No resources with required skills available")
+            analysis['recommendations'].append({
+                'type': 'skill_gap',
+                'title': 'Skill Training Required',
+                'description': f"Consider training existing resources in: {', '.join([skill.name for skill in task_skills])}",
+                'priority': 'high'
+            })
+            analysis['recommendations'].append({
+                'type': 'hiring',
+                'title': 'Hire Specialist',
+                'description': f"Consider hiring a specialist with skills: {', '.join([skill.name for skill in task_skills])}",
+                'priority': 'medium'
+            })
+        else:
+            # Check capacity issues
+            skilled_resources.sort(key=lambda x: x[1], reverse=True)
+            best_resource, best_match = skilled_resources[0]
+            
+            current_util = best_resource.current_utilization()
+            projected_util = self._calculate_projected_utilization(best_resource, task)
+            
+            if projected_util > 120:
+                analysis['issues'].append(f"Best-fit resource ({best_resource.name}) severely overloaded (would reach {projected_util:.1f}% utilization)")
+                analysis['recommendations'].append({
+                    'type': 'capacity',
+                    'title': 'Additional Resources Needed',
+                    'description': f"Need {(projected_util - 100) / 100 * task.estimated_hours:.1f} additional hours of capacity",
+                    'priority': 'high'
+                })
+            elif projected_util > 100:
+                analysis['issues'].append(f"Best-fit resource ({best_resource.name}) overloaded (would reach {projected_util:.1f}% utilization)")
+                analysis['recommendations'].append({
+                    'type': 'scheduling',
+                    'title': 'Reschedule or Split Task',
+                    'description': f"Consider delaying start date or splitting into smaller phases",
+                    'priority': 'medium'
+                })
+            
+            # Check if task is too large
+            if task.estimated_hours > 80:  # More than 2 weeks of full-time work
+                analysis['issues'].append("Task is very large and difficult to assign as single unit")
+                analysis['recommendations'].append({
+                    'type': 'splitting',
+                    'title': 'Task Splitting Recommended',
+                    'description': f"Break down {task.estimated_hours}h task into 2-3 smaller phases",
+                    'priority': 'high',
+                    'suggested_phases': self._suggest_task_phases(task)
+                })
+            
+            # Check timeline constraints
+            days_available = (task.end_date - task.start_date).days
+            if days_available < 5:  # Less than a week
+                analysis['issues'].append("Very tight timeline constraints")
+                analysis['recommendations'].append({
+                    'type': 'timeline',
+                    'title': 'Extend Deadline',
+                    'description': f"Consider extending deadline by {max(5 - days_available, 3)} days",
+                    'priority': 'medium'
+                })
+        
+        # Check for collaborative assignment possibility
+        if task.estimated_hours > 40:  # More than 1 week
+            collaboration_potential = self._analyze_collaboration_potential(task)
+            if collaboration_potential:
+                analysis['recommendations'].append({
+                    'type': 'collaboration',
+                    'title': 'Collaborative Assignment',
+                    'description': f"Assign to {len(collaboration_potential)} resources working together",
+                    'priority': 'medium',
+                    'collaborators': collaboration_potential
+                })
+        
+        return analysis
+    
+    def _suggest_task_phases(self, task: Task) -> List[Dict]:
+        """Suggest how to break down a large task into phases"""
+        total_hours = task.estimated_hours
+        num_phases = min(3, max(2, total_hours // 40))  # 2-3 phases, roughly 40h each
+        
+        phase_hours = total_hours // num_phases
+        remaining_hours = total_hours % num_phases
+        
+        phases = []
+        for i in range(num_phases):
+            hours = phase_hours + (1 if i < remaining_hours else 0)
+            phases.append({
+                'phase': i + 1,
+                'name': f"{task.name} - Phase {i + 1}",
+                'estimated_hours': hours,
+                'description': f"Phase {i + 1} of {num_phases}"
+            })
+        
+        return phases
+    
+    def _analyze_collaboration_potential(self, task: Task) -> List[Dict]:
+        """Analyze if task can be split among multiple resources"""
+        task_skills = set(task.skills_required.all())
+        suitable_resources = []
+        
+        for resource in Resource.objects.all():
+            skill_match = self._calculate_skill_match(resource, task)
+            if skill_match >= 0.3:  # At least some relevant skills
+                current_util = resource.current_utilization()
+                if current_util < 90:  # Has some capacity
+                    # Calculate how many hours this resource could contribute
+                    available_capacity = max(0, (85 - current_util) / 100 * 40)  # Rough weekly capacity
+                    if available_capacity >= 10:  # At least 10 hours available
+                        suitable_resources.append({
+                            'resource_id': resource.id,
+                            'resource_name': resource.name,
+                            'skill_match': skill_match,
+                            'available_hours': min(available_capacity, task.estimated_hours * 0.6),  # Max 60% of task
+                            'current_utilization': current_util
+                        })
+        
+        # Sort by skill match and capacity
+        suitable_resources.sort(key=lambda x: (x['skill_match'], x['available_hours']), reverse=True)
+        
+        # Check if we can cover the task with top resources
+        total_available = sum(r['available_hours'] for r in suitable_resources[:3])
+        if total_available >= task.estimated_hours * 0.8:  # Can cover 80% of the task
+            return suitable_resources[:3]
+        
+        return []

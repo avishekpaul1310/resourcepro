@@ -118,15 +118,26 @@ function showEnhancedAISuggestionsModal(results) {
             <div class="modal-header">
                 <h3>🧠 Enhanced AI Task Recommendations</h3>
                 <span class="modal-close">&times;</span>
-            </div>
-            <div class="modal-body">
+            </div>            <div class="modal-body">
                 <div class="enhanced-ai-summary">
                     <p><strong>Analysis Complete:</strong> ${results.total_tasks_analyzed} tasks analyzed, 
                     ${results.tasks_with_suggestions} recommendations generated</p>
                 </div>
-                <div class="enhanced-suggestions-container">
-                    ${generateEnhancedSuggestionsHTML(results.suggestions)}
-                </div>
+                
+                ${Object.keys(results.suggestions || {}).length > 0 ? `
+                    <div class="enhanced-suggestions-container">
+                        <h4 class="section-title">🎯 Recommended Assignments</h4>
+                        ${generateEnhancedSuggestionsHTML(results.suggestions)}
+                    </div>
+                ` : ''}
+                
+                ${results.unassigned_analysis && results.unassigned_analysis.length > 0 ? `
+                    <div class="unassigned-analysis-container">
+                        <h4 class="section-title">📋 Tasks Requiring Attention</h4>
+                        <p class="section-description">These tasks couldn't be assigned automatically. Review the analysis and recommendations below:</p>
+                        ${generateUnassignedAnalysisHTML(results.unassigned_analysis)}
+                    </div>
+                ` : ''}
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Close</button>
@@ -167,6 +178,81 @@ function generateEnhancedSuggestionsHTML(suggestions) {
     }
     
     return html || '<p>No enhanced suggestions available at this time.</p>';
+}
+
+// Generate unassigned analysis HTML
+function generateUnassignedAnalysisHTML(unassignedAnalysis) {
+    if (!unassignedAnalysis || unassignedAnalysis.length === 0) {
+        return '';
+    }
+    
+    let html = '<div class="unassigned-analysis-section">';
+    
+    unassignedAnalysis.forEach(analysis => {
+        html += `
+            <div class="unassigned-task-analysis">
+                <div class="task-analysis-header">
+                    <h5>${analysis.task_name}</h5>
+                    <span class="task-priority priority-${analysis.priority}">Priority ${analysis.priority}</span>
+                    <span class="task-hours">${analysis.estimated_hours}h</span>
+                </div>
+                
+                ${analysis.issues.length > 0 ? `
+                    <div class="analysis-issues">
+                        <strong>🚫 Issues Identified:</strong>
+                        <ul>
+                            ${analysis.issues.map(issue => `<li>${issue}</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+                
+                ${analysis.recommendations.length > 0 ? `
+                    <div class="analysis-recommendations">
+                        <strong>💡 Recommendations:</strong>
+                        <div class="recommendation-list">
+                            ${analysis.recommendations.map(rec => `
+                                <div class="recommendation-item ${rec.type}">
+                                    <div class="rec-header">
+                                        <span class="rec-title">${rec.title}</span>
+                                        <span class="rec-priority priority-${rec.priority}">${rec.priority.toUpperCase()}</span>
+                                    </div>
+                                    <div class="rec-description">${rec.description}</div>
+                                    
+                                    ${rec.suggested_phases ? `
+                                        <div class="suggested-phases">
+                                            <strong>Suggested Phases:</strong>
+                                            ${rec.suggested_phases.map(phase => `
+                                                <div class="phase-item">
+                                                    <span class="phase-name">${phase.name}</span>
+                                                    <span class="phase-hours">${phase.estimated_hours}h</span>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    ` : ''}
+                                    
+                                    ${rec.collaborators ? `
+                                        <div class="collaboration-info">
+                                            <strong>Potential Collaborators:</strong>
+                                            ${rec.collaborators.map(collab => `
+                                                <div class="collaborator-item">
+                                                    <span class="collab-name">${collab.resource_name}</span>
+                                                    <span class="collab-hours">${collab.available_hours.toFixed(1)}h available</span>
+                                                    <span class="collab-match">${(collab.skill_match * 100).toFixed(0)}% match</span>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    return html;
 }
 
 // Generate suggestion options HTML based on type
@@ -1075,4 +1161,63 @@ function showNotification(message, type = 'info') {
     notification.querySelector('.notification-close').addEventListener('click', () => {
         notification.remove();
     });
+}
+
+// Generate recommendations HTML for unassigned tasks
+function generateRecommendationsHTML(recommendations) {
+    if (!recommendations || recommendations.length === 0) {
+        return '';
+    }
+    
+    let html = '<div class="recommendations-list">';
+    
+    recommendations.forEach(recommendation => {
+        let iconClass = '';
+        let recommendationClass = '';
+        
+        switch (recommendation.type) {
+            case 'hire_resource':
+                iconClass = '👥';
+                recommendationClass = 'hire-recommendation';
+                break;
+            case 'skill_training':
+                iconClass = '📚';
+                recommendationClass = 'training-recommendation';
+                break;
+            case 'task_splitting':
+                iconClass = '✂️';
+                recommendationClass = 'splitting-recommendation';
+                break;
+            case 'deadline_extension':
+                iconClass = '📅';
+                recommendationClass = 'deadline-recommendation';
+                break;
+            case 'external_contractor':
+                iconClass = '🤝';
+                recommendationClass = 'contractor-recommendation';
+                break;
+            case 'priority_adjustment':
+                iconClass = '⚡';
+                recommendationClass = 'priority-recommendation';
+                break;
+            default:
+                iconClass = '💡';
+                recommendationClass = 'general-recommendation';
+        }
+        
+        html += `
+            <div class="recommendation-item ${recommendationClass}">
+                <span class="recommendation-icon">${iconClass}</span>
+                <div class="recommendation-content">
+                    <strong>${recommendation.title}</strong>
+                    <p>${recommendation.description}</p>
+                    ${recommendation.estimated_cost ? `<span class="cost-estimate">Est. Cost: ${recommendation.estimated_cost}</span>` : ''}
+                    ${recommendation.timeline ? `<span class="timeline-estimate">Timeline: ${recommendation.timeline}</span>` : ''}
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    return html;
 }
