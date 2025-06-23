@@ -12,7 +12,7 @@
 
 <div class="card">
     <div class="card-body">
-        <table class="table">
+        <table class="table projects-table" style="table-layout: fixed !important; width: 100% !important; border-collapse: separate !important; border-spacing: 0 !important;">
             <thead>
                 <tr>
                     <th>Name</th>
@@ -23,27 +23,25 @@
                 </tr>
             </thead>
             <tbody>
-                {% for project in projects %}
-                <tr>
-                    <td>
-                        <div style="display: flex; align-items: center;">
-                            <div style="width: 12px; height: 12px; border-radius: 50%; background-color: '{{ project.color }}'; margin-right: 8px;"></div>
+                {% for project in projects %}                <tr>
+                    <td style="width: 20% !important; max-width: 20% !important; padding: 15px 12px !important; overflow: hidden !important; text-overflow: ellipsis !important;">                        <div style="display: flex; align-items: center;">
+                            <div style="width: 12px; height: 12px; border-radius: 50%; background-color: {{ project.color }}; margin-right: 8px;"></div>
                             <a href="{% url 'project_detail' project.id %}">{{ project.name }}</a>
                         </div>
                     </td>
-                    <td>
+                    <td style="width: 15% !important; max-width: 15% !important; padding: 15px 12px !important; overflow: hidden !important; text-overflow: ellipsis !important;">
                         <span class="status-badge status-{{ project.status }}">
                             {{ project.get_status_display }}
                         </span>
                     </td>
-                    <td>{{ project.start_date|date:"M d, Y" }} - {{ project.end_date|date:"M d, Y" }}</td>
-                    <td>
-                        <div class="progress-bar-container">
-                            <div class="progress-bar" style="width: '{{ project.completion }}%';"></div>
-                            <span class="progress-text">{{ project.completion }}%</span>
+                    <td style="width: 25% !important; max-width: 25% !important; padding: 15px 12px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important;">{{ project.start_date|date:"M d, Y" }} - {{ project.end_date|date:"M d, Y" }}</td><td style="width: 30% !important; max-width: 30% !important; padding: 15px 12px !important;">
+                        <div style="display: flex !important; align-items: center !important; justify-content: flex-start !important; width: 100% !important; gap: 12px !important;">
+                            <div style="width: 120px !important; height: 24px !important; background-color: #e2e8f0 !important; border-radius: 12px !important; overflow: hidden !important; border: 2px solid #cbd5e0 !important; flex-shrink: 0 !important; position: relative !important;">
+                                <div style="height: 100% !important; background: linear-gradient(90deg, #5a67d8 0%, #4c51bf 100%) !important; border-radius: 10px !important; transition: width 0.3s ease !important; width: {{ project.completion|default:0 }}% !important; min-width: 4px !important;"></div>
+                            </div>
+                            <span style="font-size: 0.875rem !important; font-weight: 600 !important; color: #2d3748 !important; white-space: nowrap !important; display: inline-block !important; min-width: 50px !important;">{{ project.completion|default:0 }}%</span>
                         </div>
-                    </td>
-                    <td>
+                    </td>                    <td style="width: 10% !important; max-width: 10% !important; padding: 15px 12px !important; overflow: hidden !important; text-overflow: ellipsis !important;">
                         <a href="{% url 'project_edit' project.id %}" class="action-link">Edit</a>
                     </td>
                 </tr>

@@ -74,6 +74,11 @@ class Project(models.Model):
             return None
         return self.budget - self.get_actual_cost()
     
+    @property
+    def completion(self):
+        """Return completion percentage for template usage"""
+        return self.get_completion_percentage()
+    
     class Meta:
         ordering = ['-created_at']
 

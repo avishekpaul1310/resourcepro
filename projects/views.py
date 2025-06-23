@@ -8,8 +8,6 @@ from .forms import ProjectForm, TaskForm
 def project_list(request):
     """List all projects"""
     projects = Project.objects.all()
-    for project in projects:
-        project.completion = project.get_completion_percentage()
     
     return render(request, 'projects/project_list.html', {'projects': projects})
 
@@ -17,7 +15,6 @@ def project_list(request):
 def project_detail(request, pk):
     """Detail view for a project"""
     project = get_object_or_404(Project, pk=pk)
-    project.completion = project.get_completion_percentage()
     tasks = project.tasks.all()
     
     return render(request, 'projects/project_detail.html', {

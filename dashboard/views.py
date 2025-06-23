@@ -23,13 +23,8 @@ def dashboard(request):
     # Calculate current utilization for all resources
     for resource in resources:
         resource.utilization = resource.current_utilization()
-    
-    # Get active projects
+      # Get active projects
     projects = Project.objects.filter(status__in=['planning', 'active', 'on_hold'])
-    
-    # For each project, calculate completion percentage
-    for project in projects:
-        project.completion = project.get_completion_percentage()
     
     # Get upcoming deadlines (tasks due in the next 14 days)
     today = timezone.now().date()

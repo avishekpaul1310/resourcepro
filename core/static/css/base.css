@@ -250,6 +250,74 @@ select.form-control {
     background-color: #f7fafc;
 }
 
+/* Table improvements for project list */
+.table td:nth-child(1) { /* Name column */
+    min-width: 250px;
+}
+
+.table td:nth-child(2) { /* Status column */
+    min-width: 120px;
+}
+
+.table td:nth-child(3) { /* Timeline column */
+    min-width: 240px;
+    white-space: nowrap;
+}
+
+.table td:nth-child(4) { /* Progress column */
+    min-width: 200px;
+}
+
+.table td:nth-child(5) { /* Actions column */
+    min-width: 80px;
+}
+
+.table td {
+    vertical-align: middle;
+    padding: 15px 12px;
+}
+
+/* Projects table specific styles */
+.projects-table {
+    table-layout: fixed !important;
+    width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+
+.projects-table th,
+.projects-table td {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+.projects-table td:nth-child(1) { /* Name column */
+    width: 20% !important;
+    max-width: 20% !important;
+}
+
+.projects-table td:nth-child(2) { /* Status column */
+    width: 15% !important;
+    max-width: 15% !important;
+}
+
+.projects-table td:nth-child(3) { /* Timeline column */
+    width: 25% !important;
+    max-width: 25% !important;
+    white-space: nowrap !important;
+}
+
+.projects-table td:nth-child(4) { /* Progress column */
+    width: 30% !important;
+    max-width: 30% !important;
+}
+
+.projects-table td:nth-child(5) { /* Actions column */
+    width: 10% !important;
+    max-width: 10% !important;
+}
+
 /* Footer */
 .footer {
     background-color: #fff;
@@ -308,6 +376,40 @@ select.form-control {
 .close-btn:hover {
     opacity: 1;
 }
+
+/* Progress bars */
+.progress-bar-container {
+    width: 120px !important;
+    height: 24px !important;
+    background-color: #e53e3e !important; /* Red background to make it obvious */
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    border: 2px solid #c53030 !important;
+    flex-shrink: 0 !important;
+    position: relative !important;
+    display: block !important;
+}
+
+.progress-bar {
+    height: 100% !important;
+    background: linear-gradient(90deg, #38a169 0%, #2f855a 100%) !important; /* Green gradient */
+    border-radius: 10px !important;
+    transition: width 0.3s ease !important;
+    min-width: 6px !important; /* Ensure the bar is visible even for small percentages */
+    display: block !important;
+}
+
+.progress-text {
+    font-size: 0.875rem !important;
+    font-weight: 700 !important;
+    color: #1a202c !important;
+    white-space: nowrap !important;
+    margin-left: 12px !important;
+    min-width: 50px !important;
+    display: inline-block !important;
+}
+
+/* Status badges */
 
 /* Utility classes */
 .text-center {

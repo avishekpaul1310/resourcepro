@@ -563,6 +563,147 @@ select.form-control {
     gap: 8px;
 }
 
+/* Progress Bar Styles */
+.progress-bar-container {
+    position: relative;
+    width: 120px;
+    height: 24px;
+    background-color: #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    display: inline-block;
+    border: 2px solid #cbd5e0;
+    flex-shrink: 0;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #5a67d8 0%, #4c51bf 100%);
+    border-radius: 10px;
+    transition: width 0.3s ease;
+    min-width: 4px;
+}
+
+.progress-text {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #2d3748;
+    white-space: nowrap;
+    margin-left: 12px;
+    display: inline-block;
+}
+
+/* Status badges */
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-planning {
+    background-color: #fef5e7;
+    color: #b7791f;
+}
+
+.status-active {
+    background-color: #f0fff4;
+    color: #22543d;
+}
+
+.status-completed {
+    background-color: #ebf4ff;
+    color: #2b6cb0;
+}
+
+.status-on_hold {
+    background-color: #fed7d7;
+    color: #c53030;
+}
+
+/* Action links */
+.action-link {
+    color: #5a67d8;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.action-link:hover {
+    background-color: #ebf4ff;
+    text-decoration: none;
+}
+
+/* Table styles */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th,
+.table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.table th {
+    background-color: #f7fafc;
+    font-weight: 600;
+    color: #4a5568;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.table tr:hover {
+    background-color: #f7fafc;
+}
+
+.text-center {
+    text-align: center;
+}
+
+/* Projects table specific styles */
+.projects-table {
+    table-layout: fixed !important;
+    width: 100% !important;
+}
+
+.projects-table th,
+.projects-table td {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    padding: 15px 12px !important;
+    vertical-align: middle !important;
+}
+
+.projects-table td:nth-child(1) { /* Name column */
+    width: 20% !important;
+}
+
+.projects-table td:nth-child(2) { /* Status column */
+    width: 15% !important;
+}
+
+.projects-table td:nth-child(3) { /* Timeline column */
+    width: 25% !important;
+    white-space: nowrap !important;
+}
+
+.projects-table td:nth-child(4) { /* Progress column */
+    width: 30% !important;
+}
+
+.projects-table td:nth-child(5) { /* Actions column */
+    width: 10% !important;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .modal-container {
