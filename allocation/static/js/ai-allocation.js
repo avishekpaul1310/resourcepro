@@ -99,8 +99,24 @@ async function handleTaskAISuggestions(event) {
     // Toggle panel visibility
     if (suggestionsPanel.style.display !== 'none') {
         suggestionsPanel.style.display = 'none';
+        // Clear AI highlights when closing
+        document.querySelectorAll('.resource-card').forEach(card => {
+            card.classList.remove('ai-recommended');
+        });
         return;
     }
+
+    // Close any other open suggestion panels
+    document.querySelectorAll('.ai-suggestions').forEach(panel => {
+        if (panel !== suggestionsPanel) {
+            panel.style.display = 'none';
+        }
+    });
+    
+    // Clear previous AI highlights
+    document.querySelectorAll('.resource-card').forEach(card => {
+        card.classList.remove('ai-recommended');
+    });
 
     // Show loading state
     suggestionsPanel.style.display = 'block';
@@ -114,17 +130,51 @@ async function handleTaskAISuggestions(event) {
             renderTaskSuggestions(suggestionsContent, data.suggestions, taskId);
             highlightRecommendedResources(data.suggestions);
         } else {
-            suggestionsContent.innerHTML = `<div class="text-muted">No AI recommendations available</div>`;
+            suggestionsContent.innerHTML = `
+                <div class="suggestions-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 11px; color: #718096;">No recommendations available</span>
+                    <button class="suggestions-close-btn" data-task-id="${taskId}" style="background: none; border: none; color: #718096; cursor: pointer; padding: 2px; font-size: 14px;" title="Close recommendations">
+                        ✕
+                    </button>
+                </div>
+                <div class="text-muted">No AI recommendations available</div>
+            `;
+            
+            // Add close button handler for no suggestions case
+            const closeBtn = suggestionsContent.querySelector('.suggestions-close-btn');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    suggestionsPanel.style.display = 'none';
+                });
+            }
         }
 
     } catch (error) {
         console.error('Error fetching AI suggestions:', error);
-        suggestionsContent.innerHTML = `<div class="text-danger">Failed to load suggestions</div>`;
+        suggestionsContent.innerHTML = `
+            <div class="suggestions-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-size: 11px; color: #e53e3e;">Failed to load suggestions</span>
+                <button class="suggestions-close-btn" data-task-id="${taskId}" style="background: none; border: none; color: #718096; cursor: pointer; padding: 2px; font-size: 14px;" title="Close recommendations">
+                    ✕
+                </button>
+            </div>
+            <div class="text-danger">Failed to load suggestions</div>
+        `;
+        
+        // Add close button handler for error case
+        const closeBtn = suggestionsContent.querySelector('.suggestions-close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                suggestionsPanel.style.display = 'none';
+            });
+        }
     }
 }
 
 function renderTaskSuggestions(container, suggestions, taskId) {
-    const html = suggestions.slice(0, 3).map(suggestion => {
+    const suggestionItemsHtml = suggestions.slice(0, 3).map(suggestion => {
         const matchClass = getMatchClass(suggestion.match_score);
         const matchPercentage = Math.round(suggestion.match_score * 100);
         
@@ -146,12 +196,39 @@ function renderTaskSuggestions(container, suggestions, taskId) {
         `;
     }).join('');
 
+    const html = `
+        <div class="suggestions-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 11px; color: #718096;">Choose a recommendation or manually assign</span>
+            <button class="suggestions-close-btn" data-task-id="${taskId}" style="background: none; border: none; color: #718096; cursor: pointer; padding: 2px; font-size: 14px;" title="Close recommendations">
+                ✕
+            </button>
+        </div>
+        ${suggestionItemsHtml}
+    `;
+
     container.innerHTML = html;
 
     // Add click handlers for assign buttons
     container.querySelectorAll('.suggestion-assign-btn').forEach(btn => {
         btn.addEventListener('click', handleSuggestionAssign);
     });
+
+    // Add click handler for close button
+    const closeBtn = container.querySelector('.suggestions-close-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const taskId = closeBtn.dataset.taskId;
+            const suggestionsPanel = document.querySelector(`.ai-suggestions[data-task-id="${taskId}"]`);
+            if (suggestionsPanel) {
+                suggestionsPanel.style.display = 'none';
+                // Clear AI highlights when closing
+                document.querySelectorAll('.resource-card').forEach(card => {
+                    card.classList.remove('ai-recommended');
+                });
+            }
+        });
+    }
 }
 
 function getMatchClass(score) {
@@ -194,14 +271,44 @@ async function handleSuggestionAssign(event) {
             })
         });
 
-        const data = await response.json();
-
-        if (data.success) {
+        const data = await response.json();        if (data.success) {
             showNotification('Task assigned successfully!', 'success');
-            // Refresh to show updated assignments
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+              // Update UI immediately instead of page refresh
+            // Remove task from unassigned list
+            const taskCard = document.querySelector(`.task-list .task-card[data-task-id="${taskId}"]`);
+            if (taskCard) {
+                taskCard.remove();
+                
+                // Close any open AI suggestion panels for this task
+                const suggestionPanel = document.querySelector(`.ai-suggestions[data-task-id="${taskId}"]`);
+                if (suggestionPanel) {
+                    suggestionPanel.style.display = 'none';
+                }
+            }
+            
+            // Update resource utilization if provided
+            if (data.new_utilization !== undefined) {
+                updateResourceUtilization(resourceId, data.new_utilization);
+            }
+            
+            // Add assignment to resource if assignment data is provided
+            if (data.assignment) {
+                addAssignmentToResource(data.assignment, resourceId);
+            }
+            
+            // Clear AI highlights
+            document.querySelectorAll('.resource-card').forEach(card => {
+                card.classList.remove('ai-recommended');
+            });
+              // Check if there are no more unassigned tasks
+            const remainingTasks = document.querySelectorAll('.task-card');
+            if (remainingTasks.length === 0) {
+                const taskList = document.querySelector('.task-list');
+                if (taskList) {
+                    taskList.innerHTML = '<div class="empty-tasks">All tasks have been assigned!</div>';
+                }
+            }
+            
         } else {
             showNotification(data.error || 'Failed to assign task', 'error');
         }
@@ -216,6 +323,18 @@ async function handleSuggestionAssign(event) {
 function handleDragStart(event) {
     event.dataTransfer.setData('text/plain', event.target.dataset.taskId);
     event.target.classList.add('dragging');
+    
+    // Close any open AI suggestion panels when dragging starts
+    document.querySelectorAll('.ai-suggestions').forEach(panel => {
+        if (panel.style.display !== 'none') {
+            panel.style.display = 'none';
+        }
+    });
+    
+    // Clear any AI highlights
+    document.querySelectorAll('.resource-card').forEach(card => {
+        card.classList.remove('ai-recommended');
+    });
 }
 
 function handleDragEnd(event) {
@@ -301,7 +420,7 @@ async function assignTask(taskId, resourceId) {
 
 function updateUIAfterAssignment(assignment, newUtilization) {
     // Remove task from unassigned list
-    const taskCard = document.querySelector(`[data-task-id="${assignment.task_id}"]`);
+    const taskCard = document.querySelector(`.task-list .task-card[data-task-id="${assignment.task_id}"]`);
     if (taskCard) {
         taskCard.remove();
     }

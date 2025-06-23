@@ -512,6 +512,23 @@
     background: #5a67d8;
 }
 
+/* Suggestions panel actions */
+.suggestions-actions {
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 4px;
+    margin-bottom: 4px;
+}
+
+.suggestions-close-btn {
+    transition: all 0.2s ease;
+    border-radius: 2px;
+}
+
+.suggestions-close-btn:hover {
+    background: #f7fafc !important;
+    color: #e53e3e !important;
+}
+
 /* AI Indicators on Resource Cards */
 .resource-card.ai-recommended {
     border-color: #667eea;

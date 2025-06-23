@@ -38,21 +38,11 @@
         <div class="panel-content">
             <div class="task-list">                {% for task in unassigned_tasks %}                <div class="task-card" draggable="true" data-task-id="{{ task.id }}">                    <div class="task-header">
                         <span class="task-title">{{ task.name }}</span>
-                        <span class="task-hours">{{ task.estimated_hours }}h</span>                        <button class="ai-suggest-btn" data-task-id="{{ task.id }}" title="Get AI recommendations for this task">
-                            🤖
-                        </button>
+                        <span class="task-hours">{{ task.estimated_hours }}h</span>
                     </div>
-                    <div class="task-project">{{ task.project.name }}</div>
-                    <div class="task-dates">
+                    <div class="task-project">{{ task.project.name }}</div>                    <div class="task-dates">
                         <span>Start: {{ task.start_date|date:"M d" }}</span>
                         <span>Due: {{ task.end_date|date:"M d" }}</span>
-                    </div>
-                    <div class="ai-suggestions" style="display: none;" data-task-id="{{ task.id }}">                            <div class="suggestions-header">
-                                🤖 AI Recommendations
-                            </div>
-                        <div class="suggestions-content">
-                            <!-- AI suggestions will be loaded here -->
-                        </div>
                     </div>
                 </div>
                 {% empty %}

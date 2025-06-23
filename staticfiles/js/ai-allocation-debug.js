@@ -21,21 +21,13 @@ function initializeAllocationAIFeatures() {
     } else {
         console.warn('initializeNLISearch function not available');
     }
-    
-    // AI Task Suggestions button (renamed from auto-assign)
+      // AI Task Suggestions button (renamed from auto-assign)
     const aiSuggestionsBtn = document.getElementById('ai-task-suggestions');
     console.log('AI Task Suggestions button found:', !!aiSuggestionsBtn);
     if (aiSuggestionsBtn) {
         aiSuggestionsBtn.addEventListener('click', handleAITaskSuggestions);
         console.log('AI Task Suggestions click handler added');
     }
-
-    // AI suggestion buttons on individual task cards
-    const suggestBtns = document.querySelectorAll('.ai-suggest-btn');
-    console.log('AI suggest buttons found:', suggestBtns.length);
-    suggestBtns.forEach(btn => {
-        btn.addEventListener('click', handleIndividualTaskSuggestions);
-    });
     
     // Assignment remove buttons
     const removeBtns = document.querySelectorAll('.assignment-remove');
@@ -124,49 +116,6 @@ async function handleAITaskSuggestions() {
     }
 }
 
-// Individual task-specific AI suggestions
-async function handleIndividualTaskSuggestions(event) {
-    console.log('Individual AI suggestions clicked for task');
-    
-    event.stopPropagation(); // Prevent card drag
-    const taskId = event.target.closest('.ai-suggest-btn').dataset.taskId;
-    const suggestionsPanel = document.querySelector(`.ai-suggestions[data-task-id="${taskId}"]`);
-    const suggestionsContent = suggestionsPanel.querySelector('.suggestions-content');
-
-    console.log('Task ID:', taskId);
-    console.log('Suggestions panel found:', !!suggestionsPanel);
-
-    // Toggle panel visibility
-    if (suggestionsPanel.style.display !== 'none') {
-        suggestionsPanel.style.display = 'none';
-        return;
-    }
-
-    // Show loading state
-    suggestionsPanel.style.display = 'block';
-    suggestionsContent.innerHTML = '<div class="ai-loading">Loading AI recommendations...</div>';
-
-    try {
-        console.log('Fetching AI suggestions for task:', taskId);
-        const response = await fetch(`/allocation/api/ai-suggestions/${taskId}/`);
-        console.log('Suggestions API response status:', response.status);
-        
-        const data = await response.json();
-        console.log('Suggestions API response data:', data);
-
-        if (data.success && data.suggestions && data.suggestions.length > 0) {
-            renderTaskSuggestions(suggestionsContent, data.suggestions, taskId);
-            highlightRecommendedResources(data.suggestions);
-        } else {
-            suggestionsContent.innerHTML = `<div class="text-muted">No AI recommendations available</div>`;
-        }
-
-    } catch (error) {
-        console.error('Error fetching AI suggestions:', error);
-        suggestionsContent.innerHTML = `<div class="text-danger">Failed to load suggestions</div>`;
-    }
-}
-
 // Unassign task functionality
 async function handleUnassignTask(event) {
     console.log('Unassign task clicked');
@@ -246,7 +195,7 @@ async function handleUnassignTask(event) {
 function renderTaskSuggestions(container, suggestions, taskId) {
     console.log('Rendering suggestions:', suggestions.length);
     
-    const html = suggestions.slice(0, 3).map(suggestion => {
+    const suggestionItemsHtml = suggestions.slice(0, 3).map(suggestion => {
         const matchClass = getMatchClass(suggestion.match_score);
         const matchPercentage = Math.round(suggestion.match_score * 100);
         
@@ -268,12 +217,39 @@ function renderTaskSuggestions(container, suggestions, taskId) {
         `;
     }).join('');
 
+    const html = `
+        <div class="suggestions-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 11px; color: #718096;">Choose a recommendation or manually assign</span>
+            <button class="suggestions-close-btn" data-task-id="${taskId}" style="background: none; border: none; color: #718096; cursor: pointer; padding: 2px; font-size: 14px;" title="Close recommendations">
+                ✕
+            </button>
+        </div>
+        ${suggestionItemsHtml}
+    `;
+
     container.innerHTML = html;
 
     // Add click handlers for assign buttons
     container.querySelectorAll('.suggestion-assign-btn').forEach(btn => {
         btn.addEventListener('click', handleSuggestionAssign);
     });
+
+    // Add click handler for close button
+    const closeBtn = container.querySelector('.suggestions-close-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const taskId = closeBtn.dataset.taskId;
+            const suggestionsPanel = document.querySelector(`.ai-suggestions[data-task-id="${taskId}"]`);
+            if (suggestionsPanel) {
+                suggestionsPanel.style.display = 'none';
+                // Clear AI highlights when closing
+                document.querySelectorAll('.resource-card').forEach(card => {
+                    card.classList.remove('ai-recommended');
+                });
+            }
+        });
+    }
 }
 
 function getMatchClass(score) {
@@ -332,14 +308,50 @@ async function handleSuggestionAssign(event) {
 
         console.log('Assignment response status:', response.status);
         const data = await response.json();
-        console.log('Assignment response data:', data);
-
-        if (data.success) {
+        console.log('Assignment response data:', data);        if (data.success) {
             showNotification('Task assigned successfully!', 'success');
-            // Refresh to show updated assignments
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+            
+            // Update UI immediately instead of page refresh
+            console.log('Updating UI after assignment:', data);
+              // Remove task from unassigned list
+            const taskCard = document.querySelector(`.task-list .task-card[data-task-id="${taskId}"]`);
+            if (taskCard) {
+                taskCard.remove();
+                console.log('Removed task card from unassigned list');
+                
+                // Close any open AI suggestion panels for this task
+                const suggestionPanel = document.querySelector(`.ai-suggestions[data-task-id="${taskId}"]`);
+                if (suggestionPanel) {
+                    suggestionPanel.style.display = 'none';
+                }
+            } else {
+                console.warn('Task card not found for removal:', taskId);
+            }
+            
+            // Update resource utilization if provided
+            if (data.new_utilization !== undefined) {
+                updateResourceUtilization(resourceId, data.new_utilization);
+            }
+            
+            // Add assignment to resource if assignment data is provided
+            if (data.assignment) {
+                addAssignmentToResource(data.assignment, resourceId);
+            }
+            
+            // Clear AI highlights
+            document.querySelectorAll('.resource-card').forEach(card => {
+                card.classList.remove('ai-recommended');
+            });
+            
+            // Check if there are no more unassigned tasks
+            const remainingTasks = document.querySelectorAll('.task-card');
+            if (remainingTasks.length === 0) {
+                const taskList = document.querySelector('.task-list');
+                if (taskList) {
+                    taskList.innerHTML = '<div class="empty-tasks">All tasks have been assigned!</div>';
+                }
+            }
+            
         } else {
             showNotification(data.error || 'Failed to assign task', 'error');
         }
@@ -355,6 +367,18 @@ function handleDragStart(event) {
     console.log('Drag start');
     event.dataTransfer.setData('text/plain', event.target.dataset.taskId);
     event.target.classList.add('dragging');
+    
+    // Close any open AI suggestion panels when dragging starts
+    document.querySelectorAll('.ai-suggestions').forEach(panel => {
+        if (panel.style.display !== 'none') {
+            panel.style.display = 'none';
+        }
+    });
+    
+    // Clear any AI highlights
+    document.querySelectorAll('.resource-card').forEach(card => {
+        card.classList.remove('ai-recommended');
+    });
 }
 
 function handleDragEnd(event) {
@@ -508,30 +532,18 @@ function addTaskToUnassignedList(task) {
     taskCard.innerHTML = `
         <div class="task-header">
             <span class="task-title">${task.name}</span>
-            <span class="task-hours">${task.estimated_hours}h</span>            <button class="ai-suggest-btn" data-task-id="${task.id}" title="Get AI recommendations for this task">
-                🤖
-            </button>
+            <span class="task-hours">${task.estimated_hours}h</span>
         </div>
         <div class="task-project">${task.project_name}</div>
         <div class="task-dates">
             <span>Start: ${task.start_date}</span>
             <span>Due: ${task.end_date}</span>
         </div>
-        <div class="ai-suggestions" style="display: none;" data-task-id="${task.id}">            <div class="suggestions-header">
-                🤖 AI Recommendations
-            </div>
-            <div class="suggestions-content">
-                <!-- AI suggestions will be loaded here -->
-            </div>
-        </div>
     `;
 
     taskList.appendChild(taskCard);
     
-    // Add event listeners
-    const aiSuggestBtn = taskCard.querySelector('.ai-suggest-btn');
-    aiSuggestBtn.addEventListener('click', handleIndividualTaskSuggestions);
-      // Re-initialize drag-drop for the new task
+    // Re-initialize drag-drop for the new task
     initializeTaskDragDrop(taskCard);
 }
 
@@ -719,100 +731,6 @@ function showConflictDialog(conflicts) {
     });
 }
 
-async function assignTaskToResource(taskId, resourceId, hours) {
-    console.log('Assigning task', taskId, 'to resource', resourceId);
-    
-    try {
-        const response = await fetch('/allocation/api/assign-task/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCsrfToken(),
-            },
-            body: JSON.stringify({
-                task_id: taskId,
-                resource_id: resourceId
-            })
-        });
-
-        const data = await response.json();
-        console.log('Assignment response:', data);
-
-        if (data.success) {
-            // Remove task from unassigned list
-            const taskCard = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
-            if (taskCard) {
-                taskCard.remove();
-            }
-            
-            // Add to resource assignments
-            addAssignmentToResource(data.assignment, resourceId);
-              // Update resource utilization
-            if (data.new_utilization !== undefined) {
-                updateResourceUtilization(resourceId, data.new_utilization);
-            }
-            
-            return true;
-        } else {
-            showNotification(data.error || 'Failed to assign task', 'error');
-            return false;
-        }
-        
-    } catch (error) {
-        console.error('Error assigning task:', error);
-        showNotification('Failed to assign task', 'error');
-        return false;
-    }
-}
-
-// Custom confirmation dialog for unassigning tasks
-function showUnassignConfirmationDialog(taskName, resourceName) {
-    return new Promise((resolve) => {
-        const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
-        modal.style.display = 'block';
-        modal.innerHTML = `
-            <div class="modal">
-                <div class="modal-header">
-                    <h3 class="modal-title">
-                        <i class="fas fa-exclamation-triangle" style="color: #f39c12;"></i> 
-                        Confirm Task Removal
-                    </h3>
-                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove(); window.unassignDialogResolve(false);">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-warning" style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; padding: 12px; margin-bottom: 16px;">
-                        <h4 style="margin: 0 0 8px 0; color: #856404;">Remove Task Assignment</h4>
-                        <p style="margin: 0; color: #856404;">
-                            You are about to remove "<strong>${taskName}</strong>" from "<strong>${resourceName}</strong>".
-                        </p>
-                    </div>
-                    <p>This will:</p>
-                    <ul>
-                        <li>Remove the task from ${resourceName}'s workload</li>
-                        <li>Move the task back to the unassigned tasks list</li>
-                        <li>Update ${resourceName}'s utilization percentage</li>
-                    </ul>
-                    <p><strong>Are you sure you want to proceed?</strong></p>
-                    <div class="modal-actions" style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;">
-                        <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove(); window.unassignDialogResolve(false);">
-                            <i class="fas fa-times"></i> Cancel
-                        </button>
-                        <button class="btn btn-danger" onclick="this.closest('.modal-overlay').remove(); window.unassignDialogResolve(true);">
-                            <i class="fas fa-trash-alt"></i> Remove Assignment
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        // Store resolve function globally so buttons can access it
-        window.unassignDialogResolve = resolve;
-    });
-}
-
 function showAITaskSuggestionsModal(suggestions) {
     console.log('Showing AI Task Suggestions modal with', suggestions.length, 'suggestions');
     
@@ -829,16 +747,16 @@ function showAITaskSuggestionsModal(suggestions) {
                 </h3>
                 <button class="modal-close">&times;</button>
             </div>
-            <div class="modal-body">                <div class="ai-modal-intro">
+            <div class="modal-body">
+                <div class="ai-modal-intro">
                     <p>AI has analyzed ${suggestions.length} task${suggestions.length === 1 ? '' : 's'} and found the following optimal assignment${suggestions.length === 1 ? '' : 's'}:</p>
                 </div>
                 <div class="ai-suggestions-list">
                     ${suggestions.map(item => `
-                        <div class="ai-suggestion-item">
-                            <div class="suggestion-task">
+                        <div class="ai-suggestion-item">                            <div class="suggestion-task">
                                 <h4>${item.task.name}</h4>
                                 <div class="task-meta">
-                                    <span class="task-project">${item.task.project}</span>
+                                    <span class="task-project">${item.task.project_name || 'No Project'}</span>
                                     <span class="task-hours">${item.task.estimated_hours}h</span>
                                 </div>
                             </div>
@@ -863,7 +781,8 @@ function showAITaskSuggestionsModal(suggestions) {
                             </div>
                         </div>
                     `).join('')}
-                </div>                <div class="modal-actions">
+                </div>
+                <div class="modal-actions">
                     <button class="btn btn-secondary modal-cancel">
                         <i class="fas fa-times"></i> Cancel
                     </button>
@@ -905,6 +824,8 @@ function showAITaskSuggestionsModal(suggestions) {
     
     // Assign all button
     modal.querySelector('.assign-all-suggestions').addEventListener('click', async () => {
+        console.log('Assign all suggestions clicked');
+        
         const buttons = modal.querySelectorAll('.assign-suggestion-btn:not(:disabled)');
         let successCount = 0;
         
@@ -930,18 +851,67 @@ function showAITaskSuggestionsModal(suggestions) {
     });
 }
 
-function showNotification(message, type = 'info') {
-    console.log('Showing notification:', message, type);
+async function assignTaskToResource(taskId, resourceId, hours) {
+    console.log('Assigning task', taskId, 'to resource', resourceId);
     
+    try {
+        const response = await fetch('/allocation/api/assign-task/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+            },
+            body: JSON.stringify({
+                task_id: taskId,
+                resource_id: resourceId
+            })
+        });
+
+        const data = await response.json();
+        console.log('Assignment response:', data);
+
+        if (data.success) {
+            // Remove task from unassigned list
+            const taskCard = document.querySelector(`.task-list .task-card[data-task-id="${taskId}"]`);
+            if (taskCard) {
+                taskCard.remove();
+            }
+            
+            // Add to resource assignments
+            addAssignmentToResource(data.assignment, resourceId);
+            
+            // Update resource utilization
+            if (data.new_utilization !== undefined) {
+                updateResourceUtilization(resourceId, data.new_utilization);
+            }
+            
+            return true;
+        } else {
+            showNotification(data.error || 'Failed to assign task', 'error');
+            return false;
+        }
+        
+    } catch (error) {
+        console.error('Error assigning task:', error);
+        showNotification('Failed to assign task', 'error');
+        return false;
+    }
+}
+
+function showNotification(message, type = 'info') {
+    // Remove any existing notifications
+    const existingNotifications = document.querySelectorAll('.notification');
+    existingNotifications.forEach(notification => notification.remove());
+    
+    // Create notification element
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.innerHTML = `
-        <div class="notification-content">
-            <i class="fas fa-${getNotificationIcon(type)}"></i>
-            ${message}
-        </div>
+        <span class="notification-icon">${getNotificationIcon(type)}</span>
+        <span class="notification-message">${message}</span>
+        <button class="notification-close" onclick="this.parentElement.remove();">&times;</button>
     `;
-
+    
     // Add styles
     notification.style.cssText = `
         position: fixed;
@@ -950,44 +920,46 @@ function showNotification(message, type = 'info') {
         background: ${getNotificationColor(type)};
         color: white;
         padding: 12px 16px;
-        border-radius: 6px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        z-index: 1000;
-        min-width: 250px;
-        transition: all 0.3s ease;
+        border-radius: 4px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        max-width: 400px;
+        animation: slideIn 0.3s ease-out;
     `;
-
-    document.body.appendChild(notification);
-
-    // Auto-remove after 4 seconds
+      document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
     setTimeout(() => {
-        notification.style.opacity = '0';
-        notification.style.transform = 'translateX(100%)';
-        setTimeout(() => notification.remove(), 300);
-    }, 4000);
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
 }
 
 function getNotificationIcon(type) {
     switch (type) {
-        case 'success': return 'check-circle';
-        case 'error': return 'exclamation-circle';
-        case 'warning': return 'exclamation-triangle';
-        default: return 'info-circle';
+        case 'success': return '✅';
+        case 'error': return '❌';
+        case 'warning': return '⚠️';
+        default: return 'ℹ️';
     }
 }
 
 function getNotificationColor(type) {
     switch (type) {
-        case 'success': return '#28a745';
-        case 'error': return '#dc3545';
-        case 'warning': return '#ffc107';
-        default: return '#007bff';
+        case 'success': return '#10b981';
+        case 'error': return '#ef4444';
+        case 'warning': return '#f59e0b';
+        default: return '#3b82f6';
     }
 }
 
 function getCsrfToken() {
-    const token = document.querySelector('[name=csrfmiddlewaretoken]');
-    return token ? token.value : '';
+    const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+    return csrfInput ? csrfInput.value : '';
 }
 
 console.log('AI-Allocation JavaScript loaded successfully');

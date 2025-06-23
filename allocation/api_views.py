@@ -36,15 +36,15 @@ def ai_task_suggestions(request, task_id):
         if not suggestions or 'error' in suggestions:
             return JsonResponse({
                 'success': False,
-                'error': suggestions.get('error', 'Failed to get AI suggestions') if suggestions else 'No suggestions available'
-            })
+                'error': suggestions.get('error', 'Failed to get AI suggestions') if suggestions else 'No suggestions available'            })
         
         return JsonResponse({
             'success': True,
             'task': {
                 'id': task.id,
                 'name': task.name,
-                'estimated_hours': task.estimated_hours
+                'estimated_hours': task.estimated_hours,
+                'project_name': task.project.name if task.project else 'No Project'
             },
             'suggestions': suggestions.get('suggestions', [])
         })
@@ -147,10 +147,19 @@ def assign_task(request):
         
         task = get_object_or_404(Task, id=task_id)
         resource = get_object_or_404(Resource, id=resource_id)
-        
-        # Check for existing assignment
-        if Assignment.objects.filter(task=task).exists():
-            return JsonResponse({'success': False, 'error': 'Task is already assigned'})
+          # Check for existing assignment
+        existing_assignment = Assignment.objects.filter(task=task).first()
+        if existing_assignment:
+            logger.warning(f"Task {task_id} already assigned to resource {existing_assignment.resource.name}")
+            return JsonResponse({
+                'success': False, 
+                'error': f'Task is already assigned to {existing_assignment.resource.name}',
+                'debug_info': {
+                    'task_id': task_id,
+                    'existing_resource': existing_assignment.resource.name,
+                    'assignment_id': existing_assignment.id
+                }
+            })
         
         # Check for conflicts
         conflicts = check_resource_conflicts(task, resource)
@@ -160,8 +169,7 @@ def assign_task(request):
             resource=resource,
             allocated_hours=task.estimated_hours
         )
-        
-        # Get updated utilization
+          # Get updated utilization
         new_utilization = resource.current_utilization()
         
         return JsonResponse({
@@ -172,7 +180,8 @@ def assign_task(request):
                 'task_name': task.name,
                 'resource_id': resource.id,
                 'resource_name': resource.name,
-                'allocated_hours': assignment.allocated_hours
+                'allocated_hours': assignment.allocated_hours,
+                'project_name': task.project.name if task.project else 'No Project'
             },
             'new_utilization': new_utilization,
             'conflicts': conflicts
