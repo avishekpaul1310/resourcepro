@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from dashboard import views as dashboard_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -29,6 +30,8 @@ urlpatterns = [
     path('api/', include('api.urls')),
     path('accounts/', include('accounts.urls')),
     path('analytics/', include('analytics.urls', namespace='analytics')),
+    # Global AI Search endpoint (page-agnostic)
+    path('api/ai-search/', dashboard_views.process_nli_query, name='global_ai_search'),
 ]
 
 if settings.DEBUG:

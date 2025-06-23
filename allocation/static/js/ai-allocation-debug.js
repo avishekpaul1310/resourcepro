@@ -6,13 +6,21 @@
 console.log('AI-Allocation JavaScript loading...');
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, initializing AI features...');
-    initializeAIFeatures();
+    console.log('DOM loaded, initializing allocation-specific AI features...');
+    initializeAllocationAIFeatures();
     initializeDragDrop();
 });
 
-function initializeAIFeatures() {
-    console.log('Initializing AI features...');
+function initializeAllocationAIFeatures() {
+    console.log('Initializing allocation-specific AI features...');
+    
+    // Initialize NLI Search (needed for search bar functionality)
+    if (typeof initializeNLISearch === 'function') {
+        initializeNLISearch();
+        console.log('NLI Search initialized for allocation page');
+    } else {
+        console.warn('initializeNLISearch function not available');
+    }
     
     // AI Task Suggestions button (renamed from auto-assign)
     const aiSuggestionsBtn = document.getElementById('ai-task-suggestions');

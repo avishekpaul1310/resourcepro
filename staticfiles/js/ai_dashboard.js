@@ -6,6 +6,7 @@
 // Global state
 let currentQuery = '';
 let nliTimeout = null;
+let nliInitialized = false;  // Flag to prevent multiple initialization
 
 // EMERGENCY SAFETY: Prevent page freezing from AI recommendations
 let modalCreationInProgress = false;
@@ -21,6 +22,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// Backup initialization for allocation page (in case allocation JS doesn't load)
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        const searchInput = document.getElementById('nliSearchInput');
+        if (searchInput && !nliInitialized) {
+            console.log('=== Backup NLI Initialization ===');
+            initializeNLISearch();
+        }
+    }, 1000);
+});
+
 /**
  * Initialize all AI features
  */
@@ -30,6 +42,17 @@ function initializeAIFeatures() {
     
     initializeAIAnalyst();
     initializeNLISearch();
+    
+    // For allocation page, also try to initialize after a short delay
+    // to handle cases where allocation-specific JS loads later
+    if (window.location.pathname.includes('/allocation/')) {
+        setTimeout(() => {
+            if (!nliInitialized) {
+                console.log('Retrying NLI initialization for allocation page...');
+                initializeNLISearch();
+            }
+        }, 500);
+    }
     
     // Set up event delegation for recommendation buttons
     document.addEventListener('click', function(e) {
@@ -512,9 +535,23 @@ function restorePageScroll() {
  * Natural Language Interface Functions
  */
 function initializeNLISearch() {
+    // Prevent multiple initialization
+    if (nliInitialized) {
+        console.log('NLI Search already initialized, skipping...');
+        return;
+    }
+    
     const searchInput = document.getElementById('nliSearchInput');
     const clearBtn = document.getElementById('clearBtn');
     const voiceBtn = document.getElementById('voiceBtn');
+    
+    // Only initialize if the search elements exist
+    if (!searchInput) {
+        console.log('NLI Search elements not found on this page, skipping initialization');
+        return;
+    }
+    
+    console.log('Initializing NLI Search...');
     
     if (searchInput) {
         searchInput.addEventListener('input', handleNLIInput);
@@ -547,6 +584,9 @@ function initializeNLISearch() {
             closeNLIResults();
         }
     });
+    
+    nliInitialized = true;
+    console.log('NLI Search initialized successfully');
 }
 
 function handleNLIInput(e) {
@@ -593,7 +633,7 @@ function processNLIQuery(query) {
     
     showNLILoading();
     
-    fetch('/dashboard/api/nli-query/', {
+    fetch('/api/ai-search/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -626,7 +666,7 @@ function displayNLIResults(data) {
     if (data.error) {
         resultsContainer.innerHTML = `
             <div class="results-header">
-                <h4>AI Assistant Response</h4>
+                <h4><i class="fas fa-exclamation-triangle"></i> Error</h4>
                 <button class="btn-close-results" onclick="closeNLIResults()">
                     <i class="fas fa-times"></i>
                 </button>
@@ -642,6 +682,7 @@ function displayNLIResults(data) {
     
     const response = data.response || {};
     const responseText = response.text || response.answer || 'No response available';
+    const hasData = response.data && Array.isArray(response.data) && response.data.length > 0;
     
     resultsContainer.style.display = 'block';
     resultsContainer.innerHTML = `
@@ -664,8 +705,7 @@ function displayNLIResults(data) {
                     </div>
                 ` : ''}
             </div>
-            ${formatStructuredData(response.data, response.type)}
-        </div>
+            ${hasData ? formatStructuredData(response.data, response.type) : ''}        </div>
     `;
 }
 

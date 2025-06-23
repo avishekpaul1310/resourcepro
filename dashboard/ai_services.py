@@ -817,30 +817,118 @@ Respond in JSON format: {{"answer": "detailed response", "found_conflicts": true
               # Log the response for debugging
             logger.info(f"Gemini response type: {type(ai_response)}")
             logger.info(f"Gemini response: {ai_response}")
-            
-            # Enhanced response handling
+              # Enhanced response handling
             if isinstance(ai_response, dict):
                 if 'answer' in ai_response:
-                    return ai_response
+                    # Convert AI response format to UI format
+                    answer = ai_response['answer']
+                      # Format the answer appropriately
+                    if isinstance(answer, list):
+                        # Check if it's a list of simple strings/values or complex objects
+                        if answer and isinstance(answer[0], dict):
+                            # For complex objects, format nicely
+                            formatted_items = []
+                            for item in answer:
+                                if 'name' in item:
+                                    # Project/Resource formatting
+                                    parts = [item['name']]
+                                    if 'status' in item:
+                                        parts.append(f"Status: {item['status']}")
+                                    if 'completion' in item:
+                                        parts.append(f"Progress: {item['completion']}%")
+                                    formatted_items.append(" - ".join(parts))
+                                else:
+                                    # Fallback for other dict types
+                                    formatted_items.append(str(item))
+                            text = "\n".join(f"• {item}" for item in formatted_items)
+                        else:
+                            # For lists of simple values (like project names)
+                            text = "\n".join(f"• {item}" for item in answer)
+                    elif isinstance(answer, str):
+                        text = answer
+                    else:
+                        text = str(answer)
+                    
+                    return {
+                        "text": text,
+                        "data": answer if isinstance(answer, list) else [answer],
+                        "type": "ai_response",
+                        "data_summary": ai_response.get('data_summary', ''),
+                        "found_conflicts": ai_response.get('found_conflicts', False)
+                    }
                 else:
                     # If it's a dict but no 'answer' field, convert the whole thing to answer
-                    return {"answer": json.dumps(ai_response, indent=2)}
+                    return {
+                        "text": json.dumps(ai_response, indent=2),
+                        "data": [],
+                        "type": "ai_response"
+                    }
             elif isinstance(ai_response, str):
                 # Try to parse as JSON if it looks like JSON
                 try:
                     parsed_response = json.loads(ai_response)
-                    if isinstance(parsed_response, dict) and 'answer' in parsed_response:
-                        return parsed_response
+                    if isinstance(parsed_response, dict) and 'answer' in parsed_response:                        # Convert AI response format to UI format
+                        answer = parsed_response['answer']
+                        
+                        # Format the answer appropriately
+                        if isinstance(answer, list):
+                            # Check if it's a list of simple strings/values or complex objects
+                            if answer and isinstance(answer[0], dict):
+                                # For complex objects, format nicely
+                                formatted_items = []
+                                for item in answer:
+                                    if 'name' in item:
+                                        # Project/Resource formatting
+                                        parts = [item['name']]
+                                        if 'status' in item:
+                                            parts.append(f"Status: {item['status']}")
+                                        if 'completion' in item:
+                                            parts.append(f"Progress: {item['completion']}%")
+                                        formatted_items.append(" - ".join(parts))
+                                    else:
+                                        # Fallback for other dict types
+                                        formatted_items.append(str(item))
+                                text = "\n".join(f"• {item}" for item in formatted_items)
+                            else:
+                                # For lists of simple values (like project names)
+                                text = "\n".join(f"• {item}" for item in answer)
+                        elif isinstance(answer, str):
+                            text = answer
+                        else:
+                            text = str(answer)
+                        
+                        return {
+                            "text": text,
+                            "data": answer if isinstance(answer, list) else [answer],
+                            "type": "ai_response",
+                            "data_summary": parsed_response.get('data_summary', ''),
+                            "found_conflicts": parsed_response.get('found_conflicts', False)
+                        }
                     else:
-                        return {"answer": ai_response}
+                        return {
+                            "text": ai_response,
+                            "data": [],
+                            "type": "ai_response"
+                        }
                 except json.JSONDecodeError:
-                    return {"answer": ai_response}
+                    return {
+                        "text": ai_response,                        "data": [],
+                        "type": "ai_response"
+                    }
             else:
-                return {"answer": str(ai_response)}
+                return {
+                    "text": str(ai_response),
+                    "data": [],
+                    "type": "ai_response"
+                }
                 
         except Exception as e:
             logger.error(f"Error in _process_ai_query: {e}")
-            return {"answer": f"Sorry, I encountered an error while processing your question: {str(e)}. Please try again."}
+            return {
+                "text": f"Sorry, I encountered an error while processing your question: {str(e)}. Please try again.",
+                "data": [],
+                "type": "error"
+            }
 
     def _gather_comprehensive_context(self) -> Dict[str, Any]:
         """Gather all relevant DB data for LLM context (resources, projects, tasks, assignments, deadlines, skills, risks)."""

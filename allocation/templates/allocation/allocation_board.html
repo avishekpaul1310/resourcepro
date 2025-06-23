@@ -165,7 +165,103 @@
         
         // Apply utilization percentages to progress bars
         document.querySelectorAll('.progress-fill[data-utilization]').forEach(bar => {
-            bar.style.width = bar.dataset.utilization + '%';        });
+            bar.style.width = bar.dataset.utilization + '%';
+        });
+        
+        // CRITICAL: ENSURE SEARCH FUNCTIONALITY ON ALLOCATION PAGE
+        // Multiple initialization attempts to ensure search works
+        function ensureSearchInitialization() {
+            const searchInput = document.getElementById('nliSearchInput');
+            const voiceBtn = document.getElementById('voiceBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            
+            if (!searchInput) {
+                console.log('Search input not found, retrying...');
+                return false;
+            }
+            
+            console.log('=== Allocation Page: Initializing Search ===');
+            
+            // Remove any existing event listeners to prevent duplicates
+            if (searchInput._nliListenersAdded) {
+                console.log('Search already initialized');
+                return true;
+            }
+            
+            // Add input event listener for text search
+            if (searchInput) {
+                searchInput.addEventListener('input', function(e) {
+                    const query = e.target.value.trim();
+                    if (query.length > 2) {
+                        // Show clear button
+                        if (clearBtn) clearBtn.style.display = 'block';
+                        
+                        // Process query after short delay
+                        clearTimeout(window.nliTimeout);
+                        window.nliTimeout = setTimeout(() => {
+                            if (typeof processNLIQuery === 'function') {
+                                processNLIQuery(query);
+                            } else {
+                                console.error('processNLIQuery function not available');
+                            }
+                        }, 500);
+                    } else {
+                        if (clearBtn) clearBtn.style.display = 'none';
+                    }
+                });
+                
+                searchInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const query = e.target.value.trim();
+                        if (query && typeof processNLIQuery === 'function') {
+                            processNLIQuery(query);
+                        }
+                    }
+                });
+                
+                searchInput._nliListenersAdded = true;
+                console.log('✅ Search input listeners added');
+            }
+            
+            // Add voice button listener
+            if (voiceBtn && !voiceBtn._nliListenerAdded) {
+                voiceBtn.addEventListener('click', function() {
+                    if (typeof toggleVoiceSearch === 'function') {
+                        toggleVoiceSearch();
+                    } else {
+                        console.error('toggleVoiceSearch function not available');
+                    }
+                });
+                voiceBtn._nliListenerAdded = true;
+                console.log('✅ Voice button listener added');
+            }
+            
+            // Add clear button listener
+            if (clearBtn && !clearBtn._nliListenerAdded) {
+                clearBtn.addEventListener('click', function() {
+                    searchInput.value = '';
+                    clearBtn.style.display = 'none';
+                    // Close results
+                    const results = document.getElementById('nliResults');
+                    if (results) results.style.display = 'none';
+                });
+                clearBtn._nliListenerAdded = true;
+                console.log('✅ Clear button listener added');
+            }
+            
+            console.log('✅ Search functionality initialized on allocation page');
+            return true;
+        }
+        
+        // Try initialization immediately
+        setTimeout(ensureSearchInitialization, 100);
+        
+        // Backup initialization
+        setTimeout(ensureSearchInitialization, 500);
+        
+        // Final backup
+        setTimeout(ensureSearchInitialization, 1000);
     });
 </script>
 {% endblock %}
