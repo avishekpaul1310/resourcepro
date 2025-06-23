@@ -268,8 +268,14 @@ def unassign_task(request):
         data = json.loads(request.body)
         assignment_id = data.get('assignment_id')
         
+        # More detailed error messages for debugging
         if not assignment_id:
-            return JsonResponse({'success': False, 'error': 'Assignment ID required'})
+            logger.warning(f"Unassign task called without assignment_id. Request data: {data}")
+            return JsonResponse({
+                'success': False, 
+                'error': 'Assignment ID required',
+                'debug_info': f'Received data: {data}'
+            })
         
         assignment = get_object_or_404(Assignment, id=assignment_id)
         

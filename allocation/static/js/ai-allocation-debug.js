@@ -172,13 +172,35 @@ async function handleUnassignTask(event) {
     console.log('Unassign task clicked');
     
     event.stopPropagation();
-    const assignmentId = event.target.dataset.assignmentId;
-    const taskId = event.target.dataset.taskId;
+    
+    // Ensure we get the button element, not the icon inside it
+    const button = event.target.closest('.assignment-remove');
+    if (!button) {
+        console.error('Could not find assignment-remove button');
+        return;
+    }
+    
+    const assignmentId = button.dataset.assignmentId;
+    const taskId = button.dataset.taskId;
     
     console.log('Unassigning assignment:', assignmentId, 'task:', taskId);
 
-    // Confirm action
-    if (!confirm('Are you sure you want to remove this assignment?')) {
+    // Validate we have the required IDs
+    if (!assignmentId) {
+        console.error('Assignment ID not found');
+        showNotification('Error: Assignment ID not found', 'error');
+        return;
+    }
+
+    // Get task details for better confirmation dialog
+    const assignmentCard = button.closest('.assignment-card');
+    const taskName = assignmentCard.querySelector('.assignment-title').textContent;
+    const resourceCard = assignmentCard.closest('.resource-card');
+    const resourceName = resourceCard.querySelector('.resource-name').textContent;
+
+    // Show custom confirmation dialog
+    const shouldProceed = await showUnassignConfirmationDialog(taskName, resourceName);
+    if (!shouldProceed) {
         return;
     }
 
@@ -283,8 +305,15 @@ function highlightRecommendedResources(suggestions) {
 async function handleSuggestionAssign(event) {
     console.log('Suggestion assign clicked');
     
-    const taskId = event.target.dataset.taskId;
-    const resourceId = event.target.dataset.resourceId;
+    // Ensure we get the button element that has the data attributes
+    const button = event.target.closest('.suggestion-assign-btn');
+    if (!button) {
+        console.error('Could not find suggestion-assign-btn button');
+        return;
+    }
+    
+    const taskId = button.dataset.taskId;
+    const resourceId = button.dataset.resourceId;
     
     console.log('Assigning task', taskId, 'to resource', resourceId);
 
@@ -554,6 +583,54 @@ function addAssignmentToResource(assignment, resourceId = null) {
     removeBtn.addEventListener('click', handleUnassignTask);
 }
 
+// Custom confirmation dialog for unassigning tasks
+function showUnassignConfirmationDialog(taskName, resourceName) {
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.style.display = 'block';
+        modal.innerHTML = `
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">
+                        <i class="fas fa-exclamation-triangle" style="color: #f39c12;"></i> 
+                        Confirm Task Removal
+                    </h3>
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove(); window.unassignDialogResolve(false);">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning" style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; padding: 12px; margin-bottom: 16px;">
+                        <h4 style="margin: 0 0 8px 0; color: #856404;">Remove Task Assignment</h4>
+                        <p style="margin: 0; color: #856404;">
+                            You are about to remove "<strong>${taskName}</strong>" from "<strong>${resourceName}</strong>".
+                        </p>
+                    </div>
+                    <p>This will:</p>
+                    <ul>
+                        <li>Remove the task from ${resourceName}'s workload</li>
+                        <li>Move the task back to the unassigned tasks list</li>
+                        <li>Update ${resourceName}'s utilization percentage</li>
+                    </ul>
+                    <p><strong>Are you sure you want to proceed?</strong></p>
+                    <div class="modal-actions" style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;">
+                        <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove(); window.unassignDialogResolve(false);">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                        <button class="btn btn-danger" onclick="this.closest('.modal-overlay').remove(); window.unassignDialogResolve(true);">
+                            <i class="fas fa-trash-alt"></i> Remove Assignment
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Store resolve function globally so buttons can access it
+        window.unassignDialogResolve = resolve;
+    });
+}
+
 // UI Helper functions
 function showAIAssignmentResults(data) {
     console.log('Showing AI assignment results');
@@ -670,8 +747,7 @@ async function assignTaskToResource(taskId, resourceId, hours) {
             
             // Add to resource assignments
             addAssignmentToResource(data.assignment, resourceId);
-            
-            // Update resource utilization
+              // Update resource utilization
             if (data.new_utilization !== undefined) {
                 updateResourceUtilization(resourceId, data.new_utilization);
             }
@@ -687,6 +763,54 @@ async function assignTaskToResource(taskId, resourceId, hours) {
         showNotification('Failed to assign task', 'error');
         return false;
     }
+}
+
+// Custom confirmation dialog for unassigning tasks
+function showUnassignConfirmationDialog(taskName, resourceName) {
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.style.display = 'block';
+        modal.innerHTML = `
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">
+                        <i class="fas fa-exclamation-triangle" style="color: #f39c12;"></i> 
+                        Confirm Task Removal
+                    </h3>
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove(); window.unassignDialogResolve(false);">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning" style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; padding: 12px; margin-bottom: 16px;">
+                        <h4 style="margin: 0 0 8px 0; color: #856404;">Remove Task Assignment</h4>
+                        <p style="margin: 0; color: #856404;">
+                            You are about to remove "<strong>${taskName}</strong>" from "<strong>${resourceName}</strong>".
+                        </p>
+                    </div>
+                    <p>This will:</p>
+                    <ul>
+                        <li>Remove the task from ${resourceName}'s workload</li>
+                        <li>Move the task back to the unassigned tasks list</li>
+                        <li>Update ${resourceName}'s utilization percentage</li>
+                    </ul>
+                    <p><strong>Are you sure you want to proceed?</strong></p>
+                    <div class="modal-actions" style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;">
+                        <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove(); window.unassignDialogResolve(false);">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                        <button class="btn btn-danger" onclick="this.closest('.modal-overlay').remove(); window.unassignDialogResolve(true);">
+                            <i class="fas fa-trash-alt"></i> Remove Assignment
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Store resolve function globally so buttons can access it
+        window.unassignDialogResolve = resolve;
+    });
 }
 
 function showAITaskSuggestionsModal(suggestions) {
@@ -854,20 +978,16 @@ function getNotificationIcon(type) {
 
 function getNotificationColor(type) {
     switch (type) {
-        case 'success': return '#48bb78';
-        case 'error': return '#e53e3e';
-        case 'warning': return '#ed8936';
-        default: return '#4299e1';
+        case 'success': return '#28a745';
+        case 'error': return '#dc3545';
+        case 'warning': return '#ffc107';
+        default: return '#007bff';
     }
 }
 
 function getCsrfToken() {
     const token = document.querySelector('[name=csrfmiddlewaretoken]');
-    if (!token) {
-        console.error('CSRF token not found!');
-        return '';
-    }
-    return token.value;
+    return token ? token.value : '';
 }
 
 console.log('AI-Allocation JavaScript loaded successfully');
