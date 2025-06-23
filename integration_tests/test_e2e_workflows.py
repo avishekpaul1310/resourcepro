@@ -7,6 +7,7 @@ from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils import timezone
+from django.db import models
 from datetime import timedelta, date
 from decimal import Decimal
 import time
