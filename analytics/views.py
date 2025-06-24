@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
 from django.db import models
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from datetime import timedelta, datetime
 from decimal import Decimal
 import json
@@ -34,9 +35,12 @@ def analytics_dashboard(request):
         normalized_percentage = (float(skill.demand_score) / max_demand) * 100
         skill.display_percentage = min(100, max(0, round(normalized_percentage, 1)))
         skill_analyses.append(skill)
-    
-    # Get utilization trends
+      # Get utilization trends
     utilization_service = UtilizationTrackingService()
+    
+    # Update today's utilization data before displaying trends
+    utilization_service.record_daily_utilization()
+    
     utilization_trends = utilization_service.get_utilization_trends(days=30)
     
     # Get cost tracking data
@@ -70,25 +74,48 @@ def analytics_dashboard(request):
       # Calculate budget metrics
     total_budget = sum(item.get('budget', 0) for item in cost_report if item.get('budget'))
     actual_costs = sum(item.get('actual_cost', 0) for item in cost_report)
-    budget_variance = total_budget - actual_costs
+    budget_variance = total_budget - actual_costs    # Get utilization data for the dashboard with pagination
+    page = request.GET.get('page', 1)
+    per_page = request.GET.get('per_page', 10)  # Default 10 resources per page
     
-    # Get utilization data for the dashboard
+    try:
+        per_page = int(per_page)
+        per_page = min(max(per_page, 5), 50)  # Limit between 5 and 50
+    except (ValueError, TypeError):
+        per_page = 10
+    
     utilization_data = []
-    for resource in Resource.objects.all()[:10]:
-        recent_util = HistoricalUtilization.objects.filter(
-            resource=resource,
-            date__gte=timezone.now().date() - timedelta(days=30)
-        ).aggregate(avg=models.Avg('utilization_percentage'))['avg'] or 0
+    for resource in Resource.objects.all():
+        # Use real-time utilization instead of historical averages
+        current_util = resource.current_utilization()
         
         utilization_data.append({
             'resource': resource,
-            'utilization_rate': round(recent_util, 1)
+            'utilization_rate': round(current_util, 1)
         })
+    
+    # Sort by utilization rate (highest first) to show most important resources
+    utilization_data.sort(key=lambda x: x['utilization_rate'], reverse=True)
+    
+    # Apply pagination
+    paginator = Paginator(utilization_data, per_page)
+    
+    try:
+        utilization_page = paginator.page(page)
+    except PageNotAnInteger:
+        utilization_page = paginator.page(1)
+    except EmptyPage:
+        utilization_page = paginator.page(paginator.num_pages)
+      # Get summary stats for the dashboard
+    total_resources = len(utilization_data)
+    active_resources = len([d for d in utilization_data if d['utilization_rate'] > 0])
+    overutilized_resources = len([d for d in utilization_data if d['utilization_rate'] > 90])
     
     context = {
         'forecast_data': recent_forecasts,  # Match template variable name
         'skill_demand': skill_analyses,     # Match template variable name
-        'utilization_data': utilization_data,  # Match template variable name
+        'utilization_data': utilization_page.object_list,  # Paginated data
+        'utilization_page': utilization_page,  # Pagination object
         'utilization_trends': utilization_trends,
         'cost_report': cost_report[:10],  # Top 10 projects
         'total_resources': total_resources,
@@ -98,6 +125,13 @@ def analytics_dashboard(request):
         'total_budget': total_budget,
         'actual_costs': actual_costs,
         'budget_variance': budget_variance,
+        # Utilization summary stats
+        'utilization_stats': {
+            'total_resources': total_resources,
+            'active_resources': active_resources,
+            'overutilized_resources': overutilized_resources,
+            'per_page': per_page,
+        }
     }
     
     return render(request, 'analytics/dashboard.html', context)

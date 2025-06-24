@@ -15,6 +15,7 @@ from resources.models import Resource
 from .models import Assignment
 from analytics.ai_services import AIResourceAllocationService
 from analytics.working_enhanced_ai import WorkingEnhancedAIService
+from analytics.services import UtilizationTrackingService
 
 logger = logging.getLogger(__name__)
 
@@ -56,13 +57,16 @@ def ai_auto_assign_tasks(request):
                         best_suggestion = suggestions['suggestions'][0]
                         resource_id = best_suggestion['resource']['id']
                         
-                        resource = Resource.objects.get(id=resource_id)
-                          # Create assignment
+                        resource = Resource.objects.get(id=resource_id)                        # Create assignment
                         assignment = Assignment.objects.create(
                             task=task,
                             resource=resource,
                             allocated_hours=task.estimated_hours
                         )
+                        
+                        # Update utilization tracking
+                        utilization_service = UtilizationTrackingService()
+                        utilization_service.record_daily_utilization()
                         
                         assignments_made.append({
                             'task_id': task.id,
@@ -125,14 +129,18 @@ def assign_task(request):
             })
         
         # Check for conflicts
-        conflicts = check_resource_conflicts(task, resource)
-          # Create assignment
+        conflicts = check_resource_conflicts(task, resource)        # Create assignment
         assignment = Assignment.objects.create(
             task=task,
             resource=resource,
             allocated_hours=task.estimated_hours
         )
-          # Get updated utilization
+        
+        # Update utilization tracking
+        utilization_service = UtilizationTrackingService()
+        utilization_service.record_daily_utilization()
+          
+        # Get updated utilization
         new_utilization = resource.current_utilization()
         
         return JsonResponse({
@@ -262,9 +270,12 @@ def unassign_task(request):
         }
         
         resource_id = assignment.resource.id
-        
-        # Delete the assignment
+          # Delete the assignment
         assignment.delete()
+        
+        # Update utilization tracking
+        utilization_service = UtilizationTrackingService()
+        utilization_service.record_daily_utilization()
         
         # Get updated utilization
         resource = Resource.objects.get(id=resource_id)

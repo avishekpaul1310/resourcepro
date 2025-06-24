@@ -121,16 +121,58 @@
     }
     
     .btn-secondary:hover {
-        background-color: #4a5568;
+        background-color: #2d3748;
     }
     
-    .btn-success {
-        background-color: #38a169;
-        color: white;
+    /* Pagination Styles */
+    .pagination-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        margin: 20px 0;
     }
     
-    .btn-success:hover {
-        background-color: #2f855a;
+    .pagination-btn {
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        background-color: white;
+        color: #374151;
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+        min-width: 40px;
+        text-align: center;
+    }
+    
+    .pagination-btn:hover {
+        background-color: #f3f4f6;
+        border-color: #9ca3af;
+        color: #111827;
+    }
+    
+    .pagination-btn.disabled {
+        background-color: #f9fafb;
+        color: #9ca3af;
+        cursor: not-allowed;
+        border-color: #e5e7eb;
+    }
+    
+    .pagination-info {
+        padding: 8px 16px;
+        font-size: 0.9rem;
+        color: #6b7280;
+        font-weight: 500;
+    }
+    
+    /* Resources per page selector */
+    #per_page {
+        padding: 5px 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        background-color: white;
+        font-size: 0.9rem;
     }
 </style>
 {% endblock %}
@@ -232,8 +274,29 @@
 
 <!-- Recent Utilization Trends -->
 <div class="chart-container">
-    <h2 class="chart-title">Recent Utilization Trends</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 class="chart-title">Recent Utilization Trends</h2>
+        {% if utilization_stats %}
+        <div style="font-size: 0.9rem; color: #718096;">
+            Showing {{ utilization_page.start_index }}-{{ utilization_page.end_index }} of {{ utilization_stats.total_resources }} resources
+            ({{ utilization_stats.active_resources }} active, {{ utilization_stats.overutilized_resources }} overutilized)
+        </div>
+        {% endif %}
+    </div>
+    
     {% if utilization_data %}
+        <!-- Per-page selector -->
+        <div style="margin-bottom: 15px;">
+            <label for="per_page" style="margin-right: 10px; font-size: 0.9rem;">Resources per page:</label>
+            <select id="per_page" onchange="changePerPage(this.value)" style="padding: 5px 8px; border: 1px solid #d1d5db; border-radius: 4px; background-color: white; font-size: 0.9rem;">
+                <option value="5" {% if utilization_stats.per_page == 5 %}selected{% endif %}>5</option>
+                <option value="10" {% if utilization_stats.per_page == 10 %}selected{% endif %}>10</option>
+                <option value="15" {% if utilization_stats.per_page == 15 %}selected{% endif %}>15</option>
+                <option value="25" {% if utilization_stats.per_page == 25 %}selected{% endif %}>25</option>
+                <option value="50" {% if utilization_stats.per_page == 50 %}selected{% endif %}>50</option>
+            </select>
+        </div>
+        
         <table class="forecast-table">
             <thead>
                 <tr>
@@ -250,7 +313,7 @@
                     <td>{{ util.utilization_rate|floatformat:1 }}%</td>
                     <td>
                         <div class="skill-bar">
-                            <div class="skill-fill" style="width: '{{ util.utilization_rate|floatformat:0 }}%'"></div>
+                            <div class="skill-fill" style="width: {{ util.utilization_rate|floatformat:0 }}%"></div>
                         </div>
                     </td>
                     <td>
@@ -268,6 +331,32 @@
                 {% endfor %}
             </tbody>
         </table>
+        
+        <!-- Pagination Controls -->
+        {% if utilization_page.has_other_pages %}
+        <div class="pagination-container" style="margin-top: 20px; display: flex; justify-content: center; align-items: center; gap: 10px;">
+            {% if utilization_page.has_previous %}
+                <a href="?page=1&per_page={{ utilization_stats.per_page }}" class="pagination-btn" title="First page">«</a>
+                <a href="?page={{ utilization_page.previous_page_number }}&per_page={{ utilization_stats.per_page }}" class="pagination-btn" title="Previous page">‹</a>
+            {% else %}
+                <span class="pagination-btn disabled">«</span>
+                <span class="pagination-btn disabled">‹</span>
+            {% endif %}
+            
+            <span class="pagination-info">
+                Page {{ utilization_page.number }} of {{ utilization_page.paginator.num_pages }}
+            </span>
+            
+            {% if utilization_page.has_next %}
+                <a href="?page={{ utilization_page.next_page_number }}&per_page={{ utilization_stats.per_page }}" class="pagination-btn" title="Next page">›</a>
+                <a href="?page={{ utilization_page.paginator.num_pages }}&per_page={{ utilization_stats.per_page }}" class="pagination-btn" title="Last page">»</a>
+            {% else %}
+                <span class="pagination-btn disabled">›</span>
+                <span class="pagination-btn disabled">»</span>
+            {% endif %}
+        </div>
+        {% endif %}
+        
     {% else %}
         <p>No utilization data available.</p>
     {% endif %}
@@ -277,10 +366,19 @@
 <div class="chart-container">
     <h2 class="chart-title">Quick Actions</h2>    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
         <a href="{% url 'analytics:ai_analytics_dashboard' %}" class="btn btn-primary">🤖 AI Analytics</a>
-        <a href="{% url 'analytics:forecasting' %}" class="btn btn-secondary">View Detailed Forecasts</a>
-        <a href="{% url 'analytics:skill_analysis' %}" class="btn btn-secondary">Skill Analysis</a>
+        <a href="{% url 'analytics:forecasting' %}" class="btn btn-secondary">View Detailed Forecasts</a>        <a href="{% url 'analytics:skill_analysis' %}" class="btn btn-secondary">Skill Analysis</a>
         <a href="{% url 'analytics:utilization_report' %}" class="btn btn-secondary">Utilization Report</a>
         <a href="{% url 'analytics:cost_report' %}" class="btn btn-secondary">Cost Report</a>
         <a href="{% url 'resources:time_tracking' %}" class="btn btn-success">Time Tracking</a>    </div>
 </div>
+
+<script>
+function changePerPage(perPage) {
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set('per_page', perPage);
+    currentUrl.searchParams.set('page', '1'); // Reset to first page
+    window.location.href = currentUrl.toString();
+}
+</script>
+
 {% endblock %}
