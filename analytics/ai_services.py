@@ -816,8 +816,7 @@ Respond with valid JSON in this exact format:
         "timeline": "string",
         "specific_actions": ["string"],
         "expected_roi": "string",
-        "implementation_complexity": "string"
-    }}
+        "implementation_complexity": "string"    }}
 }}
 """
     
@@ -832,36 +831,50 @@ Respond with valid JSON in this exact format:
         
         if "adjusted_forecasts" in ai_response:
             for adjustment in ai_response["adjusted_forecasts"]:
-                original_id = adjustment.get("original_forecast_id")
-                if original_id in forecast_dict:
-                    original_forecast = forecast_dict[original_id]
-                    
-                    # Store adjustment in database
-                    ai_adjustment = AIForecastAdjustment.objects.create(
-                        original_forecast=original_forecast,
-                        adjusted_demand_hours=Decimal(str(adjustment.get("adjusted_demand_hours", 0))),
-                        adjustment_percentage=Decimal(str(adjustment.get("adjustment_percentage", 0))),
-                        reasoning=adjustment.get("reasoning", ""),
-                        business_context_factors=adjustment.get("context_factors", []),
-                        confidence_score=Decimal(str(adjustment.get("confidence_score", 0.5)))
-                    )
-                    
-                    enhanced_forecasts.append({
-                        "original_forecast": {
-                            "id": original_forecast.id,
-                            "resource_role": original_forecast.resource_role,
-                            "predicted_demand_hours": float(original_forecast.predicted_demand_hours),
-                            "confidence_score": float(original_forecast.confidence_score)
-                        },
-                        "ai_adjustment": {
-                            "id": ai_adjustment.id,
-                            "adjusted_demand_hours": float(ai_adjustment.adjusted_demand_hours),
-                            "adjustment_percentage": float(ai_adjustment.adjustment_percentage),
-                            "reasoning": ai_adjustment.reasoning,
-                            "context_factors": ai_adjustment.business_context_factors,
-                            "confidence_score": float(ai_adjustment.confidence_score)
-                        }
-                    })
+                try:
+                    original_id = adjustment.get("original_forecast_id")
+                    if original_id in forecast_dict:
+                        original_forecast = forecast_dict[original_id]
+                        
+                        # Validate and clean adjustment data
+                        adjusted_hours = float(adjustment.get("adjusted_demand_hours", 0))
+                        adjustment_pct = float(adjustment.get("adjustment_percentage", 0))
+                        confidence = float(adjustment.get("confidence_score", 0.5))
+                        
+                        # Ensure values are within reasonable bounds
+                        adjusted_hours = max(0, min(adjusted_hours, 10000))  # Cap at 10k hours
+                        adjustment_pct = max(-100, min(adjustment_pct, 1000))  # Cap percentage
+                        confidence = max(0, min(confidence, 1))  # Confidence between 0-1
+                        
+                        # Store adjustment in database
+                        ai_adjustment = AIForecastAdjustment.objects.create(
+                            original_forecast=original_forecast,
+                            adjusted_demand_hours=Decimal(str(adjusted_hours)),
+                            adjustment_percentage=Decimal(str(adjustment_pct)),
+                            reasoning=str(adjustment.get("reasoning", ""))[:1000],  # Limit text length
+                            business_context_factors=adjustment.get("context_factors", []),
+                            confidence_score=Decimal(str(confidence))
+                        )
+                        
+                        enhanced_forecasts.append({
+                            "original_forecast": {
+                                "id": original_forecast.id,
+                                "resource_role": str(original_forecast.resource_role),
+                                "predicted_demand_hours": float(original_forecast.predicted_demand_hours),
+                                "confidence_score": float(original_forecast.confidence_score)
+                            },
+                            "ai_adjustment": {
+                                "id": ai_adjustment.id,
+                                "adjusted_demand_hours": float(ai_adjustment.adjusted_demand_hours),
+                                "adjustment_percentage": float(ai_adjustment.adjustment_percentage),
+                                "reasoning": ai_adjustment.reasoning,
+                                "context_factors": ai_adjustment.business_context_factors,
+                                "confidence_score": float(ai_adjustment.confidence_score)
+                            }
+                        })
+                except (ValueError, TypeError, Exception) as e:
+                    logger.warning(f"Skipping invalid forecast adjustment: {e}")
+                    continue
         
         return {
             "enhanced_forecasts": enhanced_forecasts,

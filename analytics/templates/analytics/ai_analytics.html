@@ -33,14 +33,12 @@
                             <span class="sr-only">Loading...</span>
                         </div>
                         <p class="mt-2">Generating AI recommendations...</p>
-                    </div>
-                    <div id="skill-recommendations-content">
+                    </div>                    <div id="skill-recommendations-content">
                         <p class="text-muted">Click "Refresh Recommendations" to generate AI-powered skill insights.</p>
                     </div>
                 </div>
             </div>
-            
-            <!-- AI Resource Allocation (Task Selection) -->
+              <!-- AI Resource Allocation (Task Selection) -->
             <div class="card mb-4">
                 <div class="card-header">
                     <h3>Smart Resource Allocation</h3>
@@ -67,40 +65,7 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- AI Enhanced Forecasting -->
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h3>AI-Enhanced Resource Forecasting</h3>
-                    <button id="generate-forecasts" class="btn btn-warning">
-                        <i class="fas fa-chart-line"></i> Generate AI Forecasts
-                    </button>
-                </div>
-                <div class="card-body">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="forecast-days" class="form-label">Forecast Period (Days):</label>
-                            <input type="number" id="forecast-days" class="form-control" value="30" min="7" max="90">
-                        </div>
-                        <div class="col-md-6">
-                            <label for="business-context" class="form-label">Business Context (Optional):</label>
-                            <textarea id="business-context" class="form-control" rows="2" placeholder="e.g., Launching new product, expanding team, seasonal changes..."></textarea>
-                        </div>
-                    </div>
-                    
-                    <div id="forecasts-loading" class="text-center d-none">
-                        <div class="spinner-border" role="status">
-                            <span class="sr-only">Loading...</span>
-                        </div>
-                        <p class="mt-2">Generating AI-enhanced forecasts...</p>
-                    </div>
-                    
-                    <div id="forecasts-content">
-                        <p class="text-muted">Click "Generate AI Forecasts" to create intelligent resource demand predictions.</p>
-                    </div>
-                </div>
-            </div>
-            
+
             <!-- Strategic Recommendations -->
             <div class="card mb-4">
                 <div class="card-header">
@@ -108,7 +73,10 @@
                 </div>
                 <div class="card-body">
                     <div id="strategic-recommendations">
-                        <p class="text-muted">Strategic recommendations will appear here after generating AI forecasts.</p>
+                        <p class="text-muted">Strategic recommendations based on AI analysis of your resource data and project forecasts.</p>
+                        <button id="generate-strategic-recommendations" class="btn btn-info">
+                            <i class="fas fa-lightbulb"></i> Generate Strategic Insights
+                        </button>
                     </div>
                 </div>
             </div>
@@ -156,6 +124,11 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Ensure loading divs are hidden on page load
+    const skillLoadingDiv = document.getElementById('skill-recommendations-loading');
+    skillLoadingDiv.classList.add('d-none');
+    skillLoadingDiv.style.display = 'none'; // Extra safeguard
+    
     // Load available tasks
     loadTasks();
     
@@ -169,21 +142,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const analyzeBtn = document.getElementById('analyze-allocation');
         analyzeBtn.disabled = !this.value;
     });
-    
-    document.getElementById('analyze-allocation').addEventListener('click', function() {
+      document.getElementById('analyze-allocation').addEventListener('click', function() {
         const taskId = document.getElementById('task-select').value;
         if (taskId) {
             analyzeResourceAllocation(taskId);
         }
     });
-    
-    // Forecasting
-    document.getElementById('generate-forecasts').addEventListener('click', function() {
-        generateAIForecasts();
+      // Strategic recommendations
+    document.getElementById('generate-strategic-recommendations').addEventListener('click', function() {
+        generateStrategicRecommendations();
     });
     
-    // Load initial skill recommendations
-    loadSkillRecommendations(false);
+    // Don't auto-load skill recommendations - let user trigger them manually
 });
 
 function loadTasks() {
@@ -206,7 +176,9 @@ function loadSkillRecommendations(forceRefresh) {
     const loadingDiv = document.getElementById('skill-recommendations-loading');
     const contentDiv = document.getElementById('skill-recommendations-content');
     
+    // Show loading state
     loadingDiv.classList.remove('d-none');
+    loadingDiv.style.display = 'block';
     
     const url = forceRefresh ? 
         '/analytics/ai/skill-recommendations/?refresh=true' : 
@@ -215,7 +187,9 @@ function loadSkillRecommendations(forceRefresh) {
     fetch(url)
         .then(response => response.json())
         .then(data => {
+            // Always hide loading div first
             loadingDiv.classList.add('d-none');
+            loadingDiv.style.display = 'none';
             
             if (data.success && data.recommendations) {
                 displaySkillRecommendations(data.recommendations);
@@ -226,13 +200,21 @@ function loadSkillRecommendations(forceRefresh) {
             }
         })
         .catch(error => {
+            // Always hide loading div on error
             loadingDiv.classList.add('d-none');
+            loadingDiv.style.display = 'none';
             contentDiv.innerHTML = `<div class="alert alert-danger">Error loading recommendations: ${error.message}</div>`;
         });
 }
 
 function displaySkillRecommendations(recommendations) {
+    const loadingDiv = document.getElementById('skill-recommendations-loading');
     const contentDiv = document.getElementById('skill-recommendations-content');
+    
+    // Force hide loading div and clear any loading state
+    loadingDiv.classList.add('d-none');
+    loadingDiv.style.display = 'none'; // Extra safeguard
+    
     let html = '';
     
     // Skills to Develop
@@ -356,129 +338,56 @@ function displayAllocationSuggestions(suggestions) {
     contentDiv.innerHTML = html;
 }
 
-function generateAIForecasts() {
-    const loadingDiv = document.getElementById('forecasts-loading');
-    const contentDiv = document.getElementById('forecasts-content');
-    const daysAhead = document.getElementById('forecast-days').value;
+function generateStrategicRecommendations() {
+    const strategicDiv = document.getElementById('strategic-recommendations');
     
-    loadingDiv.classList.remove('d-none');
+    // Show loading state
+    strategicDiv.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border spinner-border-sm" role="status">
+                <span class="sr-only">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted">Generating strategic recommendations based on your current data...</p>
+        </div>
+    `;
     
-    fetch(`/analytics/ai/enhanced-forecasts/?days_ahead=${daysAhead}`)
-        .then(response => response.json())
-        .then(data => {
-            loadingDiv.classList.add('d-none');
-            
-            if (data.success && data.forecasts) {
-                displayForecasts(data.forecasts);
-                
-                // Generate strategic recommendations if we have enhanced forecasts
-                if (data.forecasts.ai_enhanced) {
-                    generateStrategicRecommendations(data.forecasts.ai_enhanced);
-                }
-            } else {
-                contentDiv.innerHTML = `<div class="alert alert-warning">${data.error || 'Failed to generate forecasts'}</div>`;
-            }
-        })
-        .catch(error => {
-            loadingDiv.classList.add('d-none');
-            contentDiv.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
-        });
-}
-
-function displayForecasts(forecasts) {
-    const contentDiv = document.getElementById('forecasts-content');
-    let html = '';
-    
-    // Display statistical forecasts
-    if (forecasts.statistical_forecasts) {
-        html += '<h5>Statistical Forecasts</h5>';
-        forecasts.statistical_forecasts.forEach(forecast => {
-            html += `
-                <div class="forecast-item">
-                    <div class="row">
-                        <div class="col-md-8">
-                            <h6>${forecast.resource_role}</h6>
-                            <p class="mb-1">Predicted Demand: ${forecast.predicted_demand_hours} hours</p>
-                            <small class="text-muted">Confidence: ${(forecast.confidence_score * 100).toFixed(0)}%</small>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <span class="badge bg-primary">${forecast.predicted_demand_hours}h</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-    }
-    
-    // Display AI-enhanced forecasts if available
-    if (forecasts.ai_enhanced && forecasts.ai_enhanced.enhanced_forecasts) {
-        html += '<h5 class="mt-4">AI-Enhanced Forecasts</h5>';
-        forecasts.ai_enhanced.enhanced_forecasts.forEach(forecast => {
-            const adjustment = forecast.ai_adjustment.adjustment_percentage;
-            const adjustmentClass = adjustment > 0 ? 'adjustment-positive' : 'adjustment-negative';
-            const adjustmentIcon = adjustment > 0 ? 'fa-arrow-up' : 'fa-arrow-down';
-            
-            html += `
-                <div class="forecast-item">
-                    <div class="row">
-                        <div class="col-md-8">
-                            <h6>${forecast.original_forecast.resource_role}</h6>
-                            <p class="mb-1">
-                                Original: ${forecast.original_forecast.predicted_demand_hours}h → 
-                                AI Adjusted: ${forecast.ai_adjustment.adjusted_demand_hours}h
-                                <i class="fas ${adjustmentIcon} ${adjustmentClass}"></i>
-                                <span class="${adjustmentClass}">${Math.abs(adjustment).toFixed(1)}%</span>
-                            </p>
-                            <p class="mb-1"><small>${forecast.ai_adjustment.reasoning}</small></p>
-                            <small class="text-muted">AI Confidence: ${(forecast.ai_adjustment.confidence_score * 100).toFixed(0)}%</small>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <span class="badge bg-success">${forecast.ai_adjustment.adjusted_demand_hours}h</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-        
-        // Display insights
-        if (forecasts.ai_enhanced.insights) {
-            const insights = forecasts.ai_enhanced.insights;
-            html += `
-                <div class="mt-4">
-                    <h6>AI Insights</h6>
-                    <div class="alert alert-info">
-                        <p><strong>Market Trends Impact:</strong> ${insights.market_trends_impact || 'Not available'}</p>
-                        <p><strong>Strategic Recommendations:</strong> ${insights.strategic_recommendations || 'Not available'}</p>
-                    </div>
-                </div>
-            `;
-        }
-    }
-    
-    if (!html) {
-        html = '<div class="alert alert-info">No forecasts available.</div>';
-    }
-    
-    contentDiv.innerHTML = html;
-}
-
-function generateStrategicRecommendations(enhancedForecasts) {
+    // Generate strategic recommendations based on existing forecast data
     fetch('/analytics/ai/strategic-recommendations/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
         },
-        body: JSON.stringify({ enhanced_forecasts: enhancedForecasts })
+        body: JSON.stringify({ 
+            enhanced_forecasts: {
+                // Use a generic request for strategic recommendations
+                request_type: 'general_strategic_analysis'
+            }
+        })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success && data.recommendations) {
             displayStrategicRecommendations(data.recommendations);
+        } else {
+            strategicDiv.innerHTML = `<div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                ${data.error || 'Unable to generate strategic recommendations. Please ensure you have sufficient project and resource data.'}
+            </div>`;
         }
     })
     .catch(error => {
         console.error('Error loading strategic recommendations:', error);
+        strategicDiv.innerHTML = `<div class="alert alert-danger">
+            <i class="fas fa-times-circle"></i>
+            <strong>Error:</strong> Failed to generate strategic recommendations.<br>
+            <small>Details: ${error.message}</small>
+        </div>`;
     });
 }
 

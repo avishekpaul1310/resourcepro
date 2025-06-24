@@ -37,29 +37,51 @@ class PredictiveAnalyticsService:
         
         if not forecasts:
             return None
-        
-        # Apply AI enhancement if requested and we have enough confidence
-        if include_ai_enhancement and confidence_level >= 2:
+          # Apply AI enhancement if requested and we have enough confidence
+        if include_ai_enhancement and confidence_level >= 1:  # Lower threshold for AI enhancement
             try:
                 enhanced_result = self.ai_forecast_service.enhance_resource_demand_forecast(
                     forecasts
                 )
                 
-                return {
-                    "statistical_forecasts": forecasts,
-                    "ai_enhanced": enhanced_result,
-                    "generation_method": f"{method}_with_ai_enhancement",
-                    "confidence_level": confidence_level,
-                    "data_quality": method
-                }
+                # Check if AI enhancement succeeded
+                if enhanced_result and 'error' not in enhanced_result:
+                    return {
+                        "statistical_forecasts": forecasts,
+                        "ai_enhanced": enhanced_result,
+                        "generation_method": f"{method}_with_ai_enhancement",
+                        "confidence_level": confidence_level,
+                        "data_quality": method
+                    }
+                else:
+                    # AI failed, return statistical only
+                    print(f"AI enhancement failed: {enhanced_result.get('error', 'Unknown error') if enhanced_result else 'No response'}")
+                    return {
+                        "statistical_forecasts": forecasts,
+                        "generation_method": f"{method}_only",
+                        "confidence_level": confidence_level,
+                        "data_quality": method,
+                        "ai_error": enhanced_result.get('error', 'AI enhancement failed') if enhanced_result else 'No AI response'
+                    }
             except Exception as e:
                 print(f"AI enhancement failed: {e}")
                 return {
                     "statistical_forecasts": forecasts,
                     "generation_method": f"{method}_only",
                     "confidence_level": confidence_level,
-                    "data_quality": method
+                    "data_quality": method,
+                    "ai_error": str(e)
                 }
+        
+        # If AI enhancement not requested or insufficient confidence, return statistical forecasts only
+        if include_ai_enhancement:
+            return {
+                "statistical_forecasts": forecasts,
+                "generation_method": f"{method}_only",
+                "confidence_level": confidence_level,
+                "data_quality": method,
+                "ai_error": "Insufficient data confidence for AI enhancement"
+            }
         
         return forecasts
           # Prepare data for ML model

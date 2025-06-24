@@ -7,6 +7,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from datetime import timedelta, datetime
 from decimal import Decimal
 import json
+import logging
 
 from .services import PredictiveAnalyticsService, UtilizationTrackingService, CostTrackingService
 from .models import ResourceDemandForecast, HistoricalUtilization, SkillDemandAnalysis, AISkillRecommendation, AIResourceAllocationSuggestion, AIForecastAdjustment
@@ -15,6 +16,8 @@ from .ai_services import AISkillRecommendationService, AIResourceAllocationServi
 from utils.gemini_ai import gemini_service
 from resources.models import Resource
 from projects.models import Project, Task
+
+logger = logging.getLogger(__name__)
 
 @login_required
 def analytics_dashboard(request):
@@ -807,78 +810,218 @@ def ai_resource_allocation_suggestions(request, task_id):
     return JsonResponse({'error': 'Method not allowed'}, status=405)
 
 @login_required  
+@login_required
 def ai_enhanced_forecasts(request):
     """Generate AI-enhanced resource demand forecasts"""
-    if request.method == 'GET':
-        # Generate statistical forecasts first
-        analytics_service = PredictiveAnalyticsService()
-        days_ahead = int(request.GET.get('days_ahead', 30))
+    try:
+        if request.method == 'GET':
+            # Generate statistical forecasts first
+            analytics_service = PredictiveAnalyticsService()
+            days_ahead = int(request.GET.get('days_ahead', 30))
+            
+            # Validate days_ahead parameter
+            if days_ahead < 7 or days_ahead > 365:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Forecast period must be between 7 and 365 days'
+                }, status=400)
+            
+            forecasts = analytics_service.generate_resource_demand_forecast(
+                days_ahead=days_ahead, 
+                include_ai_enhancement=True
+            )
+            
+            if forecasts is None:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Insufficient data to generate forecasts. Please ensure you have project assignments and historical data.'
+                })
+            
+            return JsonResponse({
+                'success': True,
+                'forecasts': forecasts
+            })
         
-        forecasts = analytics_service.generate_resource_demand_forecast(
-            days_ahead=days_ahead, 
-            include_ai_enhancement=True
-        )
+        elif request.method == 'POST':
+            # Allow custom business context
+            try:
+                data = json.loads(request.body)
+                business_context = data.get('business_context', '')
+                
+                # Get recent statistical forecasts
+                recent_forecasts = ResourceDemandForecast.objects.filter(
+                    forecast_date__gte=timezone.now().date() - timedelta(days=7)
+                )
+                
+                if not recent_forecasts.exists():
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'No recent forecasts available. Generate statistical forecasts first.'
+                    })
+                
+                # Enhance with AI
+                forecast_service = AIForecastEnhancementService()
+                enhanced_forecasts = forecast_service.enhance_resource_demand_forecast(
+                    list(recent_forecasts), 
+                    business_context
+                )
+                
+                return JsonResponse({
+                    'success': True,
+                    'enhanced_forecasts': enhanced_forecasts
+                })
+                
+            except json.JSONDecodeError:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid JSON format in request body'
+                }, status=400)
+            except Exception as e:
+                logger.error(f"Error in AI forecasting POST request: {e}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Server error: {str(e)}'
+                }, status=500)
         
         return JsonResponse({
-            'success': True,
-            'forecasts': forecasts
-        })
-    
-    elif request.method == 'POST':
-        # Allow custom business context
-        try:
-            data = json.loads(request.body)
-            business_context = data.get('business_context', '')
-            
-            # Get recent statistical forecasts
-            recent_forecasts = ResourceDemandForecast.objects.filter(
-                forecast_date__gte=timezone.now().date() - timedelta(days=7)
-            )
-            
-            if not recent_forecasts.exists():
-                return JsonResponse({'error': 'No recent forecasts available. Generate statistical forecasts first.'})
-            
-            # Enhance with AI
-            forecast_service = AIForecastEnhancementService()
-            enhanced_forecasts = forecast_service.enhance_resource_demand_forecast(
-                list(recent_forecasts), 
-                business_context
-            )
-            
-            return JsonResponse({
-                'success': True,
-                'enhanced_forecasts': enhanced_forecasts
-            })
-            
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid JSON'}, status=400)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
-    
-    return JsonResponse({'error': 'Method not allowed'}, status=405)
+            'success': False,
+            'error': 'Method not allowed'
+        }, status=405)
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in ai_enhanced_forecasts: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Unexpected server error: {str(e)}'
+        }, status=500)
 
 @login_required
+@login_required
 def ai_strategic_recommendations(request):
-    """Generate strategic recommendations based on enhanced forecasts"""
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            enhanced_forecasts = data.get('enhanced_forecasts', {})
-            
-            forecast_service = AIForecastEnhancementService()
-            strategic_recommendations = forecast_service.generate_strategic_recommendations(enhanced_forecasts)
-            
-            return JsonResponse({
-                'success': True,
-                'recommendations': strategic_recommendations
-            })
-            
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid JSON'}, status=400)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
-    
-    return JsonResponse({'error': 'Method not allowed'}, status=405)
+    """Generate strategic recommendations based on enhanced forecasts or general analysis"""
+    try:
+        if request.method == 'POST':
+            try:
+                data = json.loads(request.body)
+                enhanced_forecasts = data.get('enhanced_forecasts', {})
+                
+                # Handle general strategic analysis requests
+                if not enhanced_forecasts or enhanced_forecasts.get('request_type') == 'general_strategic_analysis':
+                    # Generate strategic recommendations based on current system data
+                    forecast_service = AIForecastEnhancementService()
+                    
+                    # Get recent forecast data from the database
+                    recent_forecasts = ResourceDemandForecast.objects.filter(
+                        forecast_date__gte=timezone.now().date() - timedelta(days=30)
+                    ).order_by('-forecast_date')[:10]
+                    
+                    if recent_forecasts.exists():
+                        # Create a summary for strategic analysis
+                        forecast_summary = []
+                        for forecast in recent_forecasts:
+                            forecast_summary.append({
+                                'resource_role': forecast.resource_role,
+                                'predicted_demand_hours': float(forecast.predicted_demand_hours),
+                                'confidence_score': float(forecast.confidence_score),
+                                'forecast_date': forecast.forecast_date.isoformat()
+                            })
+                        
+                        strategic_recommendations = forecast_service.generate_strategic_recommendations({
+                            'enhanced_forecasts': forecast_summary
+                        })
+                    else:
+                        # Fallback: Generate recommendations based on current resource analysis
+                        strategic_recommendations = _generate_basic_strategic_recommendations()
+                else:
+                    # Use provided enhanced forecasts
+                    forecast_service = AIForecastEnhancementService()
+                    strategic_recommendations = forecast_service.generate_strategic_recommendations(enhanced_forecasts)
+                
+                if 'error' in strategic_recommendations:
+                    return JsonResponse({
+                        'success': False,
+                        'error': strategic_recommendations['error']
+                    })
+                
+                return JsonResponse({
+                    'success': True,
+                    'recommendations': strategic_recommendations
+                })
+                
+            except json.JSONDecodeError:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid JSON format in request body'
+                }, status=400)
+            except Exception as e:
+                logger.error(f"Error in strategic recommendations: {e}")
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Server error: {str(e)}'
+                }, status=500)
+        
+        return JsonResponse({
+            'success': False,
+            'error': 'Method not allowed. Use POST request.'
+        }, status=405)
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in ai_strategic_recommendations: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Unexpected server error: {str(e)}'
+        }, status=500)
+
+def _generate_basic_strategic_recommendations():
+    """Generate basic strategic recommendations when no forecast data is available"""
+    return {
+        'strategic_recommendations': {
+            'immediate_hiring': {
+                'priority_level': 'medium',
+                'timeline': '1-3 months',
+                'specific_actions': [
+                    'Assess current resource utilization patterns',
+                    'Identify skill gaps in active projects',
+                    'Consider hiring for high-demand roles'
+                ],
+                'expected_roi': 'Improved project delivery capacity',
+                'implementation_complexity': 'medium'
+            },
+            'training_development': {
+                'priority_level': 'high',
+                'timeline': '2-4 weeks',
+                'specific_actions': [
+                    'Implement skills assessment program',
+                    'Create training paths for emerging technologies',
+                    'Cross-train team members on critical skills'
+                ],
+                'expected_roi': 'Enhanced team flexibility and capability',
+                'implementation_complexity': 'low'
+            },
+            'resource_optimization': {
+                'priority_level': 'high',
+                'timeline': 'Immediate',
+                'specific_actions': [
+                    'Analyze current resource allocation efficiency',
+                    'Implement resource utilization tracking',
+                    'Optimize team assignments based on skills and availability'
+                ],
+                'expected_roi': 'Increased productivity and reduced bottlenecks',
+                'implementation_complexity': 'low'
+            },
+            'long_term_planning': {
+                'priority_level': 'medium',
+                'timeline': '6+ months',
+                'specific_actions': [
+                    'Develop long-term resource planning strategy',
+                    'Create succession planning for key roles',
+                    'Build partnerships with educational institutions for talent pipeline'
+                ],
+                'expected_roi': 'Sustainable growth and reduced hiring pressure',
+                'implementation_complexity': 'high'
+            }
+        }
+    }
 
 @login_required
 def ai_analytics_dashboard(request):
