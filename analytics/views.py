@@ -19,13 +19,20 @@ from projects.models import Project, Task
 def analytics_dashboard(request):
     """Main analytics dashboard"""
     # Get recent forecasts
-    recent_forecasts = ResourceDemandForecast.objects.all()[:5]    # Get skill demand analysis - get latest analyses for each skill
+    recent_forecasts = ResourceDemandForecast.objects.all()[:5]
+    
+    # Get skill demand analysis - get latest analyses for each skill
     skill_analyses_raw = SkillDemandAnalysis.objects.order_by('-analysis_date')[:10]
     
-    # Add display percentage (capped at 100%)
+    # Add display percentage (normalize demand scores to percentage scale)
     skill_analyses = []
+    demand_scores = [float(skill.demand_score) for skill in skill_analyses_raw]
+    max_demand = max(demand_scores) if demand_scores else 1
+    
     for skill in skill_analyses_raw:
-        skill.display_percentage = min(100, max(0, round(float(skill.demand_score) * 10, 0)))
+        # Normalize the demand score to a 0-100 percentage scale
+        normalized_percentage = (float(skill.demand_score) / max_demand) * 100
+        skill.display_percentage = min(100, max(0, round(normalized_percentage, 1)))
         skill_analyses.append(skill)
     
     # Get utilization trends
