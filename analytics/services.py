@@ -18,12 +18,50 @@ class PredictiveAnalyticsService:
         self.ai_forecast_service = AIForecastEnhancementService()
     
     def generate_resource_demand_forecast(self, days_ahead=30, include_ai_enhancement=True):
-        """Generate resource demand forecast using historical data with optional AI enhancement"""
-        # Get historical assignment data
+        """Generate resource demand forecast using adaptive methods based on available data"""
+        # Get historical assignment data with flexible timeframe
         historical_data = self._get_historical_assignment_data()
         
-        if len(historical_data) < 10:  # Need minimum data points
+        # Determine the best forecasting method based on available data
+        method, confidence_level = self._determine_forecast_method(historical_data)
+        
+        if method == "insufficient":
             return None
+        elif method == "bootstrap":
+            forecasts = self._generate_bootstrap_forecast(historical_data, days_ahead)
+        elif method == "trend":
+            forecasts = self._generate_trend_forecast(historical_data, days_ahead)
+        else:
+            # Use the existing statistical method for sufficient data
+            forecasts = self._generate_statistical_forecast(historical_data, days_ahead)
+        
+        if not forecasts:
+            return None
+        
+        # Apply AI enhancement if requested and we have enough confidence
+        if include_ai_enhancement and confidence_level >= 2:
+            try:
+                enhanced_result = self.ai_forecast_service.enhance_resource_demand_forecast(
+                    forecasts
+                )
+                
+                return {
+                    "statistical_forecasts": forecasts,
+                    "ai_enhanced": enhanced_result,
+                    "generation_method": f"{method}_with_ai_enhancement",
+                    "confidence_level": confidence_level,
+                    "data_quality": method
+                }
+            except Exception as e:
+                print(f"AI enhancement failed: {e}")
+                return {
+                    "statistical_forecasts": forecasts,
+                    "generation_method": f"{method}_only",
+                    "confidence_level": confidence_level,
+                    "data_quality": method
+                }
+        
+        return forecasts
           # Prepare data for ML model
         df = pd.DataFrame(historical_data)
         
@@ -241,19 +279,39 @@ class PredictiveAnalyticsService:
                     'available_resources': available_resources,
                     'demand_score': min(99.99, demand_score),  # Cap at 99.99 for database
                     'predicted_future_demand': predicted_future_demand
-                }
-            )
+                }            )
             
             analyses.append(analysis)
         
         return analyses
-    
-    def _get_historical_assignment_data(self):
-        """Get historical assignment data for analysis"""
-        assignments = Assignment.objects.select_related('resource', 'task').filter(
-            created_at__gte=timezone.now() - timedelta(days=180)
-        )
+
+    def _get_historical_assignment_data(self, max_days=180):
+        """Get historical assignment data with flexible timeframe"""
+        # Try different timeframes, starting with the requested max_days
+        timeframes = [max_days, 90, 60, 30, 14, 7]
         
+        for days in timeframes:
+            assignments = Assignment.objects.select_related('resource', 'task').filter(
+                created_at__gte=timezone.now() - timedelta(days=days)
+            )
+            
+            data = []
+            for assignment in assignments:
+                data.append({
+                    'date': assignment.created_at.date(),
+                    'role': assignment.resource.role,
+                    'allocated_hours': float(assignment.allocated_hours),
+                    'resource_id': assignment.resource.id,
+                    'task_id': assignment.task.id
+                })
+            
+            # If we have enough data points, use this timeframe
+            unique_dates = len(set(d['date'] for d in data))
+            if len(data) >= 10 and unique_dates >= 3:
+                return data
+        
+        # Return whatever we have, even if minimal
+        assignments = Assignment.objects.select_related('resource', 'task').all()[:50]  # At least try recent assignments
         data = []
         for assignment in assignments:
             data.append({
@@ -286,6 +344,190 @@ class PredictiveAnalyticsService:
             })
         
         return data
+
+    def _determine_forecast_method(self, historical_data):
+        """Determine the best forecasting method based on available data"""
+        data_days = len(set(d['date'] for d in historical_data))
+        total_points = len(historical_data)
+        
+        if data_days < 7 or total_points < 10:
+            return "insufficient", 0
+        elif data_days < 30:
+            return "bootstrap", 1  # Basic projections using team capacity
+        elif data_days < 90:
+            return "trend", 2      # Trend-based forecasts
+        elif data_days < 180:
+            return "statistical", 3 # Statistical forecasting
+        else:
+            return "advanced", 4   # Advanced predictive modeling
+    
+    def _generate_bootstrap_forecast(self, historical_data, days_ahead=30):
+        """Bootstrap mode: Use team capacity + industry benchmarks"""
+        from resources.models import Resource
+        
+        forecasts = []
+        
+        # Get all roles and their typical utilization
+        roles_data = {}
+        for record in historical_data:
+            role = record['role']
+            if role not in roles_data:
+                roles_data[role] = []
+            roles_data[role].append(record['allocated_hours'])
+        
+        # Industry benchmarks for utilization by role
+        industry_benchmarks = {
+            'Senior Developer': 85,
+            'Developer': 80,
+            'Junior Developer': 75,
+            'Project Manager': 70,
+            'Designer': 75,
+            'QA Engineer': 80,
+            'DevOps Engineer': 85,
+            'Business Analyst': 75,
+        }
+        
+        future_date = timezone.now().date() + timedelta(days=1)
+        
+        for role, hours_list in roles_data.items():
+            # Use recent average or industry benchmark
+            if hours_list:
+                recent_avg = sum(hours_list[-5:]) / len(hours_list[-5:])  # Last 5 data points
+            else:
+                recent_avg = 40  # Default 40 hours per week
+            
+            # Apply industry benchmark confidence
+            benchmark_util = industry_benchmarks.get(role, 80)
+            predicted_demand = recent_avg * (benchmark_util / 100)
+            
+            forecast = ResourceDemandForecast.objects.create(
+                forecast_date=timezone.now().date(),
+                resource_role=role,
+                predicted_demand_hours=max(0, predicted_demand),
+                confidence_score=0.5,  # Lower confidence for bootstrap
+                period_start=future_date,
+                period_end=future_date + timedelta(days=7)
+            )
+            forecasts.append(forecast)
+        
+        return forecasts
+    
+    def _generate_trend_forecast(self, historical_data, days_ahead=30):
+        """Trend-based forecasting using rolling averages"""
+        df = pd.DataFrame(historical_data)
+        df['date'] = pd.to_datetime(df['date'])
+        
+        forecasts = []
+        future_date = timezone.now().date() + timedelta(days=1)
+        
+        for role in df['role'].unique():
+            role_data = df[df['role'] == role].copy()
+            role_data = role_data.groupby('date')['allocated_hours'].sum().reset_index()
+            role_data = role_data.sort_values('date')
+            
+            if len(role_data) < 3:
+                continue
+            
+            # Calculate rolling averages
+            role_data['ma_7'] = role_data['allocated_hours'].rolling(window=min(7, len(role_data))).mean()
+            role_data['ma_14'] = role_data['allocated_hours'].rolling(window=min(14, len(role_data))).mean()
+            
+            # Use the most recent trend
+            recent_trend = role_data['ma_7'].iloc[-1] if not pd.isna(role_data['ma_7'].iloc[-1]) else role_data['allocated_hours'].mean()
+            
+            # Simple linear trend calculation
+            if len(role_data) >= 5:
+                x = np.arange(len(role_data))
+                y = role_data['allocated_hours'].values
+                slope, intercept = np.polyfit(x, y, 1)
+                predicted_demand = max(0, intercept + slope * len(role_data))
+            else:
+                predicted_demand = recent_trend
+            
+            confidence = min(0.8, 0.4 + (len(role_data) / 100))  # Confidence grows with data
+            
+            forecast = ResourceDemandForecast.objects.create(
+                forecast_date=timezone.now().date(),
+                resource_role=role,
+                predicted_demand_hours=predicted_demand,
+                confidence_score=confidence,
+                period_start=future_date,
+                period_end=future_date + timedelta(days=7)
+            )
+            forecasts.append(forecast)
+        
+        return forecasts
+    
+    def _generate_statistical_forecast(self, historical_data, days_ahead=30):
+        """Statistical forecasting for when we have sufficient data (90+ days)"""
+        # This is the original statistical method, extracted for modularity
+        df = pd.DataFrame(historical_data)
+        
+        # Convert date column to datetime if it's not already
+        df['date'] = pd.to_datetime(df['date'])
+        
+        # Create features
+        df['week_of_year'] = df['date'].dt.isocalendar().week
+        df['month'] = df['date'].dt.month
+        df['quarter'] = df['date'].dt.quarter
+        
+        # Group by role and time period
+        role_forecasts = []
+        
+        for role in df['role'].unique():
+            role_data = df[df['role'] == role].copy()
+            role_data = role_data.groupby('date').agg({
+                'allocated_hours': 'sum',
+                'week_of_year': 'first',
+                'month': 'first',
+                'quarter': 'first'
+            }).reset_index()
+            
+            if len(role_data) < 5:
+                continue
+            
+            # Simple trend analysis with seasonal adjustment
+            role_data = role_data.sort_values('date')
+            recent_trend = role_data['allocated_hours'].rolling(window=7).mean().iloc[-1]
+            
+            if pd.isna(recent_trend):
+                recent_trend = role_data['allocated_hours'].mean()
+            
+            # Apply seasonal adjustment based on quarter
+            current_quarter = timezone.now().quarter
+            quarter_avg = role_data[role_data['quarter'] == current_quarter]['allocated_hours'].mean()
+            overall_avg = role_data['allocated_hours'].mean()
+            
+            if not pd.isna(quarter_avg) and overall_avg > 0:
+                seasonal_factor = quarter_avg / overall_avg
+            else:
+                seasonal_factor = 1.0
+            
+            predicted_demand = recent_trend * seasonal_factor
+            
+            # Calculate confidence based on data variance
+            variance = role_data['allocated_hours'].var()
+            mean_hours = role_data['allocated_hours'].mean()
+            if mean_hours > 0:
+                cv = (variance ** 0.5) / mean_hours  # Coefficient of variation
+                confidence = max(0.5, min(0.95, 1 - cv))
+            else:
+                confidence = 0.7
+            
+            future_date = timezone.now().date() + timedelta(days=1)
+            
+            forecast = ResourceDemandForecast.objects.create(
+                forecast_date=timezone.now().date(),
+                resource_role=role,
+                predicted_demand_hours=max(0, predicted_demand),
+                confidence_score=confidence,
+                period_start=future_date,
+                period_end=future_date + timedelta(days=7)
+            )
+            
+            role_forecasts.append(forecast)
+        
+        return role_forecasts
 
 class UtilizationTrackingService:
     """Service for tracking and storing utilization metrics"""

@@ -3,12 +3,12 @@ from . import views
 
 app_name = 'analytics'
 
-urlpatterns = [
-    # Main analytics pages
+urlpatterns = [    # Main analytics pages
     path('', views.analytics_dashboard, name='analytics_dashboard'),
     path('', views.analytics_dashboard, name='dashboard'),  # Alternative name for backwards compatibility
     path('forecast/', views.generate_forecast, name='forecasting'),
     path('forecast/generate/', views.generate_forecast, name='generate_forecast'),
+    path('generate-forecast/', views.generate_forecast, name='generate_forecast_alt'),  # Alternative URL for frontend compatibility
     path('skills/', views.analyze_skills, name='skill_analysis'),
     path('skills/analyze/', views.analyze_skills, name='analyze_skills'),
     path('utilization/', views.utilization_report, name='utilization_report'),

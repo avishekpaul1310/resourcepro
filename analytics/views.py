@@ -19,8 +19,48 @@ from projects.models import Project, Task
 @login_required
 def analytics_dashboard(request):
     """Main analytics dashboard"""
-    # Get recent forecasts
-    recent_forecasts = ResourceDemandForecast.objects.all()[:5]
+    # Get recent forecasts - prioritize fresh data
+    forecast_threshold = timezone.now().date() - timedelta(days=3)  # Consider forecasts stale after 3 days
+    recent_forecasts = ResourceDemandForecast.objects.filter(
+        forecast_date__gte=forecast_threshold
+    ).order_by('-forecast_date')[:5]    # If no recent forecasts, generate fresh ones
+    forecast_metadata = request.session.get('forecast_metadata', None)  # Check session first
+    if not recent_forecasts.exists():
+        try:
+            analytics_service = PredictiveAnalyticsService()
+            forecast_result = analytics_service.generate_resource_demand_forecast(days_ahead=30)
+            
+            # Capture metadata from the enhanced forecast result
+            if forecast_result:
+                if isinstance(forecast_result, dict):
+                    forecast_metadata = {
+                        'method': forecast_result.get('generation_method', 'Unknown'),
+                        'confidence_level': forecast_result.get('confidence_level', 0),
+                        'data_quality': forecast_result.get('data_quality', 'Unknown')
+                    }
+                else:
+                    forecast_metadata = {
+                        'method': 'Legacy Method',
+                        'confidence_level': 2,
+                        'data_quality': 'Standard'
+                    }
+                
+                recent_forecasts = ResourceDemandForecast.objects.filter(
+                    forecast_date__gte=forecast_threshold
+                ).order_by('-forecast_date')[:5]
+        except Exception as e:
+            # If forecast generation fails, show most recent available forecasts with a warning
+            recent_forecasts = ResourceDemandForecast.objects.order_by('-forecast_date')[:5]
+    
+    # Add freshness indicator to forecast data
+    forecast_data = []
+    for forecast in recent_forecasts:
+        days_old = (timezone.now().date() - forecast.forecast_date).days
+        forecast_data.append({
+            'forecast': forecast,
+            'days_old': days_old,
+            'is_stale': days_old > 3
+        })
     
     # Get skill demand analysis - get latest analyses for each skill
     skill_analyses_raw = SkillDemandAnalysis.objects.order_by('-analysis_date')[:10]
@@ -77,7 +117,6 @@ def analytics_dashboard(request):
     budget_variance = total_budget - actual_costs    # Get utilization data for the dashboard with pagination
     page = request.GET.get('page', 1)
     per_page = request.GET.get('per_page', 10)  # Default 10 resources per page
-    
     try:
         per_page = int(per_page)
         per_page = min(max(per_page, 5), 50)  # Limit between 5 and 50
@@ -89,9 +128,23 @@ def analytics_dashboard(request):
         # Use real-time utilization instead of historical averages
         current_util = resource.current_utilization()
         
+        # Calculate historical trend (past 30 days average)
+        historical_avg = HistoricalUtilization.objects.filter(
+            resource=resource,
+            date__gte=timezone.now().date() - timedelta(days=30)
+        ).aggregate(avg=models.Avg('utilization_percentage'))['avg'] or 0
+        
+        # Calculate trend direction (current vs historical)
+        if historical_avg > 0:
+            trend_change = current_util - float(historical_avg)
+        else:
+            trend_change = 0
+        
         utilization_data.append({
             'resource': resource,
-            'utilization_rate': round(current_util, 1)
+            'utilization_rate': round(current_util, 1),
+            'historical_avg': round(float(historical_avg), 1),
+            'trend_change': round(trend_change, 1),
         })
     
     # Sort by utilization rate (highest first) to show most important resources
@@ -106,13 +159,14 @@ def analytics_dashboard(request):
         utilization_page = paginator.page(1)
     except EmptyPage:
         utilization_page = paginator.page(paginator.num_pages)
-      # Get summary stats for the dashboard
+    # Get summary stats for the dashboard
     total_resources = len(utilization_data)
     active_resources = len([d for d in utilization_data if d['utilization_rate'] > 0])
     overutilized_resources = len([d for d in utilization_data if d['utilization_rate'] > 90])
     
     context = {
-        'forecast_data': recent_forecasts,  # Match template variable name
+        'forecast_data': forecast_data,  # Updated to use enhanced forecast data with freshness info
+        'forecast_metadata': forecast_metadata,  # New: Forecast generation metadata
         'skill_demand': skill_analyses,     # Match template variable name
         'utilization_data': utilization_page.object_list,  # Paginated data
         'utilization_page': utilization_page,  # Pagination object
@@ -140,15 +194,46 @@ def analytics_dashboard(request):
 def generate_forecast(request):
     """Generate new resource demand forecast"""
     if request.method == 'POST':
-        days_ahead = int(request.POST.get('days_ahead', 30))
+        import json
+        
+        # Handle JSON data from AJAX request
+        try:
+            if request.content_type == 'application/json':
+                data = json.loads(request.body)
+                days_ahead = int(data.get('days_ahead', 30))
+            else:
+                # Handle form data
+                days_ahead = int(request.POST.get('days_ahead', 30))
+        except (json.JSONDecodeError, ValueError):
+            days_ahead = 30
         
         analytics_service = PredictiveAnalyticsService()
-        forecasts = analytics_service.generate_resource_demand_forecast(days_ahead)
-        
-        if forecasts:
-            return JsonResponse({
+        forecast_result = analytics_service.generate_resource_demand_forecast(days_ahead)
+          # Handle different return types from the service
+        if forecast_result:
+            if isinstance(forecast_result, dict):
+                # Enhanced result with metadata
+                forecasts = forecast_result.get('statistical_forecasts', [])
+                metadata = {
+                    'method': forecast_result.get('generation_method', 'Unknown'),
+                    'confidence_level': forecast_result.get('confidence_level', 0),
+                    'data_quality': forecast_result.get('data_quality', 'Unknown')
+                }
+                message = f'Generated {len(forecasts)} forecasts using {metadata["data_quality"]} method'
+            else:
+                # Regular list of forecasts (legacy format)
+                forecasts = forecast_result
+                metadata = {
+                    'method': 'Legacy Method',
+                    'confidence_level': 2,
+                    'data_quality': 'Standard'
+                }
+                message = f'Generated {len(forecasts)} forecasts'
+            
+            response_data = {
                 'success': True,
-                'message': f'Generated {len(forecasts)} forecasts',
+                'message': message,
+                'metadata': metadata,
                 'forecasts': [
                     {
                         'role': f.resource_role,
@@ -156,7 +241,12 @@ def generate_forecast(request):
                         'confidence': float(f.confidence_score)
                     } for f in forecasts
                 ]
-            })
+            }
+            
+            # Store metadata in session for dashboard display
+            request.session['forecast_metadata'] = metadata
+            
+            return JsonResponse(response_data)
         else:
             return JsonResponse({
                 'success': False,

@@ -217,11 +217,51 @@
 </div>
 
 <!-- Resource Demand Forecast -->
-<div class="chart-container">
-    <h2 class="chart-title">Resource Demand Forecast (Next 30 Days)</h2>
+<div class="chart-container">    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            <h2 class="chart-title">Resource Demand Forecast (Next 30 Days)</h2>
+            {% if forecast_metadata %}
+                <div style="margin-top: 5px;">
+                    <small style="color: #6b7280; display: flex; gap: 15px; align-items: center;">
+                        <span>📊 Method: {{ forecast_metadata.method }}</span>
+                        <span>🎯 Confidence: 
+                            {% if forecast_metadata.confidence_level == 1 %}
+                                <span style="color: #f59e0b;">Low (Bootstrap)</span>
+                            {% elif forecast_metadata.confidence_level == 2 %}
+                                <span style="color: #3b82f6;">Medium (Trend)</span>
+                            {% elif forecast_metadata.confidence_level == 3 %}
+                                <span style="color: #10b981;">High (Statistical)</span>
+                            {% elif forecast_metadata.confidence_level == 4 %}
+                                <span style="color: #8b5cf6;">Very High (Advanced)</span>
+                            {% else %}
+                                <span>{{ forecast_metadata.confidence_level }}/4</span>
+                            {% endif %}
+                        </span>
+                        <span>📈 Data Quality: {{ forecast_metadata.data_quality|title }}</span>
+                    </small>
+                </div>
+            {% endif %}
+        </div>
+        {% if forecast_data %}
+            {% with has_stale=forecast_data|first %}
+                {% if has_stale.is_stale %}
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="color: #d69e2e; font-size: 0.9rem;">⚠️ Data is {{ has_stale.days_old }} days old</span>
+                        <button onclick="refreshForecasts()" class="btn btn-primary" style="padding: 4px 8px; font-size: 0.8rem;">
+                            🔄 Refresh
+                        </button>
+                    </div>
+                {% else %}
+                    <span style="color: #38a169; font-size: 0.9rem;">✅ Fresh data</span>
+                {% endif %}
+            {% endwith %}
+        {% endif %}
+    </div>
+    
     {% if forecast_data %}
         <table class="forecast-table">
-            <thead>                <tr>
+            <thead>
+                <tr>
                     <th>Date</th>
                     <th>Role</th>
                     <th>Predicted Demand (Hours)</th>
@@ -230,15 +270,21 @@
                 </tr>
             </thead>
             <tbody>
-                {% for forecast in forecast_data %}                <tr>
-                    <td>{{ forecast.forecast_date|date:"M d, Y" }}</td>
-                    <td>{{ forecast.resource_role }}</td>
-                    <td>{{ forecast.predicted_demand_hours|floatformat:1 }}h</td>
-                    <td>{{ forecast.confidence_score|floatformat:2 }}</td>
+                {% for item in forecast_data %}
+                <tr {% if item.is_stale %}style="background-color: #fef3cd;"{% endif %}>
                     <td>
-                        {% if forecast.predicted_demand_hours > 80 %}
+                        {{ item.forecast.forecast_date|date:"M d, Y" }}
+                        {% if item.is_stale %}
+                            <small style="color: #856404;">({{ item.days_old }}d old)</small>
+                        {% endif %}
+                    </td>
+                    <td>{{ item.forecast.resource_role }}</td>
+                    <td>{{ item.forecast.predicted_demand_hours|floatformat:1 }}h</td>
+                    <td>{{ item.forecast.confidence_score|floatformat:2 }}</td>
+                    <td>
+                        {% if item.forecast.predicted_demand_hours > 80 %}
                             <span style="color: #e53e3e;">High demand - Consider hiring</span>
-                        {% elif forecast.predicted_demand_hours > 40 %}
+                        {% elif item.forecast.predicted_demand_hours > 40 %}
                             <span style="color: #d69e2e;">Moderate demand - Monitor closely</span>
                         {% else %}
                             <span style="color: #38a169;">Normal demand - Maintain current level</span>
@@ -249,7 +295,12 @@
             </tbody>
         </table>
     {% else %}
-        <p>No forecast data available. Historical data is needed to generate predictions.</p>
+        <div style="text-align: center; padding: 20px;">
+            <p>No forecast data available. Historical data is needed to generate predictions.</p>
+            <button onclick="generateForecasts()" class="btn btn-primary" style="margin-top: 10px;">
+                🔮 Generate Forecasts
+            </button>
+        </div>
     {% endif %}
 </div>
 
@@ -297,24 +348,28 @@
             </select>
         </div>
         
-        <table class="forecast-table">
-            <thead>
+        <table class="forecast-table">            <thead>
                 <tr>
                     <th>Resource</th>
                     <th>Current Utilization</th>
-                    <th>Trend (30 days)</th>
+                    <th>30-Day Average</th>
+                    <th>Trend Change</th>
                     <th>Status</th>
                 </tr>
-            </thead>
-            <tbody>
+            </thead>            <tbody>
                 {% for util in utilization_data %}
                 <tr>
                     <td>{{ util.resource.name }}</td>
                     <td>{{ util.utilization_rate|floatformat:1 }}%</td>
+                    <td>{{ util.historical_avg|floatformat:1 }}%</td>
                     <td>
-                        <div class="skill-bar">
-                            <div class="skill-fill" style="width: {{ util.utilization_rate|floatformat:0 }}%"></div>
-                        </div>
+                        {% if util.trend_change > 0 %}
+                            <span style="color: #e53e3e;">↗ +{{ util.trend_change|floatformat:1 }}%</span>
+                        {% elif util.trend_change < 0 %}
+                            <span style="color: #38a169;">↘ {{ util.trend_change|floatformat:1 }}%</span>
+                        {% else %}
+                            <span style="color: #718096;">→ 0.0%</span>
+                        {% endif %}
                     </td>
                     <td>
                         {% if util.utilization_rate > 90 %}
@@ -378,6 +433,63 @@ function changePerPage(perPage) {
     currentUrl.searchParams.set('per_page', perPage);
     currentUrl.searchParams.set('page', '1'); // Reset to first page
     window.location.href = currentUrl.toString();
+}
+
+function refreshForecasts() {
+    // Show loading state
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '🔄 Refreshing...';
+    button.disabled = true;
+    
+    // Call the generate_forecast endpoint
+    fetch('/analytics/generate-forecast/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            'days_ahead': 30
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Refresh the page to show new forecasts
+            window.location.reload();
+        } else {
+            alert('Failed to refresh forecasts: ' + data.message);
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error refreshing forecasts');
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+function generateForecasts() {
+    refreshForecasts(); // Same functionality
+}
+
+// Helper function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
 }
 </script>
 
