@@ -88,6 +88,29 @@ a:hover {
     font-weight: 500;
 }
 
+/* Demo navigation link styling */
+.nav-item.demo-nav {
+    background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+    color: white !important;
+    border-radius: 6px;
+    padding: 8px 12px !important;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+.nav-item.demo-nav:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    background: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%);
+    color: white !important;
+}
+
+.nav-item.demo-nav.active {
+    background: linear-gradient(135deg, #1D4ED8 0%, #1E3A8A 100%);
+    color: white !important;
+}
+
 /* User menu */
 .user-menu {
     display: flex;

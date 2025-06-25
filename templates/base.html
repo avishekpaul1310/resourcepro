@@ -23,11 +23,19 @@
         </div>
     </main>
     
-    {% include 'includes/footer.html' %}    <!-- Base JavaScript -->
+    {% include 'includes/footer.html' %}
+    
+    <!-- Demo Helper Widget -->
+    {% include 'demo_data/demo_helper.html' %}
+      <!-- Base JavaScript -->
     <script src="{% static 'js/main.js' %}"></script>
     
     <!-- AI Dashboard JavaScript (Global) -->
     <script src="{% static 'js/ai_dashboard.js' %}"></script>
+    
+    <!-- Demo System JavaScript -->
+    <script src="{% static 'demo_data/js/guided_tour.js' %}"></script>
+    <script src="{% static 'demo_data/js/recruiter_quick_start.js' %}"></script>
     
     <!-- Additional JavaScript -->
     {% block extra_js %}{% endblock %}

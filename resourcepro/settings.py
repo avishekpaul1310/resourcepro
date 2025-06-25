@@ -46,8 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'rest_framework',
+    'django.contrib.staticfiles',    'rest_framework',
     'rest_framework.authtoken',
     'drf_spectacular',
     'corsheaders',
@@ -60,6 +59,7 @@ INSTALLED_APPS = [
     'api',
     'accounts',
     'analytics',
+    'demo_data',
 ]
 
 MIDDLEWARE = [

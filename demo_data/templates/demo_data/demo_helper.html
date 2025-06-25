@@ -1,0 +1,415 @@
+{% load static %}
+
+<!-- Demo Helper Widget for Recruiters -->
+<div id="demoHelper" class="demo-helper-widget">
+    <div class="demo-helper-trigger" id="demoHelperTrigger">
+        <span class="demo-icon">🎬</span>
+        <span class="demo-text">Demo Mode</span>
+    </div>
+    
+    <div class="demo-helper-panel" id="demoHelperPanel">
+        <div class="demo-panel-header">
+            <h4>🎯 Demo Navigation</h4>
+            <button class="demo-panel-close" id="demoHelperClose">&times;</button>
+        </div>
+        
+        <div class="demo-panel-content">
+            <div class="demo-status" id="demoStatus">
+                <div class="status-indicator" id="statusIndicator"></div>
+                <span id="statusText">Checking demo status...</span>
+            </div>
+            
+            <div class="demo-actions">
+                <button id="startTourBtn" class="demo-btn demo-btn-primary">
+                    📋 Start Guided Tour
+                </button>
+                
+                <button id="loadDemoDataBtn" class="demo-btn demo-btn-secondary">
+                    🚀 Load Demo Data
+                </button>
+                
+                <a href="{% url 'demo_data:management' %}" class="demo-btn demo-btn-outline">
+                    ⚙️ Demo Management
+                </a>
+            </div>
+            
+            <div class="demo-quick-nav">
+                <h5>Quick Navigation:</h5>
+                <div class="quick-nav-grid">
+                    <a href="{% url 'dashboard:dashboard' %}" class="nav-btn">📊 Dashboard</a>
+                    <a href="{% url 'allocation_board' %}" class="nav-btn">🎯 Allocation</a>
+                    <a href="{% url 'analytics:forecasting' %}" class="nav-btn">📈 Forecasting</a>
+                    <a href="{% url 'analytics:ai_analytics_dashboard' %}" class="nav-btn">🤖 AI Analytics</a>
+                </div>
+            </div>
+            
+            <div class="demo-tips">
+                <h5>💡 Pro Tips:</h5>
+                <ul>
+                    <li>Load demo data first for best experience</li>
+                    <li>Look for overallocated resources (red indicators)</li>
+                    <li>Try AI suggestions on unassigned tasks</li>
+                    <li>Check forecasting for predictive insights</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .demo-helper-widget {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    .demo-helper-trigger {
+        background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+        color: white;
+        padding: 12px 16px;
+        border-radius: 25px;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+        user-select: none;
+    }
+    
+    .demo-helper-trigger:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+    }
+    
+    .demo-icon {
+        font-size: 18px;
+    }
+    
+    .demo-text {
+        font-weight: 500;
+        font-size: 14px;
+    }
+    
+    .demo-helper-panel {
+        position: absolute;
+        bottom: 60px;
+        right: 0;
+        width: 320px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        display: none;
+        animation: slideUp 0.3s ease;
+    }
+    
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .demo-panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid #e5e7eb;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-radius: 12px 12px 0 0;
+    }
+    
+    .demo-panel-header h4 {
+        margin: 0;
+        color: #1f2937;
+        font-size: 16px;
+        font-weight: 600;
+    }
+    
+    .demo-panel-close {
+        background: none;
+        border: none;
+        font-size: 20px;
+        color: #6b7280;
+        cursor: pointer;
+        padding: 0;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .demo-panel-close:hover {
+        color: #374151;
+    }
+    
+    .demo-panel-content {
+        padding: 20px;
+    }
+    
+    .demo-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 16px;
+        padding: 12px;
+        background: #f8fafc;
+        border-radius: 8px;
+    }
+    
+    .status-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #10b981;
+    }
+    
+    .status-indicator.empty {
+        background: #ef4444;
+    }
+    
+    .demo-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .demo-btn {
+        padding: 10px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        text-decoration: none;
+        text-align: center;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s ease;
+        display: block;
+    }
+    
+    .demo-btn-primary {
+        background: #3b82f6;
+        color: white;
+    }
+    
+    .demo-btn-primary:hover {
+        background: #2563eb;
+        color: white;
+    }
+    
+    .demo-btn-secondary {
+        background: #10b981;
+        color: white;
+    }
+    
+    .demo-btn-secondary:hover {
+        background: #059669;
+        color: white;
+    }
+    
+    .demo-btn-outline {
+        background: transparent;
+        color: #374151;
+        border: 1px solid #d1d5db;
+    }
+    
+    .demo-btn-outline:hover {
+        background: #f9fafb;
+        color: #374151;
+        text-decoration: none;
+    }
+    
+    .demo-quick-nav {
+        margin-bottom: 20px;
+    }
+    
+    .demo-quick-nav h5 {
+        margin: 0 0 12px 0;
+        color: #374151;
+        font-size: 14px;
+        font-weight: 600;
+    }
+    
+    .quick-nav-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+    
+    .nav-btn {
+        padding: 8px 12px;
+        background: #f8fafc;
+        color: #374151;
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 12px;
+        text-align: center;
+        transition: all 0.2s ease;
+    }
+    
+    .nav-btn:hover {
+        background: #e5e7eb;
+        color: #374151;
+        text-decoration: none;
+    }
+    
+    .demo-tips {
+        border-top: 1px solid #e5e7eb;
+        padding-top: 16px;
+    }
+    
+    .demo-tips h5 {
+        margin: 0 0 8px 0;
+        color: #374151;
+        font-size: 14px;
+        font-weight: 600;
+    }
+    
+    .demo-tips ul {
+        margin: 0;
+        padding-left: 20px;
+        color: #6b7280;
+        font-size: 12px;
+        line-height: 1.4;
+    }
+    
+    .demo-tips li {
+        margin-bottom: 4px;
+    }
+    
+    /* Hide on mobile to avoid interference */
+    @media (max-width: 768px) {
+        .demo-helper-widget {
+            display: none;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const trigger = document.getElementById('demoHelperTrigger');
+    const panel = document.getElementById('demoHelperPanel');
+    const closeBtn = document.getElementById('demoHelperClose');
+    const statusIndicator = document.getElementById('statusIndicator');
+    const statusText = document.getElementById('statusText');
+    const startTourBtn = document.getElementById('startTourBtn');
+    const loadDemoDataBtn = document.getElementById('loadDemoDataBtn');
+    
+    let isOpen = false;
+    
+    // Toggle panel
+    trigger.addEventListener('click', function() {
+        isOpen = !isOpen;
+        panel.style.display = isOpen ? 'block' : 'none';
+        
+        if (isOpen) {
+            checkDemoStatus();
+        }
+    });
+    
+    // Close panel
+    closeBtn.addEventListener('click', function() {
+        isOpen = false;
+        panel.style.display = 'none';
+    });
+    
+    // Close on outside click
+    document.addEventListener('click', function(e) {
+        if (isOpen && !e.target.closest('.demo-helper-widget')) {
+            isOpen = false;
+            panel.style.display = 'none';
+        }
+    });
+    
+    // Check demo status
+    function checkDemoStatus() {
+        fetch('/demo/status/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const hasData = data.status.has_data;
+                    statusIndicator.className = hasData ? 'status-indicator' : 'status-indicator empty';
+                    statusText.textContent = hasData ? 'Demo data loaded' : 'No demo data';
+                    
+                    // Update button states
+                    loadDemoDataBtn.textContent = hasData ? '🔄 Reload Demo Data' : '🚀 Load Demo Data';
+                }
+            })
+            .catch(error => {
+                statusText.textContent = 'Status check failed';
+                console.error('Demo status check failed:', error);
+            });
+    }
+    
+    // Start guided tour
+    startTourBtn.addEventListener('click', function() {
+        // Close panel
+        isOpen = false;
+        panel.style.display = 'none';
+        
+        // Check if tour system is available
+        if (window.initializeGuidedTour) {
+            // Use executive tour config
+            const tourConfig = {
+                name: 'Executive Overview',
+                type: 'executive',
+                steps: [
+                    {
+                        title: 'Welcome to ResourcePro Demo!',
+                        content: 'This guided tour will showcase key features that demonstrate enterprise-scale project management capabilities.',
+                        duration: 15,
+                        highlights: [
+                            'AI-powered resource allocation',
+                            'Predictive capacity planning', 
+                            'Real-time conflict detection',
+                            'Advanced analytics and forecasting'
+                        ]
+                    },
+                    {
+                        title: 'AI-Powered Recommendations',
+                        content: 'Our AI analyzes resource skills, availability, and project requirements to suggest optimal assignments.',
+                        selector: '.ai-suggestions, [data-action="ai-suggestions"]',
+                        duration: 30
+                    },
+                    {
+                        title: 'Resource Utilization',
+                        content: 'Real-time tracking of resource utilization with automatic overallocation detection.',
+                        selector: '.utilization-chart, .resource-card',
+                        duration: 25
+                    },
+                    {
+                        title: 'Project Dashboard',
+                        content: 'Comprehensive overview of all projects with progress tracking and timeline management.',
+                        selector: '.project-overview, .dashboard-stats',
+                        duration: 20
+                    }
+                ]
+            };
+            
+            const tour = window.initializeGuidedTour(tourConfig);
+            tour.start();
+        } else {
+            alert('Guided tour system not available on this page. Please navigate to the Dashboard or Allocation board.');
+        }
+    });
+    
+    // Load demo data
+    loadDemoDataBtn.addEventListener('click', function() {
+        if (confirm('This will load comprehensive demo data. Continue?')) {
+            window.location.href = '/demo/?auto_load=true';
+        }
+    });
+    
+    // Initial status check
+    checkDemoStatus();
+});
+</script>

@@ -24,7 +24,15 @@
                     <a href="{% url 'analytics:utilization_report' %}">Utilization Report</a>
                     <a href="{% url 'analytics:cost_tracking_report' %}">Cost Report</a>
                 </div>
-            </div>        </nav>
+            </div>
+            
+            <div class="dropdown nav-item-container">
+                <a href="{% url 'demo_data:recruiter_showcase' %}" class="nav-item demo-nav {% if '/demo/' in request.path %}active{% endif %}" title="Demo for Recruiters">🎬 Demo</a>
+                <div class="dropdown-content">
+                    <a href="{% url 'demo_data:recruiter_showcase' %}">🚀 Recruiter Showcase</a>
+                    <a href="{% url 'demo_data:management' %}">⚙️ Demo Management</a>
+                </div>
+            </div></nav>
           <!-- AI Natural Language Interface -->
         <div class="main-header">
             {% include 'includes/ai_search.html' %}

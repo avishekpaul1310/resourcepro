@@ -1,0 +1,539 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Demo Data Management - ResourcePro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .demo-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    
+    .demo-scenario {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        border-left: 4px solid #3B82F6;
+    }
+    
+    .demo-scenario.recommended {
+        border-left-color: #10B981;
+        background: linear-gradient(135deg, #f0fff4 0%, #dcfce7 100%);
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .status-empty {
+        background-color: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .status-loaded {
+        background-color: #dcfce7;
+        color: #166534;
+    }
+    
+    .demo-metrics {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .metric-item {
+        background: #f8fafc;
+        padding: 1rem;
+        border-radius: 8px;
+        text-align: center;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .metric-number {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #3B82F6;
+    }
+    
+    .metric-label {
+        font-size: 0.875rem;
+        color: #64748b;
+        margin-top: 0.25rem;
+    }
+    
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.8);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+    
+    .loading-content {
+        background: white;
+        padding: 2rem;
+        border-radius: 10px;
+        text-align: center;
+        max-width: 400px;
+    }
+    
+    .spinner {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #3B82F6;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .btn-demo {
+        background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+        border: none;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .btn-demo:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    }
+    
+    .btn-demo:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+    
+    .btn-clear {
+        background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+    }
+    
+    .btn-clear:hover {
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    }
+    
+    .alert {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+    
+    .alert-success {
+        background-color: #dcfce7;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+    }
+    
+    .alert-error {
+        background-color: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+    }
+    
+    .recruiter-note {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        border: 1px solid #f59e0b;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .recruiter-note h4 {
+        color: #92400e;
+        margin-bottom: 0.5rem;
+    }
+    
+    .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .feature-item {
+        background: white;
+        padding: 1rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-left: 3px solid #3B82F6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="demo-card">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="mb-0">🎬 Demo Data Management</h1>
+                <p class="mb-0 mt-2 opacity-75">One-click demo scenarios for recruiters and stakeholders</p>
+            </div>
+            <div class="col-md-4 text-end">
+                <span class="status-badge {% if demo_status.has_data %}status-loaded{% else %}status-empty{% endif %}">
+                    {% if demo_status.has_data %}
+                        Demo Data Loaded
+                    {% else %}
+                        Database Empty
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recruiter Note -->
+    <div class="recruiter-note">
+        <h4>👋 Welcome, Recruiters!</h4>
+        <p class="mb-2">This ResourcePro demo showcases advanced project management capabilities with AI-powered resource allocation. Click "Load TechCorp Enterprise" below to populate the system with realistic data including 45 team members, 8 concurrent projects, and 180+ tasks.</p>
+        <p class="mb-0"><strong>Perfect for evaluating:</strong> AI recommendations, resource forecasting, utilization optimization, and enterprise-scale project management.</p>
+    </div>
+    
+    <!-- Current Status -->
+    {% if demo_status.has_data %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <h3>📊 Current Demo Status</h3>
+            <div class="demo-metrics">
+                {% for label, count in demo_status.counts.items %}
+                <div class="metric-item">
+                    <div class="metric-number">{{ count }}</div>
+                    <div class="metric-label">{{ label }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            {% if demo_status.latest_session %}
+            <div class="mt-3">
+                <small class="text-muted">
+                    <strong>Active Scenario:</strong> {{ demo_status.latest_session.scenario }}<br>
+                    <strong>Loaded:</strong> {{ demo_status.latest_session.created_at|date:"M d, Y g:i A" }}
+                </small>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Demo Scenarios -->
+    <div class="row">
+        <div class="col-12">
+            <h3>🎯 Available Demo Scenarios</h3>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- TechCorp Enterprise Scenario -->
+            <div class="demo-scenario recommended">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h4 class="text-success mb-2">🏢 TechCorp Enterprise <span class="badge bg-success">Recommended</span></h4>
+                        <p class="mb-2"><strong>Perfect for showcasing advanced AI capabilities and scale</strong></p>
+                        <ul class="mb-3">
+                            <li><strong>45 resources</strong> across 6 departments (Engineering, Product, Operations, Leadership, Specialists)</li>
+                            <li><strong>8 concurrent projects</strong> with realistic complexity and dependencies</li>
+                            <li><strong>180+ tasks</strong> with skill requirements and priority levels</li>
+                            <li><strong>Built-in problem scenarios:</strong> overallocated seniors, underutilized juniors, skill bottlenecks</li>
+                            <li><strong>12 months</strong> of historical data for AI forecasting</li>
+                        </ul>
+                        
+                        <div class="feature-grid">
+                            <div class="feature-item">
+                                <strong>🤖 AI Recommendations</strong><br>
+                                <small>Smart task assignments with conflict detection</small>
+                            </div>
+                            <div class="feature-item">
+                                <strong>📈 Resource Forecasting</strong><br>
+                                <small>ML-powered capacity planning</small>
+                            </div>
+                            <div class="feature-item">
+                                <strong>⚠️ Problem Detection</strong><br>
+                                <small>Overallocation and bottleneck identification</small>
+                            </div>
+                            <div class="feature-item">
+                                <strong>🎯 Optimization</strong><br>
+                                <small>Skills matching and utilization balancing</small>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                <strong>Load time:</strong> 15-20 seconds | 
+                                <strong>Best for:</strong> Technical evaluators, senior leadership demos
+                            </small>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <button id="loadTechCorpBtn" class="btn btn-demo mb-2 w-100">
+                            🚀 Load TechCorp Enterprise
+                        </button>
+                        <p class="small text-muted mb-0">Loads complete enterprise scenario</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Coming Soon Scenarios -->
+            <div class="demo-scenario" style="opacity: 0.6;">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h5 class="mb-2">🚀 StartupRocket Growth <span class="badge bg-secondary">Coming Soon</span></h5>
+                        <p class="mb-1">Rapid scaling challenges with 15 resources growing to 22</p>
+                        <small class="text-muted">Perfect for demonstrating growth management and skill gap analysis</small>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <button class="btn btn-secondary w-100" disabled>
+                            Coming Soon
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="demo-scenario" style="opacity: 0.6;">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h5 class="mb-2">⚡ AgileTeam Sprint Masters <span class="badge bg-secondary">Coming Soon</span></h5>
+                        <p class="mb-1">High-velocity development with 2-week sprint cycles</p>
+                        <small class="text-muted">Showcases agile methodology integration and velocity tracking</small>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <button class="btn btn-secondary w-100" disabled>
+                            Coming Soon
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Management Actions -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">🛠️ Management Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button id="refreshStatusBtn" class="btn btn-outline-primary">
+                            🔄 Refresh Status
+                        </button>
+                        
+                        <hr>
+                        
+                        <button id="clearDataBtn" class="btn btn-clear">
+                            🧹 Clear All Data
+                        </button>
+                        <small class="text-muted">⚠️ This will completely clear the database</small>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h6>📋 Quick Navigation</h6>
+                    <div class="d-grid gap-1">
+                        <a href="{% url 'dashboard:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+                            📊 Dashboard
+                        </a>
+                        <a href="{% url 'allocation_board' %}" class="btn btn-outline-secondary btn-sm">
+                            🎯 Resource Allocation
+                        </a>
+                        <a href="{% url 'analytics:forecasting' %}" class="btn btn-outline-secondary btn-sm">
+                            📈 Forecasting
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Demo Tips -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">💡 Demo Tips</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="small mb-0">
+                        <li>Load TechCorp scenario first for best experience</li>
+                        <li>Check Resource Allocation board for AI suggestions</li>
+                        <li>Visit Forecasting page to see predictive analytics</li>
+                        <li>Look for overallocated resources (red indicators)</li>
+                        <li>Try the "Assign All" feature for bulk operations</li>
+                        <li>Clear data when demo is complete</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Alert Messages -->
+    <div id="alertContainer" class="mt-3" style="display: none;">
+        <div id="alertMessage" class="alert"></div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-content">
+        <div class="spinner"></div>
+        <h5 id="loadingTitle">Loading Demo Data...</h5>
+        <p id="loadingMessage">Please wait while we populate the database with enterprise-scale demo data.</p>
+        <small class="text-muted">This may take 15-20 seconds</small>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const loadTechCorpBtn = document.getElementById('loadTechCorpBtn');
+    const clearDataBtn = document.getElementById('clearDataBtn');
+    const refreshStatusBtn = document.getElementById('refreshStatusBtn');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const alertContainer = document.getElementById('alertContainer');
+    const alertMessage = document.getElementById('alertMessage');
+    
+    function showAlert(message, type = 'success') {
+        alertMessage.textContent = message;
+        alertMessage.className = `alert alert-${type}`;
+        alertContainer.style.display = 'block';
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            alertContainer.style.display = 'none';
+        }, 5000);
+    }
+    
+    function showLoading(title, message) {
+        document.getElementById('loadingTitle').textContent = title;
+        document.getElementById('loadingMessage').textContent = message;
+        loadingOverlay.style.display = 'flex';
+    }
+    
+    function hideLoading() {
+        loadingOverlay.style.display = 'none';
+    }
+    
+    function disableButtons() {
+        loadTechCorpBtn.disabled = true;
+        clearDataBtn.disabled = true;
+        refreshStatusBtn.disabled = true;
+    }
+    
+    function enableButtons() {
+        loadTechCorpBtn.disabled = false;
+        clearDataBtn.disabled = false;
+        refreshStatusBtn.disabled = false;
+    }
+    
+    // Load TechCorp Enterprise Scenario
+    loadTechCorpBtn.addEventListener('click', function() {
+        if (confirm('This will replace all existing data with the TechCorp Enterprise scenario. Continue?')) {
+            disableButtons();
+            showLoading('Loading TechCorp Enterprise...', 'Creating 45 resources, 8 projects, and 180+ tasks with realistic assignments and historical data.');
+            
+            fetch('{% url "demo_data:load" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    scenario: 'techcorp_enterprise'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideLoading();
+                enableButtons();
+                
+                if (data.success) {
+                    const metrics = data.metrics;
+                    showAlert(`✅ TechCorp Enterprise scenario loaded successfully! Created ${metrics.resources} resources, ${metrics.projects} projects, ${metrics.tasks} tasks, and ${metrics.assignments} assignments in ${metrics.load_time.toFixed(2)} seconds.`, 'success');
+                    
+                    // Refresh page after 2 seconds
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    showAlert(`❌ Failed to load demo data: ${data.error}`, 'error');
+                }
+            })
+            .catch(error => {
+                hideLoading();
+                enableButtons();
+                showAlert(`❌ Error loading demo data: ${error.message}`, 'error');
+            });
+        }
+    });
+    
+    // Clear All Data
+    clearDataBtn.addEventListener('click', function() {
+        if (confirm('⚠️ This will permanently delete ALL data from the database. This action cannot be undone. Are you sure?')) {
+            disableButtons();
+            showLoading('Clearing Database...', 'Removing all demo data from the system.');
+            
+            fetch('{% url "demo_data:clear" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideLoading();
+                enableButtons();
+                
+                if (data.success) {
+                    showAlert(`🧹 All demo data cleared successfully! Database is now empty and ready for new scenarios.`, 'success');
+                    
+                    // Refresh page after 2 seconds
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    showAlert(`❌ Failed to clear data: ${data.error}`, 'error');
+                }
+            })
+            .catch(error => {
+                hideLoading();
+                enableButtons();
+                showAlert(`❌ Error clearing data: ${error.message}`, 'error');
+            });
+        }
+    });
+    
+    // Refresh Status
+    refreshStatusBtn.addEventListener('click', function() {
+        window.location.reload();
+    });
+    
+    // Hide alerts when clicked
+    alertContainer.addEventListener('click', function() {
+        alertContainer.style.display = 'none';
+    });
+});
+</script>
+{% endblock %}

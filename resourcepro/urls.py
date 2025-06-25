@@ -26,10 +26,10 @@ urlpatterns = [
     path('resources/', include('resources.urls', namespace='resources')),
     path('projects/', include('projects.urls')),
     path('allocation/', include('allocation.urls')),
-    path('dashboard/', include('dashboard.urls')),
-    path('api/', include('api.urls')),
+    path('dashboard/', include('dashboard.urls')),    path('api/', include('api.urls')),
     path('accounts/', include('accounts.urls')),
     path('analytics/', include('analytics.urls', namespace='analytics')),
+    path('demo/', include('demo_data.urls', namespace='demo_data')),
     # Global AI Search endpoint (page-agnostic)
     path('api/ai-search/', dashboard_views.process_nli_query, name='global_ai_search'),
 ]

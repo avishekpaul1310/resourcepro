@@ -1,0 +1,360 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Recruiter Demo Showcase - ResourcePro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .showcase-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 3rem 0;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .showcase-header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .showcase-header p {
+        font-size: 1.2rem;
+        opacity: 0.9;
+    }
+    
+    .feature-showcase {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+    
+    .feature-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border-left: 4px solid #3B82F6;
+    }
+    
+    .feature-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .feature-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        display: block;
+    }
+    
+    .feature-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: #1f2937;
+    }
+    
+    .feature-description {
+        color: #6b7280;
+        margin-bottom: 1.5rem;
+    }
+    
+    .feature-demo-btn {
+        background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .feature-demo-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin: 2rem 0;
+    }
+    
+    .metric-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .metric-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #3B82F6;
+        display: block;
+    }
+    
+    .metric-label {
+        color: #6b7280;
+        font-size: 0.9rem;
+        margin-top: 0.5rem;
+    }
+    
+    .tech-stack {
+        background: #f8fafc;
+        padding: 2rem;
+        border-radius: 12px;
+        margin: 2rem 0;
+    }
+    
+    .tech-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+    
+    .tech-badge {
+        background: #3B82F6;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+    
+    .quick-start {
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        text-align: center;
+        margin: 2rem 0;
+    }
+    
+    .quick-start-btn {
+        background: white;
+        color: #10B981;
+        border: none;
+        padding: 1rem 2rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 1rem;
+    }
+    
+    .quick-start-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(255,255,255,0.3);
+    }
+    
+    .demo-video-placeholder {
+        background: #f1f5f9;
+        border: 2px dashed #cbd5e1;
+        border-radius: 12px;
+        padding: 3rem;
+        text-align: center;
+        color: #64748b;
+        margin: 2rem 0;
+    }
+    
+    .highlight-box {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        border-left: 4px solid #f59e0b;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin: 1.5rem 0;
+    }
+    
+    .highlight-box h4 {
+        color: #92400e;
+        margin-bottom: 0.5rem;
+    }
+    
+    .highlight-box p {
+        color: #78350f;
+        margin: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="showcase-header">
+    <div class="container">
+        <h1>🚀 ResourcePro Demo Showcase</h1>
+        <p>Experience next-generation resource management with AI-powered insights</p>
+        <p class="mt-3">
+            <strong>Perfect for:</strong> Google, Amazon, Microsoft, and other tech companies managing complex projects
+        </p>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Quick Start Section -->
+    <div class="quick-start">
+        <h2>🎯 Ready to Explore?</h2>
+        <p>Get started with pre-loaded demo data showcasing a realistic enterprise scenario</p>
+        <button id="quickStartBtn" class="quick-start-btn">
+            🚀 Load Demo Data & Start Tour
+        </button>
+    </div>
+    
+    <!-- Current System Metrics -->
+    <div class="metrics-grid" id="systemMetrics">
+        <div class="metric-card">
+            <span class="metric-value" id="resourceCount">-</span>
+            <div class="metric-label">Resources Managed</div>
+        </div>
+        <div class="metric-card">
+            <span class="metric-value" id="projectCount">-</span>
+            <div class="metric-label">Active Projects</div>
+        </div>
+        <div class="metric-card">
+            <span class="metric-value" id="taskCount">-</span>
+            <div class="metric-label">Tasks Tracked</div>
+        </div>
+        <div class="metric-card">
+            <span class="metric-value" id="utilizationRate">-</span>
+            <div class="metric-label">Avg. Utilization</div>
+        </div>
+    </div>
+    
+    <!-- Feature Showcase -->
+    <div class="feature-showcase">
+        <!-- AI-Powered Analytics -->
+        <div class="feature-card">
+            <span class="feature-icon">🤖</span>
+            <h3 class="feature-title">AI-Powered Analytics</h3>
+            <p class="feature-description">
+                Advanced machine learning algorithms analyze resource utilization patterns, 
+                predict bottlenecks, and provide intelligent recommendations for optimal allocation.
+            </p>
+            <a href="{% url 'analytics:ai_analytics_dashboard' %}" class="feature-demo-btn">
+                Try AI Analytics →
+            </a>
+        </div>
+        
+        <!-- Real-Time Dashboard -->
+        <div class="feature-card">
+            <span class="feature-icon">📊</span>
+            <h3 class="feature-title">Real-Time Dashboard</h3>
+            <p class="feature-description">
+                Get instant visibility into team utilization, project health, and resource 
+                conflicts with live updates and smart alerts.
+            </p>
+            <a href="{% url 'dashboard:dashboard' %}" class="feature-demo-btn">
+                View Dashboard →
+            </a>
+        </div>
+        
+        <!-- Predictive Forecasting -->
+        <div class="feature-card">
+            <span class="feature-icon">📈</span>
+            <h3 class="feature-title">Predictive Forecasting</h3>
+            <p class="feature-description">
+                AI-driven demand forecasting helps you anticipate resource needs, 
+                plan capacity, and make data-driven hiring decisions.
+            </p>
+            <a href="{% url 'analytics:forecasting' %}" class="feature-demo-btn">
+                See Forecasts →
+            </a>
+        </div>
+        
+        <!-- Smart Allocation -->
+        <div class="feature-card">
+            <span class="feature-icon">🎯</span>
+            <h3 class="feature-title">Smart Allocation</h3>
+            <p class="feature-description">
+                Intelligent resource matching based on skills, availability, and workload. 
+                Drag-and-drop interface with AI-powered suggestions.
+            </p>
+            <a href="{% url 'allocation_board' %}" class="feature-demo-btn">
+                Try Allocation →
+            </a>
+        </div>
+        
+        <!-- Advanced Analytics -->
+        <div class="feature-card">
+            <span class="feature-icon">📋</span>
+            <h3 class="feature-title">Advanced Analytics</h3>
+            <p class="feature-description">
+                Comprehensive reports on utilization trends, cost analysis, and performance 
+                metrics with exportable Excel/PDF reports.
+            </p>
+            <a href="{% url 'analytics:analytics_dashboard' %}" class="feature-demo-btn">
+                View Analytics →
+            </a>
+        </div>
+        
+        <!-- Enterprise Integration -->
+        <div class="feature-card">
+            <span class="feature-icon">🔌</span>
+            <h3 class="feature-title">Enterprise Ready</h3>
+            <p class="feature-description">
+                Built for scale with RESTful APIs, role-based access control, 
+                audit trails, and enterprise-grade security features.
+            </p>
+            <a href="{% url 'api:schema-swagger-ui' %}" class="feature-demo-btn">
+                View API Docs →
+            </a>
+        </div>
+    </div>
+    
+    <!-- Highlight Box -->
+    <div class="highlight-box">
+        <h4>🎯 Perfect for Tech Recruiting Managers</h4>
+        <p>
+            This demo showcases exactly the kind of enterprise-scale resource management system 
+            that top tech companies need. Experience how AI can transform project planning, 
+            resource allocation, and team utilization optimization.
+        </p>
+    </div>
+    
+    <!-- Tech Stack -->
+    <div class="tech-stack">
+        <h3>🛠️ Technology Stack</h3>
+        <p>Built with modern, enterprise-grade technologies:</p>
+        <div class="tech-badges">
+            <span class="tech-badge">Django 4.2</span>
+            <span class="tech-badge">Python 3.11</span>
+            <span class="tech-badge">PostgreSQL</span>
+            <span class="tech-badge">Google Gemini AI</span>
+            <span class="tech-badge">Django REST Framework</span>
+            <span class="tech-badge">Bootstrap 5</span>
+            <span class="tech-badge">Chart.js</span>
+            <span class="tech-badge">Docker</span>
+            <span class="tech-badge">Redis</span>
+            <span class="tech-badge">Celery</span>
+        </div>
+    </div>
+    
+    <!-- Demo Video Placeholder -->
+    <div class="demo-video-placeholder">
+        <h3>📹 Video Demo Coming Soon</h3>
+        <p>Watch a complete walkthrough of ResourcePro's key features</p>
+        <p><em>For now, try the interactive demo above!</em></p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load system metrics is now handled by RecruiterQuickStart class
+    // Quick start button is now handled by RecruiterQuickStart class
+});
+</script>
+</script>
+
+{% csrf_token %}
+{% endblock %}
